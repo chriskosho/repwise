@@ -87,6 +87,14 @@ async function runSync() {
   return true;
 }
 
+// Only one tab per browser may sync at a time. Without this, two open tabs
+// (for example the original and the one a magic link opens) both push and pull
+// at once, which shows up as duplicate requests. Returns null if another tab is syncing.
+function withSyncLock(fn) {
+  if (!navigator.locks?.request) return fn();
+  return navigator.locks.request('repwise-sync', { ifAvailable: true }, (lock) => (lock ? fn() : null));
+}
+
 export function useSync() {
   const [session, setSession] = useState(null);
   const [status, setStatus] = useState(supabase ? 'idle' : 'disabled');
@@ -111,8 +119,8 @@ export function useSync() {
     setStatus('syncing');
     setError('');
     try {
-      const ok = await runSync();
-      if (ok) {
+      const ok = await withSyncLock(runSync);
+      if (ok === true) {
         const ts = new Date().toISOString();
         setLastSynced(ts);
         try {
