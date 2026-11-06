@@ -1,0 +1,392 @@
+:root {
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --text: #16181d;
+  --muted: #667085;
+  --line: #e2e6ec;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --danger: #b42318;
+  --ok: #067647;
+  --warn-bg: #fff6e0;
+  --warn-line: #f1d48a;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115;
+    --card: #181b21;
+    --text: #eceff4;
+    --muted: #98a2b3;
+    --line: #2a2f3a;
+    --accent: #2dd4bf;
+    --accent-ink: #06201d;
+    --danger: #f97066;
+    --ok: #47cd89;
+    --warn-bg: #2b2410;
+    --warn-line: #5a4a14;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  min-height: 100dvh;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+
+.content {
+  padding: 16px 16px calc(84px + env(safe-area-inset-bottom));
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+}
+
+h3 {
+  margin: 20px 0 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.field > span {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-height: 44px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+.file-btn:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.sets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sets-head,
+.set-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 1fr 44px;
+  gap: 8px;
+  align-items: center;
+}
+
+.sets-head {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.set-num {
+  text-align: center;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn-ghost {
+  color: var(--text);
+  background: transparent;
+  border-color: var(--line);
+}
+
+.btn-danger {
+  color: var(--danger);
+}
+
+.btn-small {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 0.9rem;
+}
+
+.icon-btn {
+  min-height: 44px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.icon-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.chip-ok {
+  color: var(--ok);
+}
+
+.chip-error {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: 12px;
+  font-size: 0.95rem;
+}
+
+.banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.empty {
+  text-align: center;
+  padding: 32px 8px;
+}
+
+.error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.92rem;
+}
+
+.success {
+  margin: 0;
+  color: var(--ok);
+  font-size: 0.92rem;
+}
+
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filters .btn {
+  align-self: flex-start;
+}
+
+.entry {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.entry-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sets-summary {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.notes {
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.entry-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.stats > div {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  background: var(--bg);
+  border-radius: 10px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.chart {
+  margin-top: 12px;
+}
+
+.file-btn {
+  cursor: pointer;
+}
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  max-width: 640px;
+  margin: 0 auto;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--card);
+  border-top: 1px solid var(--line);
+}
+
+.tab {
+  flex: 1;
+  min-height: 56px;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.tab.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn,
+  .chip,
+  .tab {
+    transition: opacity 0.15s ease;
+  }
+}
