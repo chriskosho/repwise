@@ -20,6 +20,7 @@ create index if not exists workouts_user_updated_idx on public.workouts (user_id
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = clock_timestamp();
