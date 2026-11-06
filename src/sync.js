@@ -10,40 +10,40 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // on the server is what keeps each user's rows private.
 export const supabase = url && key ? createClient(url, key) : null;
 
-const PUSH_CHUNK = 200;
+const TABLE = 'sessions';
+const PUSH_CHUNK = 100;
 const PULL_PAGE = 1000;
 const LAST_SYNCED = 'repwise.lastSynced';
 
 async function push(userId) {
-  const dirty = await db.workouts.where('dirty').equals(1).toArray();
+  const dirty = await db.sessions.where('dirty').equals(1).toArray();
   for (let i = 0; i < dirty.length; i += PUSH_CHUNK) {
     const chunk = dirty.slice(i, i + PUSH_CHUNK);
     // updated_at is deliberately not sent: the server sets it, so a device
     // with a wrong clock can't win a conflict.
-    const payload = chunk.map((w) => ({
-      id: w.id,
+    const payload = chunk.map((s) => ({
+      id: s.id,
       user_id: userId,
-      date: w.date,
-      exercise: w.exercise,
-      sets: w.sets,
-      notes: w.notes ?? '',
-      created_at: w.created_at,
-      deleted_at: w.deleted_at ?? null,
+      date: s.date,
+      name: s.name ?? '',
+      started_at: s.started_at,
+      ended_at: s.ended_at ?? null,
+      notes: s.notes ?? '',
+      exercises: s.exercises ?? [],
+      created_at: s.created_at,
+      deleted_at: s.deleted_at ?? null,
     }));
-    const { data, error } = await supabase
-      .from('workouts')
-      .upsert(payload, { onConflict: 'id' })
-      .select('id, updated_at');
+    const { data, error } = await supabase.from(TABLE).upsert(payload, { onConflict: 'id' }).select('id, updated_at');
     if (error) throw error;
 
-    const sent = new Map(chunk.map((w) => [w.id, w.rev ?? 0]));
-    await db.transaction('rw', db.workouts, async () => {
+    const sent = new Map(chunk.map((s) => [s.id, s.rev ?? 0]));
+    await db.transaction('rw', db.sessions, async () => {
       for (const r of data) {
-        const local = await db.workouts.get(r.id);
+        const local = await db.sessions.get(r.id);
         if (!local) continue;
         // Edited again while the request was in flight? Stay dirty.
         const stillSame = (local.rev ?? 0) === sent.get(r.id);
-        await db.workouts.update(r.id, {
+        await db.sessions.update(r.id, {
           user_id: userId,
           updated_at: r.updated_at,
           ...(stillSame ? { dirty: 0 } : {}),
@@ -54,21 +54,23 @@ async function push(userId) {
 }
 
 async function pull() {
-  let since = (await db.meta.get('last_pull'))?.value ?? null;
+  // Sessions use their own cursor; the old per-exercise table is no longer synced.
+  const cursorKey = 'last_pull_sessions';
+  let since = (await db.meta.get(cursorKey))?.value ?? null;
   for (;;) {
-    let q = supabase.from('workouts').select('*').order('updated_at', { ascending: true }).limit(PULL_PAGE);
+    let q = supabase.from(TABLE).select('*').order('updated_at', { ascending: true }).limit(PULL_PAGE);
     if (since) q = q.gte('updated_at', since); // gte + idempotent merge: never skips rows sharing a timestamp
     const { data, error } = await q;
     if (error) throw error;
     if (!data.length) break;
 
-    await db.transaction('rw', db.workouts, db.meta, async () => {
+    await db.transaction('rw', db.sessions, db.meta, async () => {
       for (const r of data) {
-        const local = await db.workouts.get(r.id);
+        const local = await db.sessions.get(r.id);
         if (local?.dirty) continue; // unpushed local edit wins until it is pushed
-        await db.workouts.put({ ...r, dirty: 0, rev: local?.rev ?? 0 });
+        await db.sessions.put({ ...r, dirty: 0, rev: local?.rev ?? 0 });
       }
-      await db.meta.put({ key: 'last_pull', value: data[data.length - 1].updated_at });
+      await db.meta.put({ key: cursorKey, value: data[data.length - 1].updated_at });
     });
 
     const next = data[data.length - 1].updated_at;
@@ -107,7 +109,7 @@ export function useSync() {
     }
   });
   const running = useRef(false);
-  const pending = useLiveQuery(() => db.workouts.where('dirty').equals(1).count(), [], 0);
+  const pending = useLiveQuery(() => db.sessions.where('dirty').equals(1).count(), [], 0);
 
   const syncNow = useCallback(async () => {
     if (!supabase || running.current) return;

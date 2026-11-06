@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { downloadExport, importFile } from '../backup';
 import { lastExportAt } from '../db';
+import { setPrefs, usePrefs } from '../prefs';
+
+const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300];
+const restLabel = (s) => (s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString() : 'never');
 
@@ -11,6 +15,7 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
   const [busy, setBusy] = useState(false);
   const [backupMsg, setBackupMsg] = useState('');
   const [backupErr, setBackupErr] = useState('');
+  const prefs = usePrefs();
 
   async function sendLink(e) {
     e.preventDefault();
@@ -127,6 +132,42 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
             {backupErr}
           </p>
         )}
+      </section>
+
+      <section className="card">
+        <h2>Workout</h2>
+        <div className="form">
+          <label className="check-row">
+            <input type="checkbox" checked={prefs.restEnabled} onChange={(e) => setPrefs({ restEnabled: e.target.checked })} />
+            <span>Start the rest timer when I complete a set</span>
+          </label>
+          <label className="field">
+            <span>Default rest</span>
+            <select
+              value={prefs.restSeconds}
+              disabled={!prefs.restEnabled}
+              onChange={(e) => setPrefs({ restSeconds: Number(e.target.value) })}
+            >
+              {REST_CHOICES.map((s) => (
+                <option key={s} value={s}>
+                  {restLabel(s)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="check-row">
+            <input type="checkbox" checked={prefs.alerts} onChange={(e) => setPrefs({ alerts: e.target.checked })} />
+            <span>Sound and vibration when rest ends</span>
+          </label>
+          <label className="check-row">
+            <input type="checkbox" checked={prefs.keepAwake} onChange={(e) => setPrefs({ keepAwake: e.target.checked })} />
+            <span>Keep the screen on during a workout</span>
+          </label>
+          <p className="muted">
+            Alerts only work while Repwise is open and the screen is on. Browsers don't allow web apps to sound alarms from the
+            background, which is why the screen stays on during a workout.
+          </p>
+        </div>
       </section>
 
       <section className="card">

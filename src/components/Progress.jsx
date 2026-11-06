@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { listWorkouts } from '../db';
+import { listSessions } from '../db';
+import { entriesFromSessions, key } from '../stats';
 
 const METRICS = {
   top: { label: 'Top weight', value: (sets) => Math.max(...sets.map((s) => s.weight)), weighted: true },
@@ -21,21 +22,25 @@ const shortDate = (iso) => {
 };
 
 export default function Progress({ unit }) {
-  const all = useLiveQuery(listWorkouts, [], null);
+  const sessions = useLiveQuery(listSessions, [], undefined);
+  const all = useMemo(() => (sessions ? entriesFromSessions(sessions) : null), [sessions]);
   const [exercise, setExercise] = useState('');
   const [metric, setMetric] = useState('top');
 
-  const names = useMemo(
-    () => (all ? [...new Set(all.map((w) => w.exercise))].sort((a, b) => a.localeCompare(b)) : []),
-    [all],
-  );
+  // One entry per exercise, ignoring capitalization ("squat" and "Squat" are the same).
+  const names = useMemo(() => {
+    if (!all) return [];
+    const m = new Map();
+    for (const w of all) if (!m.has(key(w.exercise))) m.set(key(w.exercise), w.exercise);
+    return [...m.values()].sort((a, b) => a.localeCompare(b));
+  }, [all]);
   const selected = names.includes(exercise) ? exercise : names[0] || '';
 
   const series = useMemo(() => {
     if (!all || !selected) return [];
     const byDate = new Map();
     for (const w of all) {
-      if (w.exercise !== selected) continue;
+      if (key(w.exercise) !== key(selected)) continue;
       byDate.set(w.date, [...(byDate.get(w.date) ?? []), ...w.sets]);
     }
     const fn = METRICS[metric].value;
