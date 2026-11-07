@@ -1,6 +1,35 @@
 import { useState } from 'react';
 import { DEFAULTS, platesFor, warmupSets } from '../calc';
 
+// Draws the loaded bar: plates sized by weight, mirrored on both sides.
+function BarDiagram({ perSide, plates }) {
+  const list = perSide.flatMap((x) => Array(x.count).fill(x.plate));
+  const biggest = Math.max(...plates);
+  const W = 340;
+  const H = 120;
+  const mid = W / 2;
+  const plateW = list.length > 8 ? 9 : 12;
+  const gap = 2;
+  const sleeveStart = 62; // distance from the centre to the collar
+  const h = (p) => 34 + 76 * Math.sqrt(p / biggest); // bigger plates are taller
+  const shade = (p) => 0.35 + 0.65 * (p / biggest);
+  const side = (dir) =>
+    list.map((p, i) => {
+      const x = mid + dir * (sleeveStart + i * (plateW + gap)) - (dir < 0 ? plateW : 0);
+      const ph = h(p);
+      return <rect key={`${dir}-${i}`} x={x} y={(H - ph) / 2} width={plateW} height={ph} rx="2.5" fill="var(--accent)" fillOpacity={shade(p)} />;
+    });
+  return (
+    <svg className="bar-diagram" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Plates on the bar">
+      <rect x="6" y={H / 2 - 3} width={W - 12} height="6" rx="3" fill="var(--muted)" />
+      <rect x={mid - sleeveStart - 4} y={H / 2 - 9} width="5" height="18" rx="1.5" fill="var(--muted)" />
+      <rect x={mid + sleeveStart - 1} y={H / 2 - 9} width="5" height="18" rx="1.5" fill="var(--muted)" />
+      {side(-1)}
+      {side(1)}
+    </svg>
+  );
+}
+
 function Plates({ unit }) {
   const d = DEFAULTS[unit];
   const [target, setTarget] = useState('');
@@ -29,9 +58,9 @@ function Plates({ unit }) {
         </label>
       </div>
       <fieldset className="plates-have">
-        <legend className="muted">Plates you have</legend>
+        <legend className="field-label">Plates you have</legend>
         {d.plates.map((p) => (
-          <label className="check-row" key={p}>
+          <label className="toggle-chip" key={p}>
             <input type="checkbox" checked={have.has(p)} onChange={() => toggle(p)} />
             <span>{p}</span>
           </label>
@@ -40,11 +69,14 @@ function Plates({ unit }) {
       {result?.error && <p className="error">{result.error}</p>}
       {result && !result.error && (
         <div aria-live="polite">
-          <p>
-            <strong>Each side:</strong>{' '}
-            {result.perSide.length ? result.perSide.map((x) => `${x.count} × ${x.plate}`).join(', ') : 'no plates, just the bar'}
+          <BarDiagram perSide={result.perSide} plates={d.plates} />
+          <p className="plate-answer">
+            <span className="stat-label">Each side</span>
+            <strong>{result.perSide.length ? result.perSide.map((x) => `${x.count} × ${x.plate}`).join(' + ') : 'Just the bar'}</strong>
           </p>
-          <p className="muted">Total on the bar: {result.achieved} {unit}</p>
+          <p className="muted">
+            Total on the bar: {result.achieved} {unit}
+          </p>
           {result.short > 0 && (
             <p className="error">
               Closest you can load with these plates is {result.achieved} {unit}, {result.short} {unit} short.
@@ -70,9 +102,13 @@ function Warmup({ unit }) {
       {working !== '' && !sets.length && <p className="muted">That is light enough to start with no warm-up sets.</p>}
       {sets.length > 0 && (
         <ol className="warmups">
-          {sets.map((s) => (
+          {sets.map((s, i) => (
             <li key={s.weight}>
-              {s.weight} {unit} × {s.reps}
+              <span className="warm-n">{i + 1}</span>
+              <strong>
+                {s.weight} {unit} × {s.reps}
+              </strong>
+              <span className="muted">{i === 0 && s.weight === d.bar ? 'empty bar' : `${Math.round((s.weight / Number(working)) * 100)}%`}</span>
             </li>
           ))}
         </ol>

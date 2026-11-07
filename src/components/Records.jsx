@@ -1,8 +1,18 @@
 import { useMemo, useState } from 'react';
 import { allRecords } from '../analytics';
-import { fmtNum, fmtVolume, key } from '../stats';
+import { fmtShortDate, fmtVolume, key, plural } from '../stats';
 
-const shortDate = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+const whole = (n) => Math.round(n).toLocaleString();
+
+function Tile({ label, value, sub }) {
+  return (
+    <div className="tile">
+      <span className="stat-label">{label}</span>
+      <strong>{value}</strong>
+      <span className="tile-sub">{sub}</span>
+    </div>
+  );
+}
 
 export default function Records({ sessions, unit }) {
   const [q, setQ] = useState('');
@@ -15,51 +25,29 @@ export default function Records({ sessions, unit }) {
     <section className="card">
       <h2>Personal records</h2>
       <label className="field">
-        <span>Find an exercise</span>
-        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} />
+        <span className="sr-only">Find an exercise</span>
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find an exercise" aria-label="Find an exercise" />
       </label>
       {!shown.length && <p className="muted empty">No exercises match.</p>}
       {shown.map((r) => (
         <div className="record" key={r.name}>
-          <div className="goal-top">
+          <div className="record-head">
             <strong>{r.name}</strong>
-            <span className="muted">
-              {r.count} workout{r.count === 1 ? '' : 's'}
-            </span>
+            <span className="muted">{plural(r.count, 'workout')}</span>
           </div>
-          <dl className="rec-grid">
-            {r.weight && (
-              <div>
-                <dt>Heaviest</dt>
-                <dd>
-                  {fmtNum(r.weight.value)} {unit} × {r.weight.reps}
-                  <span className="muted"> · {shortDate(r.weight.date)}</span>
-                </dd>
-              </div>
-            )}
-            {r.e1rm && (
-              <div>
-                <dt>Est. 1RM</dt>
-                <dd>
-                  {fmtNum(Math.round(r.e1rm.value * 10) / 10)} {unit}
-                  <span className="muted">
-                    {' '}
-                    · {fmtNum(r.e1rm.weight)} × {r.e1rm.reps}, {shortDate(r.e1rm.date)}
-                  </span>
-                </dd>
-              </div>
-            )}
-            {r.volume && (
-              <div>
-                <dt>Best volume</dt>
-                <dd>
-                  {fmtVolume(r.volume.value)} {unit}
-                  <span className="muted"> · {shortDate(r.volume.date)}</span>
-                </dd>
-              </div>
-            )}
-            {!r.weight && <p className="muted">No weight logged for this exercise.</p>}
-          </dl>
+          {r.weight ? (
+            <div className="tiles">
+              <Tile label="Heaviest" value={`${whole(r.weight.value)} ${unit}`} sub={`× ${r.weight.reps} · ${fmtShortDate(r.weight.date)}`} />
+              <Tile
+                label="Est. 1RM"
+                value={`${whole(r.e1rm.value)} ${unit}`}
+                sub={`from ${whole(r.e1rm.weight)} × ${r.e1rm.reps}`}
+              />
+              <Tile label="Best volume" value={`${fmtVolume(r.volume.value)} ${unit}`} sub={fmtShortDate(r.volume.date)} />
+            </div>
+          ) : (
+            <p className="muted">No weight logged for this exercise.</p>
+          )}
         </div>
       ))}
     </section>

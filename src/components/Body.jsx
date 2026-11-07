@@ -5,6 +5,9 @@ import { deleteBodyEntry, getProfile, listBodyEntries, listGoals, listSessions, 
 import { MEASUREMENTS, bmi, changeOver, latestWeightKg, measurementLabel, weightTrend } from '../body';
 import { lengthIn, lengthOut, lengthUnit, weightIn, weightOut } from '../units';
 import Goals from './Goals';
+import { fmtDayDate } from '../stats';
+
+const PAGE = 10;
 
 const RANGES = [
   ['30', '30 days'],
@@ -39,7 +42,8 @@ export default function Body({ unit }) {
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState('');
   const [range, setRange] = useState('90');
-  const [confirmId, setConfirmId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [limit, setLimit] = useState(PAGE);
 
   const lu = lengthUnit(unit);
 
@@ -86,11 +90,22 @@ export default function Body({ unit }) {
       <section className="card">
         <h2>Body</h2>
         <form className="form" onSubmit={save}>
+          <label className="field">
+            <span>Date</span>
+            <input
+              type="date"
+              value={date}
+              max={today()}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                setDate(e.target.value);
+                setConfirmDelete(false);
+                setMsg('');
+              }}
+              required
+            />
+          </label>
           <div className="row">
-            <label className="field">
-              <span>Date</span>
-              <input type="date" value={date} max={today()} onChange={(e) => e.target.value && setDate(e.target.value)} required />
-            </label>
             <label className="field">
               <span>Weight ({unit})</span>
               <input type="number" inputMode="decimal" step="0.1" min="0" value={weight} onChange={(e) => setWeight(e.target.value)} />
@@ -128,6 +143,24 @@ export default function Body({ unit }) {
             <button type="submit" className="btn">
               {existing ? 'Update entry' : 'Save entry'}
             </button>
+            {existing && !confirmDelete && (
+              <button type="button" className="btn btn-ghost btn-danger" onClick={() => setConfirmDelete(true)}>
+                Delete entry
+              </button>
+            )}
+            {existing && confirmDelete && (
+              <button
+                type="button"
+                className="btn btn-danger-solid"
+                onClick={async () => {
+                  await deleteBodyEntry(existing.id);
+                  setConfirmDelete(false);
+                  setMsg('Deleted.');
+                }}
+              >
+                Yes, delete {fmtDayDate(date)}
+              </button>
+            )}
             {msg && (
               <span className={msg.startsWith('Enter') ? 'error' : 'success'} role="status">
                 {msg}
@@ -182,42 +215,41 @@ export default function Body({ unit }) {
       <section className="card">
         <h2>History</h2>
         {!entries.length && <p className="muted empty">Your weigh-ins and measurements will be listed here.</p>}
-        {entries.map((e) => {
-          const parts = [];
-          if (e.weight_kg != null) parts.push(`${weightOut(e.weight_kg, unit)} ${unit}`);
-          if (e.body_fat != null) parts.push(`${e.body_fat}% fat`);
-          for (const [k, v] of Object.entries(e.measurements ?? {})) parts.push(`${measurementLabel(k)} ${lengthOut(v, unit)} ${lu}`);
-          return (
-            <div className="entry" key={e.id}>
-              <div className="entry-main">
-                <strong>{e.date}</strong>
-                <span className="sets-summary">{parts.join(' · ')}</span>
-                {e.notes && <span className="notes">{e.notes}</span>}
-              </div>
-              <div className="entry-actions">
-                <button type="button" className="btn btn-small btn-ghost" onClick={() => setDate(e.date)}>
-                  Edit
+        <ul className="list">
+          {entries.slice(0, limit).map((e) => {
+            const parts = [];
+            if (e.body_fat != null) parts.push(`${Math.round(e.body_fat * 10) / 10}% fat`);
+            for (const [k, v] of Object.entries(e.measurements ?? {})) parts.push(`${measurementLabel(k)} ${lengthOut(v, unit)} ${lu}`);
+            if (e.notes) parts.push(e.notes);
+            return (
+              <li key={e.id}>
+                <button
+                  type="button"
+                  className="list-row"
+                  aria-label={`Edit entry ${e.date}`}
+                  onClick={() => {
+                    setDate(e.date);
+                    setConfirmDelete(false);
+                    setMsg('');
+                    window.scrollTo?.({ top: 0, behavior: 'smooth' });
+                  }}
+                >
+                  <span className="list-main">
+                    <span>{fmtDayDate(e.date)}</span>
+                    {parts.length > 0 && <span className="list-sub">{parts.join(' · ')}</span>}
+                  </span>
+                  <strong className="list-value">{e.weight_kg != null ? `${weightOut(e.weight_kg, unit)} ${unit}` : '–'}</strong>
                 </button>
-                {confirmId === e.id ? (
-                  <button
-                    type="button"
-                    className="btn btn-small btn-danger"
-                    onClick={async () => {
-                      await deleteBodyEntry(e.id);
-                      setConfirmId(null);
-                    }}
-                  >
-                    Confirm
-                  </button>
-                ) : (
-                  <button type="button" className="btn btn-small btn-ghost" aria-label={`Delete entry ${e.date}`} onClick={() => setConfirmId(e.id)}>
-                    Delete
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
+              </li>
+            );
+          })}
+        </ul>
+        {entries.length > limit && (
+          <button type="button" className="btn btn-ghost btn-block more" onClick={() => setLimit((l) => l + PAGE)}>
+            Show more ({entries.length - limit} left)
+          </button>
+        )}
+        {entries.length > 0 && <p className="muted list-hint">Tap an entry to change or delete it.</p>}
       </section>
     </div>
   );

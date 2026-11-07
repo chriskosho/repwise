@@ -11,17 +11,18 @@ import History from './components/History';
 import Settings from './components/Settings';
 import RestBar from './components/RestBar';
 import RoutineEditor from './components/RoutineEditor';
+import { BodyIcon, HistoryIcon, Logo, ProgressIcon, SettingsIcon, WorkoutIcon } from './components/Icons';
 
 // The chart library is the heaviest dependency, so load it only when needed.
 const Progress = lazy(() => import('./components/Progress'));
 const Body = lazy(() => import('./components/Body'));
 
 const TABS = [
-  ['workout', 'Workout'],
-  ['history', 'History'],
-  ['progress', 'Progress'],
-  ['body', 'Body'],
-  ['settings', 'Settings'],
+  ['workout', 'Workout', WorkoutIcon],
+  ['history', 'History', HistoryIcon],
+  ['progress', 'Progress', ProgressIcon],
+  ['body', 'Body', BodyIcon],
+  ['settings', 'Settings', SettingsIcon],
 ];
 
 function readUnit() {
@@ -103,7 +104,10 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>Repwise</h1>
+        <h1 className="brand">
+          <Logo />
+          <span>Repwise</span>
+        </h1>
         <button
           type="button"
           className={`chip chip-${sync.status === 'error' ? 'error' : sync.session ? 'ok' : 'idle'}`}
@@ -156,7 +160,14 @@ export default function App() {
           />
         ) : (
           <>
-            {tab === 'workout' && <WorkoutTab unit={unit} onOpenSession={setEditId} onOpenRoutine={openRoutine} />}
+            {tab === 'workout' && <WorkoutTab
+                unit={unit}
+                name={profile?.display_name}
+                weekStart={profile?.week_start ?? 1}
+                onOpenSession={setEditId}
+                onOpenRoutine={openRoutine}
+                onShowHistory={() => goTab('history')}
+              />}
             {tab === 'history' && (
               <History
                 unit={unit}
@@ -186,7 +197,7 @@ export default function App() {
       <RestBar />
 
       <nav className="tabbar" aria-label="Main">
-        {TABS.map(([id, label]) => (
+        {TABS.map(([id, label, Icon]) => (
           <button
             key={id}
             type="button"
@@ -194,7 +205,10 @@ export default function App() {
             aria-current={tab === id && !editId && !routineView ? 'page' : undefined}
             onClick={() => goTab(id)}
           >
-            {label}
+            <span className="tab-icon">
+              <Icon />
+            </span>
+            <span className="tab-label">{label}</span>
           </button>
         ))}
       </nav>

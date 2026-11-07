@@ -10,8 +10,10 @@ import {
   routineFromSession,
   saveSession,
   sessionFromRoutine,
+  today,
 } from '../db';
-import { fmtDuration, fmtVolume } from '../stats';
+import { fmtDuration, fmtVolume, plural } from '../stats';
+import { weekStartOf } from '../goals';
 import SessionCard from './SessionCard';
 import WorkoutEditor from './WorkoutEditor';
 
@@ -94,27 +96,21 @@ export function EditSession({ id, unit, onClose, onSaveRoutine }) {
 }
 
 function RoutineCard({ routine, onStart, onEdit }) {
-  const shown = routine.exercises.slice(0, 4);
-  const more = routine.exercises.length - shown.length;
+  const sets = routine.exercises.reduce((a, e) => a + e.sets.length, 0);
   return (
     <div className="card routine">
-      <strong>{routine.name}</strong>
-      <ul className="session-lines">
-        {shown.map((e) => (
-          <li key={e.id}>
-            <span>{e.name}</span>
-            <span className="muted">
-              {e.sets.length} set{e.sets.length === 1 ? '' : 's'}
-            </span>
-          </li>
-        ))}
-        {more > 0 && <li className="muted">+{more} more</li>}
-      </ul>
-      <div className="actions">
-        <button type="button" className="btn" onClick={() => onStart(routine)}>
+      <div className="routine-top">
+        <strong className="routine-name">{routine.name}</strong>
+        <span className="muted">
+          {plural(routine.exercises.length, 'exercise')} · {plural(sets, 'set')}
+        </span>
+      </div>
+      <p className="routine-list">{routine.exercises.map((e) => e.name).join(' · ')}</p>
+      <div className="routine-actions">
+        <button type="button" className="btn btn-small" onClick={() => onStart(routine)}>
           Start {routine.name}
         </button>
-        <button type="button" className="btn btn-ghost" onClick={() => onEdit(routine)}>
+        <button type="button" className="btn btn-ghost btn-small" onClick={() => onEdit(routine)}>
           Edit
         </button>
       </div>
@@ -122,7 +118,12 @@ function RoutineCard({ routine, onStart, onEdit }) {
   );
 }
 
-export default function WorkoutTab({ unit, onOpenSession, onOpenRoutine }) {
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+}
+
+export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory }) {
   const active = useLiveQuery(getActiveSession, [], undefined);
   const sessions = useLiveQuery(listSessions, [], undefined);
   const routines = useLiveQuery(listRoutines, [], undefined);
@@ -160,22 +161,28 @@ export default function WorkoutTab({ unit, onOpenSession, onOpenRoutine }) {
     onOpenSession(s.id);
   }
 
-  const recent = sessions.filter((s) => s.ended_at).slice(0, 3);
+  const finished = sessions.filter((s) => s.ended_at);
+  const recent = finished.slice(0, 2);
+  const weekFrom = weekStartOf(today(), weekStart);
+  const thisWeek = finished.filter((s) => s.date >= weekFrom).length;
 
   return (
     <div>
-      <div className="card start">
-        <h2>Workout</h2>
-        <p className="muted">Start an empty workout and add exercises as you go. Your last numbers show up next to each set.</p>
-        <div className="actions">
-          <button type="button" className="btn btn-big" disabled={busy} onClick={() => start(null)}>
-            Start workout
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={logPast}>
-            Log a past workout
-          </button>
-        </div>
-      </div>
+      <section className="hero">
+        <h2 className="hero-title">
+          {greeting()}
+          {name ? `, ${name}` : ''}
+        </h2>
+        <p className="muted">
+          {thisWeek ? `${plural(thisWeek, 'workout')} this week. Keep it going.` : 'No workouts yet this week.'}
+        </p>
+        <button type="button" className="btn btn-big btn-block" disabled={busy} onClick={() => start(null)}>
+          Start workout
+        </button>
+        <button type="button" className="btn btn-link" onClick={logPast}>
+          Log a past workout
+        </button>
+      </section>
 
       <div className="section-head">
         <h3>Routines</h3>
@@ -194,7 +201,14 @@ export default function WorkoutTab({ unit, onOpenSession, onOpenRoutine }) {
 
       {recent.length > 0 && (
         <>
-          <h3>Recent</h3>
+          <div className="section-head">
+            <h3>Recent</h3>
+            {finished.length > recent.length && (
+              <button type="button" className="btn btn-link btn-small" onClick={onShowHistory}>
+                See all
+              </button>
+            )}
+          </div>
           {recent.map((s) => (
             <SessionCard key={s.id} session={s} unit={unit} onOpen={(x) => onOpenSession(x.id)} />
           ))}

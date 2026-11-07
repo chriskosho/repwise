@@ -227,7 +227,7 @@ describe('routines in the app', () => {
 
     const card = (await screen.findByText('Leg day')).closest('.routine');
     expect(within(card).getByText('Barbell Squat')).toBeTruthy();
-    expect(within(card).getByText('3 sets')).toBeTruthy();
+    expect(within(card).getByText(/1 exercise · 3 sets/)).toBeTruthy();
 
     await user.click(within(card).getByRole('button', { name: 'Edit' }));
     await user.clear(screen.getByLabelText('Name'));

@@ -139,3 +139,19 @@ export const fmtDate = (iso) =>
     day: 'numeric',
     year: 'numeric',
   });
+
+// "1 set", "3 sets".
+export const plural = (n, word, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
+
+// "Nov 6" (this year) or "Nov 6, 2025".
+export const fmtShortDate = (iso) => {
+  const d = new Date(`${iso}T00:00:00`);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
+};
+// "Sat, Nov 7".
+export const fmtDayDate = (iso) => {
+  const d = new Date(`${iso}T00:00:00`);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
+};

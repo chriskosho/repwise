@@ -24,7 +24,8 @@ it('lists personal records and filters them', async () => {
   await user.click(await screen.findByRole('tab', { name: 'Records' }));
   expect(await screen.findByText('Barbell Squat')).toBeTruthy();
   expect(screen.getByText('Overhead Press')).toBeTruthy();
-  expect(screen.getByText(/120 lb × 1/)).toBeTruthy();
+  expect(screen.getAllByText('120 lb').length).toBeGreaterThan(0); // heaviest (and est. 1RM)
+  expect(screen.getByText(/^× 1 · /)).toBeTruthy();
   await user.type(screen.getByLabelText('Find an exercise'), 'press');
   expect(screen.queryByText('Barbell Squat')).toBeNull();
   expect(screen.getByText('Overhead Press')).toBeTruthy();
@@ -53,7 +54,7 @@ it('marks workout days on the calendar and shows the day on tap', async () => {
   const day = await screen.findByRole('button', { name: `${d}, 1 workout` });
   expect(within(screen.getByText('Week streak').parentElement).getByText('1')).toBeTruthy();
   await user.click(day);
-  expect(await screen.findByText(/Workout: 1 exercise, 1 sets/)).toBeTruthy();
+  expect(await screen.findByText(/Workout: 1 exercise, 1 set, 500 lb/)).toBeTruthy();
 });
 
 it('plate calculator loads 225 lb and says when plates run out', async () => {

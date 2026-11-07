@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
 import { activeWeekStreaks, monthGrid } from '../analytics';
 import { today } from '../db';
-import { sessionStats, fmtDuration, fmtVolume } from '../stats';
+import { sessionStats, fmtDayDate, fmtDuration, fmtVolume, plural } from '../stats';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function CalendarView({ sessions, weekStart }) {
+export default function CalendarView({ sessions, weekStart, unit }) {
   const now = new Date();
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() });
   const [picked, setPicked] = useState(null);
@@ -93,14 +93,14 @@ export default function CalendarView({ sessions, weekStart }) {
 
       {picked && (
         <div className="day-detail">
-          <strong>{picked}</strong>
+          <strong>{fmtDayDate(picked)}</strong>
           {!day.length && <p className="muted">No workout on this day.</p>}
           {day.map((s) => {
             const st = sessionStats(s);
             return (
               <p key={s.id} className="muted">
-                {s.name}: {st.exercises} exercise{st.exercises === 1 ? '' : 's'}, {st.sets} sets
-                {st.volume > 0 ? `, ${fmtVolume(st.volume)} volume` : ''}
+                {s.name}: {plural(st.exercises, 'exercise')}, {plural(st.sets, 'set')}
+                {st.volume > 0 ? `, ${fmtVolume(st.volume)} ${unit}` : ''}
                 {st.minutes != null ? `, ${fmtDuration(st.minutes)}` : ''}
               </p>
             );

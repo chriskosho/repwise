@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { byNewest, deleteSession, newId, routineFromSession, saveSession, sessionOrder, toDoc } from '../db';
-import { computePRs, fmtClock, fmtNum, fmtVolume, previousSets, sessionStats } from '../stats';
+import { computePRs, fmtClock, fmtNum, fmtVolume, previousSets, plural, sessionStats } from '../stats';
 import { usePrefs } from '../prefs';
 import { startRest, stopRest } from '../rest';
 import { useNow } from '../useNow';
@@ -245,7 +245,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
   // ---- render ----
   return (
     <div className="editor">
-      <div className="card editor-head">
+      <div className={`card editor-head${active ? ' sticky-head' : ''}`}>
         {!active && (
           <button type="button" className="btn btn-ghost btn-small back" onClick={saveAndClose}>
             ← Done
@@ -259,12 +259,16 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
           maxLength={60}
         />
         {active ? (
-          <div className="meta">
-            <Elapsed since={session.started_at} />
-            <span>{stats.sets} sets</span>
-            <span>
-              {fmtVolume(stats.volume)} {unit}
-            </span>
+          <div className="live-row">
+            <div className="live-stats">
+              <Elapsed since={session.started_at} />
+              <span className="muted">
+                {plural(stats.sets, 'set')} · {fmtVolume(stats.volume)} {unit}
+              </span>
+            </div>
+            <button type="button" className="btn" onClick={finish}>
+              Finish
+            </button>
           </div>
         ) : (
           <label className="field">
@@ -275,16 +279,6 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
               onChange={(e) => e.target.value && update((s) => ({ ...s, date: e.target.value }))}
             />
           </label>
-        )}
-        {active && (
-          <div className="actions">
-            <button type="button" className="btn" onClick={finish}>
-              Finish
-            </button>
-            <button type="button" className="btn btn-ghost" onClick={discard}>
-              Discard
-            </button>
-          </div>
         )}
       </div>
 
@@ -464,6 +458,11 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
       {!active && (
         <button type="button" className="btn btn-ghost btn-danger btn-block" onClick={removeFinished}>
           Delete workout
+        </button>
+      )}
+      {active && (
+        <button type="button" className="btn btn-ghost btn-danger btn-block" onClick={discard}>
+          Discard workout
         </button>
       )}
 

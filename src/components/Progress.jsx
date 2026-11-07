@@ -41,7 +41,7 @@ export default function Progress({ unit }) {
           {view === 'charts' && <ProgressCharts unit={unit} />}
           {view === 'records' && <Records sessions={sessions} unit={unit} />}
           {view === 'volume' && <MuscleVolume sessions={sessions} unit={unit} weekStart={weekStart} />}
-          {view === 'calendar' && <CalendarView sessions={sessions} weekStart={weekStart} />}
+          {view === 'calendar' && <CalendarView sessions={sessions} weekStart={weekStart} unit={unit} />}
         </>
       )}
     </div>

@@ -23,10 +23,11 @@ const shortDate = (iso) => {
 
 export default function ProgressCharts({ unit }) {
   const sessions = useLiveQuery(listSessions, [], undefined);
-  const all = useMemo(() => (sessions ? entriesFromSessions(sessions) : null), [sessions]);
+  const all = useMemo(() => (sessions ? entriesFromSessions(sessions.filter((s) => s.ended_at)) : null), [sessions]);
   const [exercise, setExercise] = useState('');
   const [metric, setMetric] = useState('top');
 
+  // Only finished workouts count: a set ticked off mid-workout (say a warm-up) is not a result yet.
   // One entry per exercise, ignoring capitalization ("squat" and "Squat" are the same).
   const names = useMemo(() => {
     if (!all) return [];
@@ -110,7 +111,13 @@ export default function ProgressCharts({ unit }) {
           <LineChart data={series} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
             <CartesianGrid stroke="var(--line)" vertical={false} />
             <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fill: 'var(--muted)', fontSize: 12 }} stroke="var(--line)" />
-            <YAxis tick={{ fill: 'var(--muted)', fontSize: 12 }} stroke="var(--line)" width={52} />
+            <YAxis
+              domain={[(min) => Math.max(0, Math.floor(min * 0.9)), (max) => Math.ceil(max * 1.05)]}
+              allowDecimals={false}
+              tick={{ fill: 'var(--muted)', fontSize: 12 }}
+              stroke="var(--line)"
+              width={52}
+            />
             <Tooltip
               formatter={(v) => [`${v} ${unitLabel}`, METRICS[metric].label]}
               labelFormatter={(d) => d}

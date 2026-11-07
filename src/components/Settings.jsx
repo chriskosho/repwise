@@ -96,6 +96,48 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
   return (
     <div>
       <section className="card">
+        <h2>Profile</h2>
+        <form className="form" onSubmit={onSaveProfile}>
+          <label className="field">
+            <span>Name</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="given-name" />
+          </label>
+          <label className="field">
+            <span>Weight unit</span>
+            <select value={unit} onChange={(e) => setUnit(e.target.value)}>
+              <option value="lb">Pounds (lb)</option>
+              <option value="kg">Kilograms (kg)</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Height ({lengthUnit(unit)})</span>
+            <input type="number" inputMode="decimal" step="0.1" min="0" value={height} onChange={(e) => setHeight(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Week starts on</span>
+            <select value={profile?.week_start ?? 1} onChange={(e) => saveProfile({ week_start: Number(e.target.value) })}>
+              <option value={1}>Monday</option>
+              <option value={0}>Sunday</option>
+            </select>
+          </label>
+          <div className="actions">
+            <button type="submit" className="btn">
+              Save profile
+            </button>
+            {profileMsg && (
+              <span className="success" role="status">
+                {profileMsg}
+              </span>
+            )}
+          </div>
+          <p className="muted">
+            Changing the unit only changes labels for lifting weights; logged workout weights are not converted. Body weight and measurements
+            are stored in kg and cm and convert automatically.
+          </p>
+        </form>
+      </section>
+
+      <section className="card">
         <h2>Sync</h2>
         {!sync.enabled && <p className="muted">Sync isn't configured in this build. Your data stays on this device.</p>}
 
@@ -179,26 +221,6 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
       </section>
 
       <section className="card">
-        <h2>Backup</h2>
-        <p className="muted">Last export: {fmt(lastExportAt())}. Keep exported files somewhere safe, like a cloud folder.</p>
-        <div className="actions">
-          <button type="button" className="btn" onClick={onExport}>
-            Export JSON
-          </button>
-          <label className="btn btn-ghost file-btn">
-            Import JSON
-            <input type="file" accept="application/json,.json" onChange={onImport} hidden />
-          </label>
-        </div>
-        {backupMsg && <p className="success">{backupMsg}</p>}
-        {backupErr && (
-          <p className="error" role="alert">
-            {backupErr}
-          </p>
-        )}
-      </section>
-
-      <section className="card">
         <h2>Workout</h2>
         <div className="form">
           <label className="check-row">
@@ -235,45 +257,23 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
       </section>
 
       <section className="card">
-        <h2>Profile</h2>
-        <form className="form" onSubmit={onSaveProfile}>
-          <label className="field">
-            <span>Name</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="given-name" />
+        <h2>Backup</h2>
+        <p className="muted">Last export: {fmt(lastExportAt())}. Keep exported files somewhere safe, like a cloud folder.</p>
+        <div className="actions">
+          <button type="button" className="btn" onClick={onExport}>
+            Export JSON
+          </button>
+          <label className="btn btn-ghost file-btn">
+            Import JSON
+            <input type="file" accept="application/json,.json" onChange={onImport} hidden />
           </label>
-          <label className="field">
-            <span>Weight unit</span>
-            <select value={unit} onChange={(e) => setUnit(e.target.value)}>
-              <option value="lb">Pounds (lb)</option>
-              <option value="kg">Kilograms (kg)</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>Height ({lengthUnit(unit)})</span>
-            <input type="number" inputMode="decimal" step="0.1" min="0" value={height} onChange={(e) => setHeight(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>Week starts on</span>
-            <select value={profile?.week_start ?? 1} onChange={(e) => saveProfile({ week_start: Number(e.target.value) })}>
-              <option value={1}>Monday</option>
-              <option value={0}>Sunday</option>
-            </select>
-          </label>
-          <div className="actions">
-            <button type="submit" className="btn">
-              Save profile
-            </button>
-            {profileMsg && (
-              <span className="success" role="status">
-                {profileMsg}
-              </span>
-            )}
-          </div>
-          <p className="muted">
-            Changing the unit only changes labels for lifting weights; logged workout weights are not converted. Body weight and measurements
-            are stored in kg and cm and convert automatically.
+        </div>
+        {backupMsg && <p className="success">{backupMsg}</p>}
+        {backupErr && (
+          <p className="error" role="alert">
+            {backupErr}
           </p>
-        </form>
+        )}
       </section>
 
       <section className="card">

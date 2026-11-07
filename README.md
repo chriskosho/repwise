@@ -22,6 +22,10 @@ A workout log that works like the popular gym trackers and syncs across your dev
 - **Sync:** Supabase with email magic-link login.
 - **Backup:** JSON export/import of workouts, routines, your own exercises, body entries, goals and profile (merged by ID, so re-importing never duplicates; older backups still import) and a weekly export reminder.
 
+## Design
+
+Mobile-first, light and dark themes from the system setting, one accent color (teal). The tab bar uses small inline SVG icons (`src/components/Icons.jsx`); there are no web fonts or icon libraries, so nothing extra is downloaded and everything works offline.
+
 ## Stack
 
 Vite + React, Dexie, Recharts, Supabase, Vitest, GitHub Pages (deployed by GitHub Actions).

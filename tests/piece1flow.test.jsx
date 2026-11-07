@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../src/App';
 import Settings from '../src/components/Settings';
@@ -29,7 +29,9 @@ it('logs a weigh-in in pounds, stores kg, and shows it in the history', async ()
   const [e] = await listBodyEntries();
   expect(e.weight_kg).toBeCloseTo(81.65, 2);
   expect(e.body_fat).toBe(18);
-  expect(await screen.findByText(/180 lb · 18% fat/)).toBeTruthy();
+  const row = await screen.findByRole('button', { name: /^Edit entry / });
+  expect(within(row).getByText('180 lb')).toBeTruthy();
+  expect(within(row).getByText('18% fat')).toBeTruthy();
   // Saving the same day again updates rather than adding.
   expect(screen.getByRole('button', { name: 'Update entry' })).toBeTruthy();
 });

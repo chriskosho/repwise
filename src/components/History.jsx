@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { listSessions } from '../db';
-import { fmtDate, key } from '../stats';
+import { fmtDayDate, key } from '../stats';
 import SessionCard from './SessionCard';
+
+const PAGE = 15; // days shown before "Show more"
 
 export default function History({ unit, onOpen }) {
   const [query, setQuery] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [showDates, setShowDates] = useState(false);
+  const [limit, setLimit] = useState(PAGE);
 
   const all = useLiveQuery(listSessions, [], undefined);
 
@@ -37,9 +41,23 @@ export default function History({ unit, onOpen }) {
     <div>
       <div className="card filters">
         <label className="field">
-          <span>Search</span>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Exercise or workout name" />
+          <span className="sr-only">Search</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setLimit(PAGE);
+            }}
+            placeholder="Search exercises or workouts"
+          />
         </label>
+        {!showDates && !from && !to && (
+          <button type="button" className="btn btn-link btn-small" onClick={() => setShowDates(true)}>
+            Filter by date
+          </button>
+        )}
+        {(showDates || from || to) && (
         <div className="row">
           <label className="field">
             <span>From</span>
@@ -50,6 +68,7 @@ export default function History({ unit, onOpen }) {
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
         </div>
+        )}
         {(query || from || to) && (
           <button
             type="button"
@@ -58,6 +77,7 @@ export default function History({ unit, onOpen }) {
               setQuery('');
               setFrom('');
               setTo('');
+              setShowDates(false);
             }}
           >
             Clear filters
@@ -71,14 +91,19 @@ export default function History({ unit, onOpen }) {
         </p>
       )}
 
-      {groups.map(([date, items]) => (
+      {groups.slice(0, limit).map(([date, items]) => (
         <section key={date} className="day">
-          <h3>{fmtDate(date)}</h3>
+          <h3>{fmtDayDate(date)}</h3>
           {items.map((s) => (
-            <SessionCard key={s.id} session={s} unit={unit} onOpen={(x) => onOpen(x, x.id === activeId)} />
+            <SessionCard key={s.id} session={s} unit={unit} showDate={false} onOpen={(x) => onOpen(x, x.id === activeId)} />
           ))}
         </section>
       ))}
+      {groups.length > limit && (
+        <button type="button" className="btn btn-ghost btn-block" onClick={() => setLimit((l) => l + PAGE)}>
+          Show more ({groups.length - limit} more days)
+        </button>
+      )}
     </div>
   );
 }
