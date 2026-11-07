@@ -16,6 +16,7 @@ A workout log that works like the popular gym trackers and syncs across your dev
 - **Progress:** charts for top weight, estimated 1RM, volume, and reps.
 - **Body tracking:** log weight, body fat and ten measurements by date, with a 7-day average trend, 30- and 90-day change, and BMI if you set a height.
 - **Goals:** workouts per week (with a weekly streak), a target body weight, or a lift target (top weight or estimated 1RM), each with a progress bar.
+- **Stats (Progress tab):** lift charts, a records list (heaviest, estimated 1RM, best volume per exercise), working sets and volume per muscle by week, a workout calendar with week streaks, and plate and warm-up calculators.
 - **Profile and privacy:** name, units, height and week start sync with your account. Settings has a plain-language privacy note and a button that permanently deletes your account and all of its data.
 - **Offline-first:** everything saves to the device first (IndexedDB via Dexie).
 - **Sync:** Supabase with email magic-link login.
@@ -80,6 +81,8 @@ node scripts/build-library.mjs path/to/free-exercise-db/dist/exercises.json
 ```
 
 ## Limits of a web app
+
+- Sets-by-muscle credits each exercise to its main muscle only, using the library's tags (or the muscle you chose for your own exercises). Exercises without a muscle show as "Other".
 
 - Rest-timer sound and vibration only work while Repwise is open and the screen is on (browsers don't allow background alarms), which is why the screen stays on during a workout.
 - No Apple Watch / Wear OS app and no Apple Health or Health Connect sync.

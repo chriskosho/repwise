@@ -936,3 +936,122 @@ button:focus-visible,
 .danger-zone {
   border-color: var(--danger);
 }
+
+/* ---- progress views ---- */
+.segments {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.seg {
+  flex: 1 0 auto;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.seg.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+.record,
+.vol-row {
+  border-top: 1px solid var(--line);
+  padding: 10px 0;
+}
+
+.rec-grid {
+  margin: 6px 0 0;
+}
+
+.rec-grid > div {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.rec-grid dt {
+  color: var(--muted);
+}
+
+.rec-grid dd {
+  margin: 0;
+  text-align: right;
+}
+
+.cal {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.cal th {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 4px 0;
+}
+
+.cal td {
+  padding: 2px;
+  text-align: center;
+}
+
+.cal-day {
+  width: 100%;
+  aspect-ratio: 1;
+  min-height: 36px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cal-day.has {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+
+.cal-day.today {
+  border-color: var(--text);
+}
+
+.cal-day.picked {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.cal-head {
+  justify-content: space-between;
+}
+
+.day-detail {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.plates-have {
+  border: 0;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.warmups {
+  padding-left: 1.4em;
+  font-variant-numeric: tabular-nums;
+}
