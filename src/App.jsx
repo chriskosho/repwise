@@ -5,6 +5,7 @@ import { downloadExport } from './backup';
 import { loadLibrary } from './library';
 import { useRest } from './rest';
 import { useSync } from './sync';
+import { useOnline } from './useOnline';
 import WorkoutTab, { EditSession } from './components/WorkoutTab';
 import History from './components/History';
 import Settings from './components/Settings';
@@ -31,8 +32,9 @@ function readUnit() {
   }
 }
 
-function statusLabel(sync) {
+function statusLabel(sync, online) {
   if (!sync.enabled || !sync.session) return 'Local only';
+  if (!online) return sync.pending > 0 ? `Offline · ${sync.pending} pending` : 'Offline';
   if (sync.status === 'syncing') return 'Syncing…';
   if (sync.status === 'offline') return 'Offline';
   if (sync.status === 'error') return 'Sync error';
@@ -48,6 +50,7 @@ export default function App() {
   const [dismissed, setDismissed] = useState(false);
   const [, setTick] = useState(0);
   const sync = useSync();
+  const online = useOnline();
   const rest = useRest();
 
   const count = useLiveQuery(
@@ -107,7 +110,7 @@ export default function App() {
           onClick={() => goTab('settings')}
           title={sync.error || undefined}
         >
-          {statusLabel(sync)}
+          {statusLabel(sync, online)}
         </button>
       </header>
 

@@ -101,7 +101,10 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
 
         {sync.enabled && !sync.session && (
           <form onSubmit={sendLink} className="form">
-            <p className="muted">Sign in to sync across devices. We'll email you a one-time link, no password needed.</p>
+            <p className="muted">
+              Sign in to sync across devices. We'll email you a one-time link, no password needed. The email can take up to 3 minutes to
+              arrive.
+            </p>
             <label className="field">
               <span>Email</span>
               <input
@@ -115,7 +118,11 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
             <button type="submit" className="btn" disabled={busy}>
               {busy ? 'Sending…' : 'Send magic link'}
             </button>
-            {linkSent && <p className="success">Check your email and open the link on this device.</p>}
+            {linkSent && (
+              <p className="success">
+                Link sent. It can take up to 3 minutes to arrive, so please wait before trying again (check spam too). Open it on this device.
+              </p>
+            )}
             {authError && (
               <p className="error" role="alert">
                 {authError}

@@ -18,7 +18,7 @@ A workout log that works like the popular gym trackers and syncs across your dev
 - **Goals:** workouts per week (with a weekly streak), a target body weight, or a lift target (top weight or estimated 1RM), each with a progress bar.
 - **Stats (Progress tab):** lift charts, a records list (heaviest, estimated 1RM, best volume per exercise), working sets and volume per muscle by week, a workout calendar with week streaks, and plate and warm-up calculators.
 - **Profile and privacy:** name, units, height and week start sync with your account. Settings has a plain-language privacy note and a button that permanently deletes your account and all of its data.
-- **Offline-first:** everything saves to the device first (IndexedDB via Dexie).
+- **Works offline:** after the first visit the whole app (including the exercise library and every tab) opens and works without a connection. Workouts save to the device first (IndexedDB via Dexie) and upload when you're back online. Add it to your home screen for an app-style icon.
 - **Sync:** Supabase with email magic-link login.
 - **Backup:** JSON export/import of workouts, routines, your own exercises, body entries, goals and profile (merged by ID, so re-importing never duplicates; older backups still import) and a weekly export reminder.
 
@@ -72,6 +72,12 @@ Only the publishable key belongs in the app. Never put a `service_role` or secre
 2. Under **Settings → Secrets and variables → Actions → Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the publishable key).
 3. Push to `main`. The workflow in `.github/workflows/deploy.yml` runs the tests, builds, and publishes the site at `https://chriskosho.github.io/repwise/`.
 
+## Offline support
+
+`vite.config.js` has a small plugin that lists every file in the build and writes `dist/sw.js` from `scripts/sw.template.js`. The service worker saves all of them when installed, serves files from that copy, and for page loads tries the network first (4 s) before falling back to the saved copy. Requests to other sites (Supabase) are never touched, and your data is not cached by it (it lives in IndexedDB). The two most recent versions are kept so a tab left open across an update still finds its files.
+
+To check it in a real browser: `npm run build && node scripts/check-offline.cjs` (needs Playwright).
+
 ## Exercise library
 
 The built-in library comes from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (The Unlicense, public domain). Only names, primary muscle, equipment and category are kept. It loads on demand, as its own small file. To rebuild it from a fresh copy of that dataset:
@@ -86,7 +92,7 @@ node scripts/build-library.mjs path/to/free-exercise-db/dist/exercises.json
 
 - Rest-timer sound and vibration only work while Repwise is open and the screen is on (browsers don't allow background alarms), which is why the screen stays on during a workout.
 - No Apple Watch / Wear OS app and no Apple Health or Health Connect sync.
-- The app doesn't yet open without a connection after the first load (offline support is planned). The exercise library is fetched once and, until offline support exists, may not be available without a connection; your own exercises always are.
+- Offline support needs one online visit first, and a new version of the app is picked up the next time you open it with a connection (you may need to reopen it once). Signing in needs a connection.
 - Free-tier Supabase projects pause after a period of inactivity and have no automatic backups. The JSON export is your real backup.
 - Changing the weight unit only changes labels; it doesn't convert logged workout weights (body weight and measurements do convert).
 - The privacy note describes how the app is built; the person who runs the Supabase project can technically read the database.
