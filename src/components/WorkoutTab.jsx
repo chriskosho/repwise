@@ -1,11 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getActiveSession, getSession, listSessions, newSession, saveSession } from '../db';
+import {
+  getActiveSession,
+  getSession,
+  listRoutines,
+  listSessions,
+  newRoutine,
+  newSession,
+  routineFromSession,
+  saveSession,
+  sessionFromRoutine,
+} from '../db';
 import { fmtDuration, fmtVolume } from '../stats';
 import SessionCard from './SessionCard';
 import WorkoutEditor from './WorkoutEditor';
 
-function Summary({ info, unit, onDone }) {
+function Summary({ info, unit, onDone, onSaveRoutine }) {
   const { session, stats, prs } = info;
   return (
     <div className="card">
@@ -42,15 +52,20 @@ function Summary({ info, unit, onDone }) {
           </ul>
         </>
       )}
-      <button type="button" className="btn" onClick={onDone}>
-        Done
-      </button>
+      <div className="actions">
+        <button type="button" className="btn" onClick={onDone}>
+          Done
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => onSaveRoutine(routineFromSession(session))}>
+          Save as routine
+        </button>
+      </div>
     </div>
   );
 }
 
 // Opens a finished workout for changes (from History or Recent).
-export function EditSession({ id, unit, onClose }) {
+export function EditSession({ id, unit, onClose, onSaveRoutine }) {
   const [row, setRow] = useState(undefined);
   const sessions = useLiveQuery(listSessions, [], undefined);
 
@@ -73,26 +88,67 @@ export function EditSession({ id, unit, onClose }) {
       </div>
     );
   }
-  return <WorkoutEditor key={row.id} initial={row} mode="edit" sessions={sessions} unit={unit} onClose={onClose} />;
+  return (
+    <WorkoutEditor key={row.id} initial={row} mode="edit" sessions={sessions} unit={unit} onClose={onClose} onSaveRoutine={onSaveRoutine} />
+  );
 }
 
-export default function WorkoutTab({ unit, onOpenSession }) {
+function RoutineCard({ routine, onStart, onEdit }) {
+  const shown = routine.exercises.slice(0, 4);
+  const more = routine.exercises.length - shown.length;
+  return (
+    <div className="card routine">
+      <strong>{routine.name}</strong>
+      <ul className="session-lines">
+        {shown.map((e) => (
+          <li key={e.id}>
+            <span>{e.name}</span>
+            <span className="muted">
+              {e.sets.length} set{e.sets.length === 1 ? '' : 's'}
+            </span>
+          </li>
+        ))}
+        {more > 0 && <li className="muted">+{more} more</li>}
+      </ul>
+      <div className="actions">
+        <button type="button" className="btn" onClick={() => onStart(routine)}>
+          Start {routine.name}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => onEdit(routine)}>
+          Edit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function WorkoutTab({ unit, onOpenSession, onOpenRoutine }) {
   const active = useLiveQuery(getActiveSession, [], undefined);
   const sessions = useLiveQuery(listSessions, [], undefined);
+  const routines = useLiveQuery(listRoutines, [], undefined);
   const [summary, setSummary] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  if (summary) return <Summary info={summary} unit={unit} onDone={() => setSummary(null)} />;
-  if (active === undefined || sessions === undefined) return <p className="muted">Loading…</p>;
+  if (summary) {
+    return (
+      <Summary
+        info={summary}
+        unit={unit}
+        onDone={() => setSummary(null)}
+        onSaveRoutine={(doc) => onOpenRoutine(doc, true)}
+      />
+    );
+  }
+  if (active === undefined || sessions === undefined || routines === undefined) return <p className="muted">Loading…</p>;
 
   if (active) {
     return <WorkoutEditor key={active.id} initial={active} mode="active" sessions={sessions} unit={unit} onFinish={setSummary} />;
   }
 
-  async function start() {
+  async function start(routine) {
     setBusy(true);
     try {
-      await saveSession(newSession());
+      await saveSession(routine ? sessionFromRoutine(routine) : newSession());
     } finally {
       setBusy(false);
     }
@@ -112,7 +168,7 @@ export default function WorkoutTab({ unit, onOpenSession }) {
         <h2>Workout</h2>
         <p className="muted">Start an empty workout and add exercises as you go. Your last numbers show up next to each set.</p>
         <div className="actions">
-          <button type="button" className="btn btn-big" disabled={busy} onClick={start}>
+          <button type="button" className="btn btn-big" disabled={busy} onClick={() => start(null)}>
             Start workout
           </button>
           <button type="button" className="btn btn-ghost" onClick={logPast}>
@@ -120,6 +176,21 @@ export default function WorkoutTab({ unit, onOpenSession }) {
           </button>
         </div>
       </div>
+
+      <div className="section-head">
+        <h3>Routines</h3>
+        <button type="button" className="btn btn-ghost btn-small" onClick={() => onOpenRoutine(newRoutine(), true)}>
+          + New routine
+        </button>
+      </div>
+      {routines.length === 0 && (
+        <p className="muted routine-empty">
+          Save a workout you do often as a routine and start it with one tap. Create one here, or tap “Save as routine” after a workout.
+        </p>
+      )}
+      {routines.map((r) => (
+        <RoutineCard key={r.id} routine={r} onStart={start} onEdit={(x) => onOpenRoutine(x, false)} />
+      ))}
 
       {recent.length > 0 && (
         <>

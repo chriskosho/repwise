@@ -5,6 +5,8 @@ A workout log that works like the popular gym trackers and syncs across your dev
 ## Features
 
 - **Live workouts:** start a workout, add exercises, and tick sets off as you go. A workout in progress survives reloads and shows on your other devices.
+- **Routines:** save any workout as a routine (or build one from scratch) and start it with one tap. Routines keep exercise order, set counts and types, supersets, and notes; your last numbers fill in from history.
+- **Exercise library:** about 880 exercises tagged by muscle and equipment, searchable and filterable, with multi-select. Create your own, with a muscle and equipment, and they sync too.
 - **Last time, right there:** every set shows what you did previously, and a blank set fills in from it when you tap done.
 - **Set types:** normal, warm-up, drop set, and failure. Warm-ups don't count toward volume or records.
 - **Supersets:** link an exercise to the next one; the rest timer waits until the end of the group.
@@ -14,7 +16,7 @@ A workout log that works like the popular gym trackers and syncs across your dev
 - **Progress:** charts for top weight, estimated 1RM, volume, and reps.
 - **Offline-first:** everything saves to the device first (IndexedDB via Dexie).
 - **Sync:** Supabase with email magic-link login.
-- **Backup:** JSON export/import (merged by ID, so re-importing never duplicates; older backups still import) and a weekly export reminder.
+- **Backup:** JSON export/import of workouts, routines and your own exercises (merged by ID, so re-importing never duplicates; older backups still import) and a weekly export reminder.
 
 ## Stack
 
@@ -22,7 +24,7 @@ Vite + React, Dexie, Recharts, Supabase, Vitest, GitHub Pages (deployed by GitHu
 
 ## How data is stored
 
-A **session** is one workout: name, times, and a list of exercises, each with its sets. Each session is one row (one JSON document) in Supabase, so a whole workout syncs as a unit.
+A **session** is one workout: name, times, and a list of exercises, each with its sets. Each session is one row (one JSON document) in Supabase, so a whole workout syncs as a unit. **Routines** and your own **custom exercises** work the same way, in their own tables (`routines`, `custom_exercises`).
 
 1. Edits save to IndexedDB a moment after you stop typing and mark the row `dirty`.
 2. While signed in, dirty rows are upserted to Supabase. The server sets `updated_at` (a trigger), so a wrong device clock can't win a conflict.
@@ -60,10 +62,18 @@ Only the publishable key belongs in the app. Never put a `service_role` or secre
 2. Under **Settings → Secrets and variables → Actions → Variables**, add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (the publishable key).
 3. Push to `main`. The workflow in `.github/workflows/deploy.yml` runs the tests, builds, and publishes the site at `https://chriskosho.github.io/repwise/`.
 
+## Exercise library
+
+The built-in library comes from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (The Unlicense, public domain). Only names, primary muscle, equipment and category are kept. It loads on demand, as its own small file. To rebuild it from a fresh copy of that dataset:
+
+```bash
+node scripts/build-library.mjs path/to/free-exercise-db/dist/exercises.json
+```
+
 ## Limits of a web app
 
 - Rest-timer sound and vibration only work while Repwise is open and the screen is on (browsers don't allow background alarms), which is why the screen stays on during a workout.
 - No Apple Watch / Wear OS app and no Apple Health or Health Connect sync.
-- The app doesn't yet open without a connection after the first load (offline support is planned).
+- The app doesn't yet open without a connection after the first load (offline support is planned). The exercise library is fetched once and, until offline support exists, may not be available without a connection; your own exercises always are.
 - Free-tier Supabase projects pause after a period of inactivity and have no automatic backups. The JSON export is your real backup.
 - Changing the weight unit only changes labels; it doesn't convert logged weights.

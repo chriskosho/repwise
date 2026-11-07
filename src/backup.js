@@ -1,19 +1,24 @@
 import { db, newId, sessionFromLegacy, setLastExport, today } from './db';
+import { key as nameKey } from './stats';
+import { EQUIPMENT, MUSCLES } from './library';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SET_TYPES = new Set(['normal', 'warmup', 'drop', 'failure']);
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-// Backups hold finished workouts. Version 2 stores sessions; version 1 files
-// (one row per exercise entry) are still accepted and converted on import.
+// Backups hold finished workouts, routines and your own exercises. Version 3 is
+// the current format; version 2 (sessions only) and version 1 (one row per
+// exercise entry) are still accepted and converted on import.
 export async function buildExport() {
-  const rows = (await db.sessions.toArray()).filter((s) => !s.deleted_at && s.ended_at && s.exercises.length);
+  const sessions = (await db.sessions.toArray()).filter((s) => !s.deleted_at && s.ended_at && s.exercises.length);
+  const routines = (await db.routines.toArray()).filter((r) => !r.deleted_at);
+  const custom = (await db.customExercises.toArray()).filter((c) => !c.deleted_at);
   return {
     app: 'repwise',
-    version: 2,
+    version: 3,
     exported_at: new Date().toISOString(),
-    sessions: rows.map(({ id, date, name, started_at, ended_at, notes, exercises, created_at }) => ({
+    sessions: sessions.map(({ id, date, name, started_at, ended_at, notes, exercises, created_at }) => ({
       id,
       date,
       name,
@@ -23,6 +28,8 @@ export async function buildExport() {
       exercises,
       created_at,
     })),
+    routines: routines.map(({ id, name, notes, exercises, created_at }) => ({ id, name, notes, exercises, created_at })),
+    custom_exercises: custom.map(({ id, name, muscle, equipment, created_at }) => ({ id, name, muscle, equipment, created_at })),
   };
 }
 
@@ -104,8 +111,57 @@ function normalizeLegacy(w) {
   });
 }
 
-// Merge by ID: a workout that already exists on this device (even one you
+function normalizeRoutine(raw) {
+  if (!raw || typeof raw.id !== 'string' || !UUID.test(raw.id)) return null;
+  if (typeof raw.name !== 'string' || !raw.name.trim() || !Array.isArray(raw.exercises)) return null;
+  const exercises = [];
+  for (const ex of raw.exercises) {
+    if (!ex || typeof ex.name !== 'string' || !ex.name.trim()) continue;
+    const sets = (Array.isArray(ex.sets) ? ex.sets : [])
+      .slice(0, 12)
+      .map((st) => ({ id: newId(), type: SET_TYPES.has(st?.type) ? st.type : 'normal' }));
+    exercises.push({
+      id: newId(),
+      name: ex.name.trim().slice(0, 100),
+      link: !!ex.link,
+      notes: typeof ex.notes === 'string' ? ex.notes.slice(0, 2000) : '',
+      sets: sets.length ? sets : [{ id: newId(), type: 'normal' }],
+    });
+  }
+  if (!exercises.length) return null;
+  return {
+    id: raw.id,
+    name: raw.name.trim().slice(0, 60),
+    notes: typeof raw.notes === 'string' ? raw.notes.slice(0, 2000) : '',
+    exercises,
+    created_at: validIso(raw.created_at) ? raw.created_at : new Date().toISOString(),
+    deleted_at: null,
+    dirty: 1,
+    rev: 1,
+  };
+}
+
+const MUSCLE_KEYS = new Set(MUSCLES.map(([k]) => k));
+const EQUIPMENT_KEYS = new Set(EQUIPMENT.map(([k]) => k));
+
+function normalizeCustom(raw) {
+  if (!raw || typeof raw.id !== 'string' || !UUID.test(raw.id)) return null;
+  if (typeof raw.name !== 'string' || !raw.name.trim()) return null;
+  return {
+    id: raw.id,
+    name: raw.name.trim().replace(/\s+/g, ' ').slice(0, 100),
+    muscle: MUSCLE_KEYS.has(raw.muscle) ? raw.muscle : '',
+    equipment: EQUIPMENT_KEYS.has(raw.equipment) ? raw.equipment : '',
+    created_at: validIso(raw.created_at) ? raw.created_at : new Date().toISOString(),
+    deleted_at: null,
+    dirty: 1,
+    rev: 1,
+  };
+}
+
+// Merge by ID: anything that already exists on this device (even a workout you
 // deleted) is left alone, so importing the same file twice never duplicates.
+// `added` counts workouts; routines and exercises are counted separately.
 export async function importFile(file) {
   if (file.size > MAX_FILE_BYTES) throw new Error('That file is too large to be a Repwise backup.');
   let parsed;
@@ -116,35 +172,43 @@ export async function importFile(file) {
   }
   if (!parsed || parsed.app !== 'repwise') throw new Error('That file is not a Repwise backup.');
 
-  let items;
-  let normalize;
-  if (Array.isArray(parsed.sessions)) {
-    items = parsed.sessions;
-    normalize = normalizeSession;
-  } else if (Array.isArray(parsed.workouts)) {
-    items = parsed.workouts;
-    normalize = normalizeLegacy;
-  } else {
-    throw new Error('That file is not a Repwise backup.');
-  }
+  const sessionItems = Array.isArray(parsed.sessions) ? parsed.sessions : Array.isArray(parsed.workouts) ? parsed.workouts : null;
+  const routineItems = Array.isArray(parsed.routines) ? parsed.routines : null;
+  const customItems = Array.isArray(parsed.custom_exercises) ? parsed.custom_exercises : null;
+  if (!sessionItems && !routineItems && !customItems) throw new Error('That file is not a Repwise backup.');
+  const normalizeSessionItem = Array.isArray(parsed.sessions) ? normalizeSession : normalizeLegacy;
 
-  let added = 0;
-  let skipped = 0;
-  let invalid = 0;
-  await db.transaction('rw', db.sessions, async () => {
-    for (const raw of items) {
-      const row = normalize(raw);
-      if (!row) {
-        invalid++;
-        continue;
+  const out = { added: 0, skipped: 0, invalid: 0, routines: 0, exercises: 0 };
+  await db.transaction('rw', db.sessions, db.routines, db.customExercises, async () => {
+    for (const raw of sessionItems ?? []) {
+      const row = normalizeSessionItem(raw);
+      if (!row) out.invalid++;
+      else if (await db.sessions.get(row.id)) out.skipped++;
+      else {
+        await db.sessions.put(row);
+        out.added++;
       }
-      if (await db.sessions.get(row.id)) {
-        skipped++;
-        continue;
+    }
+    for (const raw of routineItems ?? []) {
+      const row = normalizeRoutine(raw);
+      if (!row) out.invalid++;
+      else if (await db.routines.get(row.id)) out.skipped++;
+      else {
+        await db.routines.put(row);
+        out.routines++;
       }
-      await db.sessions.put(row);
-      added++;
+    }
+    const haveNames = new Set((await db.customExercises.toArray()).filter((c) => !c.deleted_at).map((c) => nameKey(c.name)));
+    for (const raw of customItems ?? []) {
+      const row = normalizeCustom(raw);
+      if (!row) out.invalid++;
+      else if ((await db.customExercises.get(row.id)) || haveNames.has(nameKey(row.name))) out.skipped++;
+      else {
+        await db.customExercises.put(row);
+        haveNames.add(nameKey(row.name));
+        out.exercises++;
+      }
     }
   });
-  return { added, skipped, invalid };
+  return out;
 }

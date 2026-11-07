@@ -8,6 +8,8 @@ import { stopRest } from '../src/rest';
 
 beforeEach(async () => {
   await db.sessions.clear();
+  await db.routines.clear();
+  await db.customExercises.clear();
   localStorage.clear();
   setPrefs({ restEnabled: false, alerts: false, keepAwake: false });
 });
@@ -28,7 +30,9 @@ it('walks through start, log, finish, history and editing', async () => {
   // Log one set.
   await user.click(screen.getByRole('button', { name: '+ Add exercise' }));
   await user.type(screen.getByLabelText('Search exercises'), 'Zercher squat');
-  await user.click(screen.getByRole('button', { name: /Add “Zercher squat”/ }));
+  await user.click(screen.getByRole('button', { name: /Create “Zercher squat”/ }));
+  await user.click(screen.getByRole('button', { name: 'Create and select' }));
+  await user.click(await screen.findByRole('button', { name: 'Add 1 exercise' }));
   await user.type(screen.getByLabelText('Set 1 weight'), '100');
   await user.type(screen.getByLabelText('Set 1 reps'), '10');
   await user.click(screen.getByRole('button', { name: 'Mark set 1 done' }));
@@ -60,13 +64,14 @@ it('resumes a workout that was in progress after a reload', async () => {
   const first = render(<App />);
   await user.click(await screen.findByRole('button', { name: 'Start workout' }));
   await user.click(await screen.findByRole('button', { name: '+ Add exercise' }));
-  await user.type(screen.getByLabelText('Search exercises'), 'Curl');
-  await user.click(screen.getByRole('button', { name: 'Biceps Curl' }));
+  await user.type(screen.getByLabelText('Search exercises'), 'Barbell Curl');
+  await user.click(await screen.findByRole('button', { name: 'Barbell Curl' }));
+  await user.click(screen.getByRole('button', { name: 'Add 1 exercise' }));
   await user.type(screen.getByLabelText('Set 1 reps'), '12');
   first.unmount(); // like closing the tab: the editor flushes on the way out
 
   render(<App />);
-  expect(await screen.findByRole('heading', { name: 'Biceps Curl' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'Barbell Curl' })).toBeTruthy();
   expect((await screen.findByLabelText('Set 1 reps')).value).toBe('12');
   expect(screen.queryByRole('button', { name: 'Start workout' })).toBeNull();
 });

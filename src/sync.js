@@ -10,18 +10,19 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // on the server is what keeps each user's rows private.
 export const supabase = url && key ? createClient(url, key) : null;
 
-const TABLE = 'sessions';
 const PUSH_CHUNK = 100;
 const PULL_PAGE = 1000;
 const LAST_SYNCED = 'repwise.lastSynced';
 
-async function push(userId) {
-  const dirty = await db.sessions.where('dirty').equals(1).toArray();
-  for (let i = 0; i < dirty.length; i += PUSH_CHUNK) {
-    const chunk = dirty.slice(i, i + PUSH_CHUNK);
-    // updated_at is deliberately not sent: the server sets it, so a device
-    // with a wrong clock can't win a conflict.
-    const payload = chunk.map((s) => ({
+// What gets synced. `toRemote` lists the columns we send; updated_at is
+// deliberately not one of them: the server sets it, so a device with a wrong
+// clock can't win a conflict.
+export const TABLES = [
+  {
+    remote: 'sessions',
+    local: () => db.sessions,
+    cursor: 'last_pull_sessions',
+    toRemote: (s, userId) => ({
       id: s.id,
       user_id: userId,
       date: s.date,
@@ -32,18 +33,55 @@ async function push(userId) {
       exercises: s.exercises ?? [],
       created_at: s.created_at,
       deleted_at: s.deleted_at ?? null,
-    }));
-    const { data, error } = await supabase.from(TABLE).upsert(payload, { onConflict: 'id' }).select('id, updated_at');
+    }),
+  },
+  {
+    remote: 'routines',
+    local: () => db.routines,
+    cursor: 'last_pull_routines',
+    toRemote: (r, userId) => ({
+      id: r.id,
+      user_id: userId,
+      name: r.name ?? '',
+      notes: r.notes ?? '',
+      exercises: r.exercises ?? [],
+      created_at: r.created_at,
+      deleted_at: r.deleted_at ?? null,
+    }),
+  },
+  {
+    remote: 'custom_exercises',
+    local: () => db.customExercises,
+    cursor: 'last_pull_custom_exercises',
+    toRemote: (c, userId) => ({
+      id: c.id,
+      user_id: userId,
+      name: c.name,
+      muscle: c.muscle ?? '',
+      equipment: c.equipment ?? '',
+      created_at: c.created_at,
+      deleted_at: c.deleted_at ?? null,
+    }),
+  },
+];
+
+async function push(t, userId) {
+  const table = t.local();
+  const dirty = await table.where('dirty').equals(1).toArray();
+  for (let i = 0; i < dirty.length; i += PUSH_CHUNK) {
+    const chunk = dirty.slice(i, i + PUSH_CHUNK);
+    const payload = chunk.map((row) => t.toRemote(row, userId));
+    const { data, error } = await supabase.from(t.remote).upsert(payload, { onConflict: 'id' }).select('id, updated_at');
     if (error) throw error;
 
-    const sent = new Map(chunk.map((s) => [s.id, s.rev ?? 0]));
-    await db.transaction('rw', db.sessions, async () => {
+    const sent = new Map(chunk.map((row) => [row.id, row.rev ?? 0]));
+    await db.transaction('rw', table, async () => {
       for (const r of data) {
-        const local = await db.sessions.get(r.id);
+        const local = await table.get(r.id);
         if (!local) continue;
         // Edited again while the request was in flight? Stay dirty.
         const stillSame = (local.rev ?? 0) === sent.get(r.id);
-        await db.sessions.update(r.id, {
+        await table.update(r.id, {
           user_id: userId,
           updated_at: r.updated_at,
           ...(stillSame ? { dirty: 0 } : {}),
@@ -53,24 +91,23 @@ async function push(userId) {
   }
 }
 
-async function pull() {
-  // Sessions use their own cursor; the old per-exercise table is no longer synced.
-  const cursorKey = 'last_pull_sessions';
-  let since = (await db.meta.get(cursorKey))?.value ?? null;
+async function pull(t) {
+  const table = t.local();
+  let since = (await db.meta.get(t.cursor))?.value ?? null;
   for (;;) {
-    let q = supabase.from(TABLE).select('*').order('updated_at', { ascending: true }).limit(PULL_PAGE);
+    let q = supabase.from(t.remote).select('*').order('updated_at', { ascending: true }).limit(PULL_PAGE);
     if (since) q = q.gte('updated_at', since); // gte + idempotent merge: never skips rows sharing a timestamp
     const { data, error } = await q;
     if (error) throw error;
     if (!data.length) break;
 
-    await db.transaction('rw', db.sessions, db.meta, async () => {
+    await db.transaction('rw', table, db.meta, async () => {
       for (const r of data) {
-        const local = await db.sessions.get(r.id);
+        const local = await table.get(r.id);
         if (local?.dirty) continue; // unpushed local edit wins until it is pushed
-        await db.sessions.put({ ...r, dirty: 0, rev: local?.rev ?? 0 });
+        await table.put({ ...r, dirty: 0, rev: local?.rev ?? 0 });
       }
-      await db.meta.put({ key: cursorKey, value: data[data.length - 1].updated_at });
+      await db.meta.put({ key: t.cursor, value: data[data.length - 1].updated_at });
     });
 
     const next = data[data.length - 1].updated_at;
@@ -84,8 +121,8 @@ async function runSync() {
     data: { session },
   } = await supabase.auth.getSession();
   if (!session) return false;
-  await push(session.user.id);
-  await pull();
+  for (const t of TABLES) await push(t, session.user.id);
+  for (const t of TABLES) await pull(t);
   return true;
 }
 
@@ -96,6 +133,11 @@ function withSyncLock(fn) {
   if (!navigator.locks?.request) return fn();
   return navigator.locks.request('repwise-sync', { ifAvailable: true }, (lock) => (lock ? fn() : null));
 }
+
+const countDirty = async () => {
+  const counts = await Promise.all(TABLES.map((t) => t.local().where('dirty').equals(1).count()));
+  return counts.reduce((a, b) => a + b, 0);
+};
 
 export function useSync() {
   const [session, setSession] = useState(null);
@@ -109,7 +151,7 @@ export function useSync() {
     }
   });
   const running = useRef(false);
-  const pending = useLiveQuery(() => db.sessions.where('dirty').equals(1).count(), [], 0);
+  const pending = useLiveQuery(countDirty, [], 0);
 
   const syncNow = useCallback(async () => {
     if (!supabase || running.current) return;

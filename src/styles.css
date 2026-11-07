@@ -759,3 +759,109 @@ button:focus-visible,
   font-weight: 700;
   color: var(--accent);
 }
+
+/* ---- v3: library picker and routines ---- */
+.pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 4px;
+}
+
+.pick.on {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.pick-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pick-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.pick-check {
+  flex-shrink: 0;
+  width: 24px;
+  color: var(--accent);
+  font-weight: 700;
+  text-align: center;
+}
+
+.pick-note {
+  padding: 12px 4px;
+}
+
+.sheet-filters {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sheet-foot {
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: var(--card);
+  border-top: 1px solid var(--line);
+}
+
+.sheet-foot .btn-block,
+.more {
+  margin-bottom: 0;
+}
+
+.more {
+  margin-top: 12px;
+}
+
+.create-form {
+  margin: 8px 0;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.section-head h3 {
+  margin: 20px 0 8px;
+}
+
+.routine {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.routine-empty {
+  margin-bottom: 14px;
+}
+
+.stepper-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stepper strong {
+  min-width: 1.5em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.routine-delete {
+  margin-top: 14px;
+}

@@ -104,3 +104,86 @@ create policy "sessions_delete_own" on public.sessions
   for delete to authenticated using ((select auth.uid()) = user_id);
 
 revoke all on public.sessions from anon;
+
+-- ---------------------------------------------------------------------------
+-- v3: saved routines and your own exercises.
+-- ---------------------------------------------------------------------------
+create table if not exists public.routines (
+  id          uuid primary key,
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  name        text not null,
+  notes       text not null default '',
+  exercises   jsonb not null default '[]'::jsonb,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  deleted_at  timestamptz
+);
+
+create index if not exists routines_user_updated_idx on public.routines (user_id, updated_at);
+
+drop trigger if exists routines_set_updated_at on public.routines;
+create trigger routines_set_updated_at
+  before insert or update on public.routines
+  for each row execute function public.set_updated_at();
+
+alter table public.routines enable row level security;
+
+drop policy if exists "routines_select_own" on public.routines;
+create policy "routines_select_own" on public.routines
+  for select to authenticated using ((select auth.uid()) = user_id);
+
+drop policy if exists "routines_insert_own" on public.routines;
+create policy "routines_insert_own" on public.routines
+  for insert to authenticated with check ((select auth.uid()) = user_id);
+
+drop policy if exists "routines_update_own" on public.routines;
+create policy "routines_update_own" on public.routines
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+drop policy if exists "routines_delete_own" on public.routines;
+create policy "routines_delete_own" on public.routines
+  for delete to authenticated using ((select auth.uid()) = user_id);
+
+revoke all on public.routines from anon;
+
+create table if not exists public.custom_exercises (
+  id          uuid primary key,
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  name        text not null,
+  muscle      text not null default '',
+  equipment   text not null default '',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  deleted_at  timestamptz
+);
+
+create index if not exists custom_exercises_user_updated_idx on public.custom_exercises (user_id, updated_at);
+
+drop trigger if exists custom_exercises_set_updated_at on public.custom_exercises;
+create trigger custom_exercises_set_updated_at
+  before insert or update on public.custom_exercises
+  for each row execute function public.set_updated_at();
+
+alter table public.custom_exercises enable row level security;
+
+drop policy if exists "custom_exercises_select_own" on public.custom_exercises;
+create policy "custom_exercises_select_own" on public.custom_exercises
+  for select to authenticated using ((select auth.uid()) = user_id);
+
+drop policy if exists "custom_exercises_insert_own" on public.custom_exercises;
+create policy "custom_exercises_insert_own" on public.custom_exercises
+  for insert to authenticated with check ((select auth.uid()) = user_id);
+
+drop policy if exists "custom_exercises_update_own" on public.custom_exercises;
+create policy "custom_exercises_update_own" on public.custom_exercises
+  for update to authenticated
+  using ((select auth.uid()) = user_id)
+  with check ((select auth.uid()) = user_id);
+
+drop policy if exists "custom_exercises_delete_own" on public.custom_exercises;
+create policy "custom_exercises_delete_own" on public.custom_exercises
+  for delete to authenticated using ((select auth.uid()) = user_id);
+
+revoke all on public.custom_exercises from anon;

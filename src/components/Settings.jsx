@@ -45,12 +45,12 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
     setBackupMsg('');
     setBackupErr('');
     try {
-      const { added, skipped, invalid } = await importFile(file);
+      const { added, skipped, invalid, routines, exercises } = await importFile(file);
+      const parts = [`${added} new workout${added === 1 ? '' : 's'}`];
+      if (routines) parts.push(`${routines} routine${routines === 1 ? '' : 's'}`);
+      if (exercises) parts.push(`${exercises} exercise${exercises === 1 ? '' : 's'}`);
       setBackupMsg(
-        `Imported ${added} new workout${added === 1 ? '' : 's'}` +
-          (skipped ? `, skipped ${skipped} already here` : '') +
-          (invalid ? `, ignored ${invalid} invalid` : '') +
-          '.',
+        `Imported ${parts.join(', ')}` + (skipped ? `, skipped ${skipped} already here` : '') + (invalid ? `, ignored ${invalid} invalid` : '') + '.',
       );
     } catch (err) {
       setBackupErr(err.message);

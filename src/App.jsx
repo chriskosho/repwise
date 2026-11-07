@@ -1,13 +1,15 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, needsExportReminder } from './db';
+import { db, listSessions, needsExportReminder } from './db';
 import { downloadExport } from './backup';
+import { loadLibrary } from './library';
 import { useRest } from './rest';
 import { useSync } from './sync';
 import WorkoutTab, { EditSession } from './components/WorkoutTab';
 import History from './components/History';
 import Settings from './components/Settings';
 import RestBar from './components/RestBar';
+import RoutineEditor from './components/RoutineEditor';
 
 // The chart library is the heaviest dependency, so load it only when needed.
 const Progress = lazy(() => import('./components/Progress'));
@@ -39,6 +41,7 @@ function statusLabel(sync) {
 export default function App() {
   const [tab, setTab] = useState('workout');
   const [editId, setEditId] = useState(null);
+  const [routineView, setRoutineView] = useState(null); // { doc, isNew } while the routine editor is open
   const [unit, setUnitState] = useState(readUnit);
   const [dismissed, setDismissed] = useState(false);
   const [, setTick] = useState(0);
@@ -62,8 +65,19 @@ export default function App() {
 
   const goTab = (id) => {
     setEditId(null);
+    setRoutineView(null);
     setTab(id);
   };
+
+  const openRoutine = (doc, isNew) => setRoutineView({ doc, isNew });
+
+  // Fetch the exercise library quietly in the background so the picker opens instantly.
+  useEffect(() => {
+    const t = setTimeout(() => loadLibrary().catch(() => {}), 2500);
+    return () => clearTimeout(t);
+  }, []);
+
+  const sessions = useLiveQuery(listSessions, [], []);
 
   const showReminder = count > 0 && !dismissed && needsExportReminder();
   const restVisible = rest.end != null || rest.over;
@@ -105,10 +119,26 @@ export default function App() {
         )}
 
         {editId ? (
-          <EditSession id={editId} unit={unit} onClose={() => setEditId(null)} />
+          <EditSession
+            id={editId}
+            unit={unit}
+            onClose={() => setEditId(null)}
+            onSaveRoutine={(doc) => {
+              setEditId(null);
+              openRoutine(doc, true);
+            }}
+          />
+        ) : routineView ? (
+          <RoutineEditor
+            key={routineView.doc.id}
+            initial={routineView.doc}
+            isNew={routineView.isNew}
+            sessions={sessions}
+            onClose={() => setRoutineView(null)}
+          />
         ) : (
           <>
-            {tab === 'workout' && <WorkoutTab unit={unit} onOpenSession={setEditId} />}
+            {tab === 'workout' && <WorkoutTab unit={unit} onOpenSession={setEditId} onOpenRoutine={openRoutine} />}
             {tab === 'history' && (
               <History
                 unit={unit}
@@ -137,8 +167,8 @@ export default function App() {
           <button
             key={id}
             type="button"
-            className={tab === id && !editId ? 'tab active' : 'tab'}
-            aria-current={tab === id && !editId ? 'page' : undefined}
+            className={tab === id && !editId && !routineView ? 'tab active' : 'tab'}
+            aria-current={tab === id && !editId && !routineView ? 'page' : undefined}
             onClick={() => goTab(id)}
           >
             {label}

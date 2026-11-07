@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { key } from './stats';
 
 export const newId = () => crypto.randomUUID();
 export const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
@@ -61,6 +62,15 @@ db.version(2)
       await tx.table('sessions').put(sessionFromLegacy(w));
     }
   });
+
+// Version 3 adds saved routines and your own exercises. No data needs converting.
+db.version(3).stores({
+  workouts: 'id, date, exercise, dirty', // legacy, no longer written to
+  sessions: 'id, date, dirty',
+  routines: 'id, dirty',
+  customExercises: 'id, dirty',
+  meta: 'key',
+});
 
 // Newest first. Date decides, then start time.
 export const sessionOrder = (s) => `${s.date}|${s.started_at || ''}`;
@@ -140,6 +150,95 @@ export async function listSessions() {
 export async function getActiveSession() {
   const all = await db.sessions.toArray();
   return all.filter((s) => !s.deleted_at && !s.ended_at).sort(byNewest)[0] ?? null;
+}
+
+// ---- routines and custom exercises (same local-first pattern as sessions) ----
+async function putRow(table, doc) {
+  const existing = await table.get(doc.id);
+  const row = {
+    ...(existing || {}),
+    ...doc,
+    created_at: existing?.created_at ?? doc.created_at ?? nowIso(),
+    deleted_at: existing?.deleted_at ?? doc.deleted_at ?? null,
+    dirty: 1,
+    rev: (existing?.rev ?? 0) + 1,
+  };
+  await table.put(row);
+  markBackupBaseline();
+  return row;
+}
+
+async function softDelete(table, id) {
+  await table
+    .where('id')
+    .equals(id)
+    .modify((r) => {
+      r.deleted_at = nowIso();
+      r.dirty = 1;
+      r.rev = (r.rev ?? 0) + 1;
+    });
+}
+
+const MAX_ROUTINE_SETS = 12;
+
+export function newRoutine() {
+  return { id: newId(), name: '', notes: '', exercises: [], created_at: nowIso(), deleted_at: null };
+}
+
+// A routine is a template: exercises in order, with the number and type of each
+// set. Weights and reps aren't stored; the "previous" column supplies those.
+export function routineFromSession(session) {
+  const exercises = session.exercises
+    .filter((e) => e.sets.length)
+    .map((e) => ({
+      id: newId(),
+      name: e.name,
+      link: !!e.link,
+      notes: e.notes || '',
+      sets: e.sets.slice(0, MAX_ROUTINE_SETS).map((s) => ({ id: newId(), type: s.type || 'normal' })),
+    }));
+  return { ...newRoutine(), name: (session.name || '').trim(), exercises };
+}
+
+// A fresh, unfinished workout with the routine's exercises and empty sets.
+export function sessionFromRoutine(routine) {
+  const base = newSession();
+  return {
+    ...base,
+    name: routine.name || base.name,
+    exercises: routine.exercises.map((e) => ({
+      id: newId(),
+      name: e.name,
+      link: !!e.link,
+      notes: e.notes || '',
+      sets: (e.sets.length ? e.sets : [{ type: 'normal' }]).map((s) => ({
+        id: newId(),
+        type: s.type || 'normal',
+        reps: '',
+        weight: '',
+        done: false,
+      })),
+    })),
+  };
+}
+
+export const saveRoutine = (doc) => putRow(db.routines, doc);
+export const deleteRoutine = (id) => softDelete(db.routines, id);
+export async function listRoutines() {
+  const all = await db.routines.toArray();
+  return all.filter((r) => !r.deleted_at).sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+}
+
+// Your own exercises. Adding a name you already have returns the existing one.
+export async function saveCustomExercise({ name, muscle = '', equipment = '' }) {
+  const clean = String(name).trim().replace(/\s+/g, ' ').slice(0, 100);
+  const existing = (await db.customExercises.toArray()).find((c) => !c.deleted_at && key(c.name) === key(clean));
+  if (existing) return existing;
+  return putRow(db.customExercises, { id: newId(), name: clean, muscle, equipment, deleted_at: null });
+}
+export async function listCustomExercises() {
+  const all = await db.customExercises.toArray();
+  return all.filter((c) => !c.deleted_at).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
 }
 
 // ---- backup bookkeeping (kept in localStorage; per device) ----

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { byNewest, deleteSession, newId, saveSession, sessionOrder, toDoc } from '../db';
+import { byNewest, deleteSession, newId, routineFromSession, saveSession, sessionOrder, toDoc } from '../db';
 import { computePRs, fmtClock, fmtNum, fmtVolume, previousSets, sessionStats } from '../stats';
 import { usePrefs } from '../prefs';
 import { startRest, stopRest } from '../rest';
@@ -25,7 +25,7 @@ function Elapsed({ since }) {
 
 // The workout screen. `mode` is 'active' (live workout with rest timer) or 'edit'
 // (changing a finished workout). Changes save automatically a moment after you stop typing.
-export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish, onClose }) {
+export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish, onClose, onSaveRoutine }) {
   const active = mode === 'active';
   const prefs = usePrefs();
   const [session, setSession] = useState(() => toDoc(initial));
@@ -121,15 +121,19 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
 
   const blankSet = (type = 'normal') => ({ id: newId(), type, reps: '', weight: '', done: !active });
 
-  function addExercise(raw) {
-    const name = raw.trim().replace(/\s+/g, ' ');
+  function addExercises(names) {
     setPicker(false);
-    if (!name) return;
-    // Start with as many empty sets as last time, so the "previous" column lines up.
-    const prev = previousSets(name, prior);
-    const count = Math.min(Math.max(prev.length, 1), MAX_PREFILL_SETS);
-    const sets = Array.from({ length: count }, (_, i) => blankSet(prev[i]?.type ?? 'normal'));
-    update((s) => ({ ...s, exercises: [...s.exercises, { id: newId(), name, link: false, notes: '', sets }] }));
+    const fresh = [];
+    for (const raw of names) {
+      const name = raw.trim().replace(/\s+/g, ' ');
+      if (!name) continue;
+      // Start with as many empty sets as last time, so the "previous" column lines up.
+      const prev = previousSets(name, prior);
+      const count = Math.min(Math.max(prev.length, 1), MAX_PREFILL_SETS);
+      const sets = Array.from({ length: count }, (_, i) => blankSet(prev[i]?.type ?? 'normal'));
+      fresh.push({ id: newId(), name, link: false, notes: '', sets });
+    }
+    if (fresh.length) update((s) => ({ ...s, exercises: [...s.exercises, ...fresh] }));
   }
 
   function addSet(ex) {
@@ -445,13 +449,25 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
         </p>
       )}
 
+      {!active && onSaveRoutine && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-block"
+          onClick={async () => {
+            await flush();
+            onSaveRoutine(routineFromSession(latest.current));
+          }}
+        >
+          Save as routine
+        </button>
+      )}
       {!active && (
         <button type="button" className="btn btn-ghost btn-danger btn-block" onClick={removeFinished}>
           Delete workout
         </button>
       )}
 
-      {picker && <ExercisePicker sessions={sessions} onPick={addExercise} onClose={() => setPicker(false)} />}
+      {picker && <ExercisePicker sessions={sessions} onAdd={addExercises} onClose={() => setPicker(false)} />}
     </div>
   );
 }

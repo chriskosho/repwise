@@ -8,6 +8,7 @@ import { setPrefs } from '../src/prefs';
 
 beforeEach(async () => {
   await db.sessions.clear();
+  await db.customExercises.clear();
   setPrefs({ restEnabled: true, restSeconds: 90, alerts: false, keepAwake: false });
 });
 
@@ -36,6 +37,18 @@ const finishedSession = (date, name, exName, sets) => ({
   ],
 });
 
+// Open the picker, select each named exercise (library names are exact), and add them.
+async function addViaPicker(user, ...names) {
+  await user.click(screen.getByRole('button', { name: '+ Add exercise' }));
+  for (const name of names) {
+    const box = screen.getByLabelText('Search exercises');
+    await user.clear(box);
+    await user.type(box, name);
+    await user.click(await screen.findByRole('button', { name }));
+  }
+  await user.click(screen.getByRole('button', { name: new RegExp(`^Add ${names.length} exercise`) }));
+}
+
 async function startActive() {
   const s = newSession();
   await saveSession(s);
@@ -51,8 +64,11 @@ describe('active workout', () => {
 
     await user.click(screen.getByRole('button', { name: '+ Add exercise' }));
     await user.type(screen.getByLabelText('Search exercises'), 'Zercher squat');
-    await user.click(screen.getByRole('button', { name: /Add “Zercher squat”/ }));
+    await user.click(screen.getByRole('button', { name: /Create “Zercher squat”/ }));
+    await user.click(screen.getByRole('button', { name: 'Create and select' }));
+    await user.click(await screen.findByRole('button', { name: 'Add 1 exercise' }));
     expect(screen.getByRole('heading', { name: 'Zercher squat' })).toBeTruthy();
+    expect((await db.customExercises.toArray()).map((c) => c.name)).toEqual(['Zercher squat']);
 
     await user.type(screen.getByLabelText('Set 1 weight'), '225');
     await user.type(screen.getByLabelText('Set 1 reps'), '5');
@@ -81,8 +97,7 @@ describe('active workout', () => {
     const earlier = finishedSession('2026-10-01', 'Old', 'Squat', [[5, 200]]);
     render(<WorkoutEditor initial={row} mode="active" sessions={[earlier]} unit="lb" onFinish={() => {}} />);
 
-    await user.click(screen.getByRole('button', { name: '+ Add exercise' }));
-    await user.click(screen.getByRole('button', { name: 'Squat' })); // from "Your exercises"
+    await addViaPicker(user, 'Squat'); // from "Your exercises"
 
     // Previous column shows last time; one empty set row was pre-created to match.
     expect(screen.getByText('200 × 5')).toBeTruthy();
@@ -102,8 +117,7 @@ describe('active workout', () => {
     const earlier = finishedSession('2026-10-01', 'Old', 'Squat', [[5, 200]]);
     render(<WorkoutEditor initial={row} mode="active" sessions={[earlier]} unit="lb" onFinish={() => {}} />);
 
-    await user.click(screen.getByRole('button', { name: '+ Add exercise' }));
-    await user.click(screen.getByRole('button', { name: 'Squat' }));
+    await addViaPicker(user, 'Squat');
     await user.click(screen.getByRole('button', { name: 'Mark set 1 done' }));
 
     expect(screen.getByLabelText('Set 1 weight').value).toBe('200');
@@ -115,9 +129,7 @@ describe('active workout', () => {
     const row = await startActive();
     render(<WorkoutEditor initial={row} mode="active" sessions={[]} unit="lb" onFinish={() => {}} />);
 
-    await user.click(screen.getByRole('button', { name: '+ Add exercise' }));
-    await user.type(screen.getByLabelText('Search exercises'), 'Curl');
-    await user.click(screen.getByRole('button', { name: 'Biceps Curl' }));
+    await addViaPicker(user, 'Barbell Curl');
     await user.click(screen.getByRole('button', { name: 'Mark set 1 done' }));
 
     expect(screen.getByRole('alert').textContent).toMatch(/reps/i);
@@ -129,15 +141,11 @@ describe('active workout', () => {
     const row = await startActive();
     render(<WorkoutEditor initial={row} mode="active" sessions={[]} unit="lb" onFinish={() => {}} />);
 
-    for (const name of ['Bench Press', 'Barbell Row']) {
-      await user.click(screen.getByRole('button', { name: '+ Add exercise' }));
-      await user.type(screen.getByLabelText('Search exercises'), name);
-      await user.click(screen.getByRole('button', { name }));
-    }
-    await user.click(screen.getByRole('button', { name: 'Bench Press options' }));
+    await addViaPicker(user, 'Barbell Bench Press - Medium Grip', 'Bent Over Barbell Row'); // added together
+    await user.click(screen.getByRole('button', { name: 'Barbell Bench Press - Medium Grip options' }));
     await user.click(screen.getByLabelText('Superset with the next exercise'));
 
-    // Two exercises on screen, so each set label appears twice; use the first (Bench Press).
+    // Two exercises on screen, so each set label appears twice; use the first (the bench press).
     await user.type(screen.getAllByLabelText('Set 1 weight')[0], '135');
     await user.type(screen.getAllByLabelText('Set 1 reps')[0], '8');
     await user.click(screen.getAllByRole('button', { name: 'Mark set 1 done' })[0]);
@@ -155,9 +163,7 @@ describe('active workout', () => {
     const row = await startActive();
     render(<WorkoutEditor initial={row} mode="active" sessions={[]} unit="lb" onFinish={() => {}} />);
 
-    await user.click(screen.getByRole('button', { name: '+ Add exercise' }));
-    await user.type(screen.getByLabelText('Search exercises'), 'Deadlift');
-    await user.click(screen.getByRole('button', { name: 'Deadlift' }));
+    await addViaPicker(user, 'Barbell Deadlift');
     await user.click(screen.getByRole('button', { name: '+ Add set' }));
 
     await user.click(screen.getByRole('button', { name: 'Set 1 options' }));
