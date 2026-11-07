@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { getProfile, listSessions } from '../db';
+import { getProfile } from '../db';
+import { useWorkouts } from '../workouts';
+import ActivityStats from './ActivityStats';
 import ProgressCharts from './ProgressCharts';
 import Records from './Records';
 import MuscleVolume from './MuscleVolume';
@@ -12,13 +14,14 @@ const VIEWS = [
   ['records', 'Records'],
   ['volume', 'Volume'],
   ['calendar', 'Calendar'],
+  ['activity', 'Activity'],
   ['tools', 'Tools'],
 ];
 
 // Everything about how you're doing, in one tab. The views share one load of your workouts.
 export default function Progress({ unit }) {
   const [view, setView] = useState('charts');
-  const sessions = useLiveQuery(listSessions, [], undefined);
+  const { ready, sessions, activities, workouts } = useWorkouts();
   const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], null);
   const weekStart = profile?.week_start ?? 1;
 
@@ -34,14 +37,15 @@ export default function Progress({ unit }) {
 
       {view === 'tools' ? (
         <Tools unit={unit} />
-      ) : !sessions ? (
+      ) : !ready ? (
         <p className="muted">Loading…</p>
       ) : (
         <>
           {view === 'charts' && <ProgressCharts unit={unit} />}
           {view === 'records' && <Records sessions={sessions} unit={unit} />}
           {view === 'volume' && <MuscleVolume sessions={sessions} unit={unit} weekStart={weekStart} />}
-          {view === 'calendar' && <CalendarView sessions={sessions} weekStart={weekStart} unit={unit} />}
+          {view === 'calendar' && <CalendarView sessions={workouts} weekStart={weekStart} unit={unit} />}
+          {view === 'activity' && <ActivityStats activities={activities} unit={unit} weekStart={weekStart} />}
         </>
       )}
     </div>

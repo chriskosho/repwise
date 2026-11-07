@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { activeWeekStreaks, monthGrid } from '../analytics';
 import { today } from '../db';
+import { activitySummary } from '../activities';
 import { sessionStats, fmtDayDate, fmtDuration, fmtVolume, plural } from '../stats';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -96,6 +97,13 @@ export default function CalendarView({ sessions, weekStart, unit }) {
           <strong>{fmtDayDate(picked)}</strong>
           {!day.length && <p className="muted">No workout on this day.</p>}
           {day.map((s) => {
+            if (s.isActivity) {
+              return (
+                <p key={s.id} className="muted">
+                  {s.name}: {activitySummary(s.activity, unit)}
+                </p>
+              );
+            }
             const st = sessionStats(s);
             return (
               <p key={s.id} className="muted">

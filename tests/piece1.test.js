@@ -154,7 +154,7 @@ describe('backup version 4', () => {
     await saveBodyEntry({ date: '2026-11-01', weight_kg: 80, body_fat: 18, measurements: { waist: 88 } });
     await saveGoal({ type: 'body_weight', target: 75, start_value: 80 });
     const data = await buildExport();
-    expect(data.version).toBe(4);
+    expect(data.version).toBe(5);
     expect(data.body_entries).toHaveLength(1);
     expect(data.goals).toHaveLength(1);
     expect(data.profile).toMatchObject({ display_name: 'Chris', units: 'kg' });

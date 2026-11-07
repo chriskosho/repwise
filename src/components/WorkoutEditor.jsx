@@ -5,6 +5,9 @@ import { usePrefs } from '../prefs';
 import { startRest, stopRest } from '../rest';
 import { useNow } from '../useNow';
 import ExercisePicker from './ExercisePicker';
+import PlacePicker from './PlacePicker';
+import { listPlaces } from '../db';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 const TYPES = [
   ['normal', 'Normal'],
@@ -33,6 +36,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
   const [openSet, setOpenSet] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
   const [hint, setHint] = useState('');
+  const places = useLiveQuery(listPlaces, [], []);
 
   const latest = useRef(session);
   const timer = useRef(null);
@@ -281,6 +285,23 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
           </label>
         )}
       </div>
+
+      <details className="card details-card" open={Boolean(session.place_id || session.notes)}>
+        <summary>Place and notes</summary>
+        <div className="form">
+          <PlacePicker places={places} value={session.place_id} onChange={(id) => update((s) => ({ ...s, place_id: id }))} />
+          <label className="field">
+            <span>Workout notes</span>
+            <textarea
+              rows={3}
+              value={session.notes ?? ''}
+              maxLength={2000}
+              placeholder="How it went, how you felt…"
+              onChange={(e) => update((s) => ({ ...s, notes: e.target.value }))}
+            />
+          </label>
+        </div>
+      </details>
 
       {session.exercises.map((ex, i) => {
         const prev = previous.get(ex.id) ?? [];

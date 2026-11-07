@@ -5,6 +5,7 @@ import { deleteBodyEntry, getProfile, listBodyEntries, listGoals, listSessions, 
 import { MEASUREMENTS, bmi, changeOver, latestWeightKg, measurementLabel, weightTrend } from '../body';
 import { lengthIn, lengthOut, lengthUnit, weightIn, weightOut } from '../units';
 import Goals from './Goals';
+import { useWorkouts } from '../workouts';
 import { fmtDayDate } from '../stats';
 
 const PAGE = 10;
@@ -33,6 +34,7 @@ export default function Body({ unit }) {
   const entries = useLiveQuery(listBodyEntries, [], undefined);
   const goals = useLiveQuery(listGoals, [], []);
   const sessions = useLiveQuery(listSessions, [], []);
+  const { workouts } = useWorkouts();
   const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], null);
 
   const [date, setDate] = useState(today());
@@ -210,7 +212,7 @@ export default function Body({ unit }) {
         </section>
       )}
 
-      <Goals goals={goals} sessions={sessions} entries={entries} profile={profile} unit={unit} latestKg={latest} />
+      <Goals goals={goals} sessions={sessions} workouts={workouts} entries={entries} profile={profile} unit={unit} latestKg={latest} />
 
       <section className="card">
         <h2>History</h2>

@@ -70,7 +70,7 @@ describe('export and import', () => {
     await saveSession(finished('2026-11-01', 'Legs', [squat([[5, 225], [3, 245, 'failure']])]));
     await saveSession(newSession()); // unfinished: not exported
     const exp = await buildExport();
-    expect(exp.version).toBe(4);
+    expect(exp.version).toBe(5);
     expect(exp.sessions).toHaveLength(1);
 
     await db.sessions.clear();

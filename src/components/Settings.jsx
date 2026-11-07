@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { downloadExport, importFile } from '../backup';
-import { getProfile, lastExportAt, saveProfile } from '../db';
+import { deletePlace, getProfile, lastExportAt, listPlaces, renamePlace, saveProfile, savePlace } from '../db';
 import { heightIn, heightOut, lengthUnit } from '../units';
 import { setPrefs, usePrefs } from '../prefs';
 import { setTheme, useTheme } from '../theme';
@@ -10,6 +10,101 @@ const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300];
 const restLabel = (s) => (s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString() : 'never');
+
+function Places() {
+  const places = useLiveQuery(listPlaces, [], []);
+  const [name, setName] = useState('');
+  const [editing, setEditing] = useState(null); // { id, name }
+  const [removing, setRemoving] = useState(null);
+  const [error, setError] = useState('');
+
+  async function run(fn) {
+    setError('');
+    try {
+      await fn();
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>Places</h2>
+      <p className="muted">
+        Name the places you train, like a gym or a park, and pick them on any workout or activity. Only the name you type is saved; Repwise
+        never reads your location.
+      </p>
+      {places.length === 0 && <p className="muted empty">No places yet.</p>}
+      <ul className="plain place-list">
+        {places.map((p) => (
+          <li key={p.id}>
+            {editing?.id === p.id ? (
+              <form
+                className="row"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (await run(() => renamePlace(p.id, editing.name))) setEditing(null);
+                }}
+              >
+                <input value={editing.name} onChange={(e) => setEditing({ id: p.id, name: e.target.value })} maxLength={80} aria-label="Place name" />
+                <button type="submit" className="btn btn-small">
+                  Save
+                </button>
+                <button type="button" className="btn btn-small btn-ghost" onClick={() => setEditing(null)}>
+                  Cancel
+                </button>
+              </form>
+            ) : removing === p.id ? (
+              <span className="actions">
+                <span>Remove {p.name}? Workouts keep working, they just lose the place.</span>
+                <button type="button" className="btn btn-small btn-danger" onClick={() => run(() => deletePlace(p.id)).then(() => setRemoving(null))}>
+                  Yes, remove
+                </button>
+                <button type="button" className="btn btn-small btn-ghost" onClick={() => setRemoving(null)}>
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <>
+                <strong>{p.name}</strong>
+                <span className="actions">
+                  <button type="button" className="btn btn-small btn-ghost" onClick={() => setEditing({ id: p.id, name: p.name })} aria-label={`Rename ${p.name}`}>
+                    Rename
+                  </button>
+                  <button type="button" className="btn btn-small btn-ghost" onClick={() => setRemoving(p.id)} aria-label={`Remove ${p.name}`}>
+                    Remove
+                  </button>
+                </span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      <form
+        className="row place-add"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (await run(() => savePlace(name))) setName('');
+        }}
+      >
+        <label className="field">
+          <span>Add a place</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+        </label>
+        <button type="submit" className="btn btn-small">
+          Add
+        </button>
+      </form>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
 
 export default function Settings({ sync, unit, setUnit, onExported }) {
   const [email, setEmail] = useState('');
@@ -81,11 +176,13 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
     setBackupMsg('');
     setBackupErr('');
     try {
-      const { added, skipped, invalid, routines, exercises, body, goals } = await importFile(file);
+      const { added, skipped, invalid, routines, exercises, body, goals, places, activities } = await importFile(file);
       const parts = [`${added} new workout${added === 1 ? '' : 's'}`];
       if (routines) parts.push(`${routines} routine${routines === 1 ? '' : 's'}`);
       if (exercises) parts.push(`${exercises} exercise${exercises === 1 ? '' : 's'}`);
       if (body) parts.push(`${body} body entr${body === 1 ? 'y' : 'ies'}`);
+      if (activities) parts.push(`${activities} activit${activities === 1 ? 'y' : 'ies'}`);
+      if (places) parts.push(`${places} place${places === 1 ? '' : 's'}`);
       if (goals) parts.push(`${goals} goal${goals === 1 ? '' : 's'}`);
       setBackupMsg(
         `Imported ${parts.join(', ')}` + (skipped ? `, skipped ${skipped} already here` : '') + (invalid ? `, ignored ${invalid} invalid` : '') + '.',
@@ -266,6 +363,8 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
         </div>
       </section>
 
+      <Places />
+
       <section className="card">
         <h2>Backup</h2>
         <p className="muted">Last export: {fmt(lastExportAt())}. Keep exported files somewhere safe, like a cloud folder.</p>
@@ -293,6 +392,7 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
           <li>It is stored on this device and, if you sign in, in the project’s database. The person who runs that database technically has access to it.</li>
           <li>Repwise has no ads and no tracking, and your data is never sold or shared.</li>
           <li>Your email address is used only to sign you in.</li>
+          <li>Places are just names you type. Repwise never asks for or reads your device location, and there is no GPS tracking.</li>
           <li>You can export everything at any time, and delete your account and all its data below.</li>
         </ul>
       </section>
@@ -301,7 +401,7 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
         <section className="card danger-zone">
           <h2>Delete account</h2>
           <p className="muted">
-            This permanently deletes your account and every workout, routine, measurement and goal stored on the server, and clears this device.
+            This permanently deletes your account and every workout, activity, place, routine, measurement and goal stored on the server, and clears this device.
             It can’t be undone. Export a backup first if you want to keep anything.
           </p>
           {!deleteAsk ? (

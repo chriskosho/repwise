@@ -31,5 +31,5 @@ it('keeps existing sessions and their unsynced state when upgrading from version
   expect((await db.meta.get('last_pull_sessions')).value).toBe('2026-11-06T16:36:23.146467+00:00'); // no needless full re-download
   expect(await listRoutines()).toEqual([]);
   expect(await listCustomExercises()).toEqual([]);
-  expect(db.verno).toBe(4);
+  expect(db.verno).toBe(5);
 });

@@ -15,6 +15,8 @@ import {
 import { fmtDuration, fmtVolume, plural } from '../stats';
 import { weekStartOf } from '../goals';
 import SessionCard from './SessionCard';
+import ActivityCard from './ActivityCard';
+import { useWorkouts } from '../workouts';
 import WorkoutEditor from './WorkoutEditor';
 
 function Summary({ info, unit, onDone, onSaveRoutine }) {
@@ -123,9 +125,9 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory }) {
+export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onOpenActivity }) {
   const active = useLiveQuery(getActiveSession, [], undefined);
-  const sessions = useLiveQuery(listSessions, [], undefined);
+  const { sessions, activities, places, workouts } = useWorkouts();
   const routines = useLiveQuery(listRoutines, [], undefined);
   const [summary, setSummary] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -140,7 +142,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
       />
     );
   }
-  if (active === undefined || sessions === undefined || routines === undefined) return <p className="muted">Loading…</p>;
+  if (active === undefined || !workouts || routines === undefined) return <p className="muted">Loading…</p>;
 
   if (active) {
     return <WorkoutEditor key={active.id} initial={active} mode="active" sessions={sessions} unit={unit} onFinish={setSummary} />;
@@ -161,10 +163,10 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
     onOpenSession(s.id);
   }
 
-  const finished = sessions.filter((s) => s.ended_at);
-  const recent = finished.slice(0, 2);
+  const recent = workouts.slice(0, 2);
+  const placeName = (id) => places.find((p) => p.id === id)?.name;
   const weekFrom = weekStartOf(today(), weekStart);
-  const thisWeek = finished.filter((s) => s.date >= weekFrom).length;
+  const thisWeek = workouts.filter((s) => s.date >= weekFrom).length;
 
   return (
     <div>
@@ -181,6 +183,9 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
         </button>
         <button type="button" className="btn btn-link" onClick={logPast}>
           Log a past workout
+        </button>
+        <button type="button" className="btn btn-link" onClick={onLogActivity}>
+          Log an activity (run, sport…)
         </button>
       </section>
 
@@ -203,15 +208,19 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
         <>
           <div className="section-head">
             <h3>Recent</h3>
-            {finished.length > recent.length && (
+            {workouts.length > recent.length && (
               <button type="button" className="btn btn-link btn-small" onClick={onShowHistory}>
                 See all
               </button>
             )}
           </div>
-          {recent.map((s) => (
-            <SessionCard key={s.id} session={s} unit={unit} onOpen={(x) => onOpenSession(x.id)} />
-          ))}
+          {recent.map((s) =>
+            s.isActivity ? (
+              <ActivityCard key={s.id} activity={s.activity} unit={unit} placeName={placeName(s.activity.place_id)} onOpen={onOpenActivity} />
+            ) : (
+              <SessionCard key={s.id} session={s} unit={unit} placeName={placeName(s.place_id)} onOpen={(x) => onOpenSession(x.id)} />
+            ),
+          )}
         </>
       )}
     </div>

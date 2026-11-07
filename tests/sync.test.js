@@ -86,6 +86,33 @@ describe('sync of the new tables', () => {
     expect(await dbm.listGoals()).toHaveLength(1);
   });
 
+  it('syncs places, activities and the place on a workout to a second device', async () => {
+    const place = await dbm.savePlace('Planet Fitness');
+    await dbm.saveActivity({ ...dbm.newActivity('2026-11-02'), type: 'run', duration_min: 30, distance_km: 5, place_id: place.id, notes: 'Cold' });
+    const s = dbm.newSession({ finished: true });
+    s.place_id = place.id;
+    s.notes = 'Leg day';
+    s.exercises = [{ id: 'e', name: 'Squat', link: false, notes: '', sets: [{ id: 'x', reps: 5, weight: 100, type: 'normal', done: true }] }];
+    await dbm.saveSession(s);
+    await sync.runSync();
+
+    expect([...fake.state.tables.places.values()][0]).toMatchObject({ user_id: 'user-1', name: 'Planet Fitness' });
+    expect([...fake.state.tables.activities.values()][0]).toMatchObject({ user_id: 'user-1', type: 'run', duration_min: 30, distance_km: 5, notes: 'Cold', place_id: place.id });
+    expect([...fake.state.tables.sessions.values()][0]).toMatchObject({ place_id: place.id });
+    expect(await dbm.db.activities.where('dirty').equals(1).count()).toBe(0);
+
+    await dbm.clearLocalData();
+    await sync.runSync();
+    expect(await dbm.listPlaces()).toHaveLength(1);
+    expect((await dbm.listActivities())[0]).toMatchObject({ type: 'run', place_id: place.id, dirty: 0 });
+    expect((await dbm.listSessions())[0].place_id).toBe(place.id);
+
+    // Deleting a place on one device reaches the other.
+    await dbm.deletePlace(place.id);
+    await sync.runSync();
+    expect([...fake.state.tables.places.values()][0].deleted_at).toBeTruthy();
+  });
+
   it('stores the profile under the account id on the server but "me" on the device', async () => {
     await dbm.saveProfile({ display_name: 'Chris', units: 'kg', height_cm: 180 });
     await sync.runSync();

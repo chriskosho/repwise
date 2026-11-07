@@ -1,29 +1,36 @@
 import { useMemo, useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { listSessions } from '../db';
 import { fmtDayDate, key } from '../stats';
+import { activityTitle, typeLabel } from '../activities';
+import { useWorkouts } from '../workouts';
 import SessionCard from './SessionCard';
+import ActivityCard from './ActivityCard';
 
 const PAGE = 15; // days shown before "Show more"
 
-export default function History({ unit, onOpen }) {
+export default function History({ unit, onOpen, onOpenActivity }) {
   const [query, setQuery] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [showDates, setShowDates] = useState(false);
   const [limit, setLimit] = useState(PAGE);
 
-  const all = useLiveQuery(listSessions, [], undefined);
+  const { sessions, activities, places, ready } = useWorkouts();
+  const placeName = (id) => places?.find((p) => p.id === id)?.name ?? '';
+  const all = ready ? [...sessions, ...activities.map((a) => ({ isActivity: true, activity: a, id: a.id, date: a.date, created_at: a.created_at }))] : undefined;
 
   // The newest unfinished workout is the one the Workout tab resumes.
-  const activeId = all?.find((s) => !s.ended_at)?.id;
+  const activeId = sessions?.find((s) => !s.ended_at)?.id;
 
   const groups = useMemo(() => {
     if (!all) return [];
     const q = key(query);
+    const matches = (s) =>
+      s.isActivity
+        ? [activityTitle(s.activity), typeLabel(s.activity.type), s.activity.notes, placeName(s.activity.place_id)].some((t) => key(t ?? '').includes(q))
+        : s.exercises.some((e) => key(e.name).includes(q)) || [s.name, s.notes, placeName(s.place_id)].some((t) => key(t ?? '').includes(q));
     const filtered = all.filter(
       (s) =>
-        (!q || s.exercises.some((e) => key(e.name).includes(q)) || key(s.name).includes(q)) &&
+        (!q || matches(s)) &&
         (!from || s.date >= from) &&
         (!to || s.date <= to),
     );
@@ -33,7 +40,7 @@ export default function History({ unit, onOpen }) {
       byDate.get(s.date).push(s);
     }
     return [...byDate.entries()];
-  }, [all, query, from, to]);
+  }, [sessions, activities, places, query, from, to]);
 
   if (!all) return <p className="muted">Loading…</p>;
 
@@ -49,7 +56,7 @@ export default function History({ unit, onOpen }) {
               setQuery(e.target.value);
               setLimit(PAGE);
             }}
-            placeholder="Search exercises or workouts"
+            placeholder="Search exercises, activities, places, notes"
           />
         </label>
         {!showDates && !from && !to && (
@@ -94,9 +101,13 @@ export default function History({ unit, onOpen }) {
       {groups.slice(0, limit).map(([date, items]) => (
         <section key={date} className="day">
           <h3>{fmtDayDate(date)}</h3>
-          {items.map((s) => (
-            <SessionCard key={s.id} session={s} unit={unit} showDate={false} onOpen={(x) => onOpen(x, x.id === activeId)} />
-          ))}
+          {items.map((s) =>
+            s.isActivity ? (
+              <ActivityCard key={s.id} activity={s.activity} unit={unit} showDate={false} placeName={placeName(s.activity.place_id)} onOpen={onOpenActivity} />
+            ) : (
+              <SessionCard key={s.id} session={s} unit={unit} showDate={false} placeName={placeName(s.place_id)} onOpen={(x) => onOpen(x, x.id === activeId)} />
+            ),
+          )}
         </section>
       ))}
       {groups.length > limit && (

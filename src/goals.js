@@ -77,9 +77,10 @@ export function progressBetween(start, current, target) {
 
 // Everything the goals list needs to display one goal. Weights in kg for body_weight;
 // lifts are in whatever unit you log.
-export function goalStatus(goal, { sessions, entries, weekStart, latestKg, todayStr }) {
+export function goalStatus(goal, { sessions, workouts, entries, weekStart, latestKg, todayStr }) {
   if (goal.type === 'weekly_workouts') {
-    const p = weeklyGoalProgress(sessions, goal.target, weekStart, todayStr);
+    // Activities (a run, a game of pickup) count as workouts for a weekly goal.
+    const p = weeklyGoalProgress(workouts ?? sessions, goal.target, weekStart, todayStr);
     return { ...p, current: p.done, reached: p.done >= goal.target };
   }
   if (goal.type === 'body_weight') {

@@ -29,6 +29,7 @@ function GoalCard({ goal, status, unit }) {
         {status.reached && <span className="badge">Reached</span>}
       </div>
       <p className="muted goal-text">{describe(goal, status, unit)}</p>
+      {goal.notes && <p className="notes">{goal.notes}</p>}
       <div className="bar" role="progressbar" aria-label={`${title} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
         <div className="bar-fill" style={{ width: `${pct}%` }} />
       </div>
@@ -59,6 +60,7 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
   const [exercise, setExercise] = useState('');
   const [metric, setMetric] = useState('weight');
   const [error, setError] = useState('');
+  const [notes, setNotes] = useState('');
   const names = historyNames(sessions);
 
   async function submit(e) {
@@ -69,13 +71,13 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
     try {
       if (type === 'weekly_workouts') {
         if (!Number.isInteger(n) || n > 14) return setError('Choose a whole number of workouts, up to 14.');
-        await saveGoal({ type, target: n });
+        await saveGoal({ type, target: n, notes });
       } else if (type === 'body_weight') {
         if (latestKg == null) return setError('Log your weight first, so there is a starting point.');
-        await saveGoal({ type, target: weightIn(n, unit), start_value: latestKg });
+        await saveGoal({ type, target: weightIn(n, unit), start_value: latestKg, notes });
       } else {
         if (!exercise.trim()) return setError('Pick an exercise.');
-        await saveGoal({ type, exercise, metric, target: n, start_value: bestForExercise(sessions, exercise, metric) ?? 0 });
+        await saveGoal({ type, exercise, metric, target: n, start_value: bestForExercise(sessions, exercise, metric) ?? 0, notes });
       }
       onDone();
     } catch (err) {
@@ -128,6 +130,10 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
         <span>{type === 'weekly_workouts' ? 'Workouts per week' : type === 'body_weight' ? `Target weight (${unit})` : `Target (${unit})`}</span>
         <input type="number" inputMode="decimal" step="any" min="0" value={target} onChange={(e) => setTarget(e.target.value)} required />
       </label>
+      <label className="field">
+        <span>Notes (optional)</span>
+        <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="Why this goal, a deadline…" />
+      </label>
       {error && (
         <p className="error" role="alert">
           {error}
@@ -145,9 +151,9 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
   );
 }
 
-export default function Goals({ goals, sessions, entries, profile, unit, latestKg }) {
+export default function Goals({ goals, sessions, workouts, entries, profile, unit, latestKg }) {
   const [adding, setAdding] = useState(false);
-  const ctx = { sessions, entries, weekStart: profile?.week_start ?? 1, latestKg };
+  const ctx = { sessions, workouts, entries, weekStart: profile?.week_start ?? 1, latestKg };
   return (
     <section className="card">
       <div className="section-head">

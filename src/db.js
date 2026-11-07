@@ -1,5 +1,6 @@
 import Dexie from 'dexie';
 import { key } from './stats';
+import { isActivityType } from './activities';
 
 export const newId = () => crypto.randomUUID();
 export const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
@@ -84,11 +85,25 @@ db.version(4).stores({
   meta: 'key',
 });
 
+// Version 5 adds places and non-gym activities. No data needs converting.
+db.version(5).stores({
+  workouts: 'id, date, exercise, dirty', // legacy, no longer written to
+  sessions: 'id, date, dirty',
+  routines: 'id, dirty',
+  customExercises: 'id, dirty',
+  profile: 'id, dirty',
+  bodyEntries: 'id, date, dirty',
+  goals: 'id, dirty',
+  places: 'id, dirty',
+  activities: 'id, date, dirty',
+  meta: 'key',
+});
+
 // Newest first. Date decides, then start time.
 export const sessionOrder = (s) => `${s.date}|${s.started_at || ''}`;
 export const byNewest = (a, b) => sessionOrder(b).localeCompare(sessionOrder(a));
 
-const DOC_FIELDS = ['id', 'date', 'name', 'started_at', 'ended_at', 'notes', 'exercises', 'created_at', 'deleted_at'];
+const DOC_FIELDS = ['id', 'date', 'name', 'started_at', 'ended_at', 'notes', 'exercises', 'place_id', 'created_at', 'deleted_at'];
 export function toDoc(row) {
   const doc = {};
   for (const k of DOC_FIELDS) doc[k] = row[k] ?? (k === 'exercises' ? [] : k === 'notes' || k === 'name' ? '' : null);
@@ -107,6 +122,7 @@ export function newSession({ date = today(), finished = false } = {}) {
     ended_at: finished ? now : null,
     notes: '',
     exercises: [],
+    place_id: lastPlaceId(),
     created_at: now,
     deleted_at: null,
   };
@@ -128,6 +144,7 @@ export function saveSession(doc) {
     };
     await db.sessions.put(row);
     markBackupBaseline();
+    rememberPlace(row.place_id);
     return row;
   };
   const p = queue.then(run, run);
@@ -325,6 +342,7 @@ export function cleanGoal(g) {
     target,
     start_value: Number.isFinite(start) ? start : null,
     start_date: g.start_date || today(),
+    notes: String(g.notes ?? '').slice(0, 2000),
     deleted_at: null,
   };
 }
@@ -339,6 +357,81 @@ export async function listGoals() {
   return all.filter((g) => !g.deleted_at).sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
 }
 
+// ---- places (names only; no coordinates) ----
+const LAST_PLACE = 'repwise.lastPlace';
+export const lastPlaceId = () => read(LAST_PLACE) || null;
+export const rememberPlace = (id) => {
+  if (id) write(LAST_PLACE, id);
+};
+
+const cleanPlaceName = (name) => String(name ?? '').trim().replace(/\s+/g, ' ').slice(0, 80);
+
+// Adding a name you already have returns the existing place.
+export async function savePlace(name) {
+  const clean = cleanPlaceName(name);
+  if (!clean) throw new Error('Give the place a name.');
+  const existing = (await db.places.toArray()).find((p) => !p.deleted_at && key(p.name) === key(clean));
+  if (existing) return existing;
+  return putRow(db.places, { id: newId(), name: clean, deleted_at: null });
+}
+export async function renamePlace(id, name) {
+  const clean = cleanPlaceName(name);
+  if (!clean) throw new Error('Give the place a name.');
+  const clash = (await db.places.toArray()).find((p) => !p.deleted_at && p.id !== id && key(p.name) === key(clean));
+  if (clash) throw new Error('You already have a place with that name.');
+  const row = await db.places.get(id);
+  if (!row || row.deleted_at) throw new Error('That place no longer exists.');
+  return putRow(db.places, { ...row, name: clean });
+}
+export const deletePlace = (id) => softDelete(db.places, id);
+export async function listPlaces() {
+  const all = await db.places.toArray();
+  return all.filter((p) => !p.deleted_at).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+}
+
+// ---- activities (runs, rides, sports...) ----
+export function newActivity(date = today()) {
+  return { id: newId(), date, type: 'run', title: '', duration_min: null, distance_km: null, effort: null, place_id: lastPlaceId(), notes: '', created_at: nowIso(), deleted_at: null };
+}
+
+// Returns a clean row or throws an Error with a message for the person.
+export function cleanActivity(a) {
+  const duration = Number(a.duration_min);
+  if (!(duration > 0) || duration > 1440) throw new Error('Enter how long it took (up to 24 hours).');
+  const distance = a.distance_km === null || a.distance_km === undefined || a.distance_km === '' ? null : Number(a.distance_km);
+  if (distance !== null && !(distance >= 0 && distance <= 5000)) throw new Error('That distance does not look right.');
+  const effort = a.effort === null || a.effort === undefined || a.effort === '' ? null : Math.round(Number(a.effort));
+  if (effort !== null && !(effort >= 1 && effort <= 10)) throw new Error('Effort is a number from 1 to 10.');
+  if (typeof a.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new Error('Pick a date.');
+  return {
+    id: a.id || newId(),
+    date: a.date,
+    type: isActivityType(a.type) ? a.type : 'other',
+    title: String(a.title ?? '').trim().slice(0, 80),
+    duration_min: duration,
+    distance_km: distance && distance > 0 ? distance : null,
+    effort,
+    place_id: a.place_id || null,
+    notes: String(a.notes ?? '').slice(0, 2000),
+    deleted_at: null,
+  };
+}
+export async function saveActivity(doc) {
+  const row = cleanActivity(doc);
+  const saved = await putRow(db.activities, row);
+  rememberPlace(saved.place_id);
+  return saved;
+}
+export const deleteActivity = (id) => softDelete(db.activities, id);
+export const getActivity = async (id) => {
+  const row = await db.activities.get(id);
+  return row && !row.deleted_at ? row : null;
+};
+export async function listActivities() {
+  const all = await db.activities.toArray();
+  return all.filter((a) => !a.deleted_at).sort((a, b) => b.date.localeCompare(a.date) || (b.created_at || '').localeCompare(a.created_at || ''));
+}
+
 // ---- who owns the data on this device ----
 const OWNER = 'repwise.uid';
 export const getOwner = () => read(OWNER);
@@ -351,7 +444,7 @@ export async function clearLocalData() {
     for (const t of db.tables) await t.clear();
   });
   try {
-    for (const k of [OWNER, LAST_EXPORT, BASELINE, 'repwise.lastSynced']) localStorage.removeItem(k);
+    for (const k of [OWNER, LAST_EXPORT, BASELINE, LAST_PLACE, 'repwise.lastSynced']) localStorage.removeItem(k);
   } catch {
     /* ignore */
   }

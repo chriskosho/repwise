@@ -20,7 +20,9 @@ A workout log that works like the popular gym trackers and syncs across your dev
 - **Profile and privacy:** name, units, height and week start sync with your account. Settings has a plain-language privacy note and a button that permanently deletes your account and all of its data.
 - **Works offline:** after the first visit the whole app (including the exercise library and every tab) opens and works without a connection. Workouts save to the device first (IndexedDB via Dexie) and upload when you're back online. Add it to your home screen for an app-style icon.
 - **Sync:** Supabase with email magic-link login.
-- **Backup:** JSON export/import of workouts, routines, your own exercises, body entries, goals and profile (merged by ID, so re-importing never duplicates; older backups still import) and a weekly export reminder.
+- **Activities:** log runs, walks, rides, swims, sports and classes by hand (type, time, optional distance, effort, notes). Pace or speed is worked out when there's a distance. They count toward streaks, the calendar and weekly workout goals, and have an Activity view under Progress. No GPS.
+- **Places and notes:** save named places (a gym, a park) once and pick them on any workout or activity; manage them in Settings. Only the name you type is stored, never coordinates. Workouts, activities and goals all take notes, and History search covers notes and places.
+- **Backup:** JSON export/import of workouts, activities, places, routines, your own exercises, body entries, goals and profile (merged by ID, so re-importing never duplicates; older backups still import) and a weekly export reminder.
 
 ## Design
 

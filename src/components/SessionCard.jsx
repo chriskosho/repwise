@@ -1,13 +1,14 @@
 import { doneSets, fmtDayDate, fmtDuration, fmtVolume, plural, sessionStats, summarizeSets, workSets } from '../stats';
 
 // One workout in a list. `showDate` is off when the list already groups by date.
-export default function SessionCard({ session, unit, onOpen, showDate = true }) {
+export default function SessionCard({ session, unit, onOpen, showDate = true, placeName }) {
   const stats = sessionStats(session);
   const inProgress = !session.ended_at;
   const meta = showDate ? [fmtDayDate(session.date)] : [];
   if (stats.minutes != null && stats.minutes >= 1) meta.push(fmtDuration(stats.minutes));
   if (stats.sets) meta.push(plural(stats.sets, 'set'));
   if (stats.volume) meta.push(`${fmtVolume(stats.volume)} ${unit}`);
+  if (placeName) meta.push(placeName);
 
   return (
     <button type="button" className="card session-card" onClick={() => onOpen(session)}>
@@ -28,6 +29,7 @@ export default function SessionCard({ session, unit, onOpen, showDate = true }) 
           );
         })}
       </ul>
+      {session.notes && <p className="notes">{session.notes}</p>}
     </button>
   );
 }

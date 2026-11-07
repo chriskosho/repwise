@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getProfile, listSessions, needsExportReminder, saveProfile } from './db';
+import { db, getProfile, listPlaces, listSessions, needsExportReminder, newActivity, saveProfile } from './db';
 import { downloadExport } from './backup';
 import { loadLibrary } from './library';
 import { useRest } from './rest';
@@ -11,6 +11,7 @@ import History from './components/History';
 import Settings from './components/Settings';
 import RestBar from './components/RestBar';
 import RoutineEditor from './components/RoutineEditor';
+import ActivityEditor from './components/ActivityEditor';
 import { BodyIcon, HistoryIcon, Logo, ProgressIcon, SettingsIcon, WorkoutIcon } from './components/Icons';
 
 // The chart library is the heaviest dependency, so load it only when needed.
@@ -47,6 +48,7 @@ export default function App() {
   const [tab, setTab] = useState('workout');
   const [editId, setEditId] = useState(null);
   const [routineView, setRoutineView] = useState(null); // { doc, isNew } while the routine editor is open
+  const [activityView, setActivityView] = useState(null); // { doc, isNew } while the activity editor is open
   const [unitCache, setUnitCache] = useState(readUnit);
   const [dismissed, setDismissed] = useState(false);
   const [, setTick] = useState(0);
@@ -85,6 +87,7 @@ export default function App() {
   const goTab = (id) => {
     setEditId(null);
     setRoutineView(null);
+    setActivityView(null);
     setTab(id);
   };
 
@@ -97,6 +100,8 @@ export default function App() {
   }, []);
 
   const sessions = useLiveQuery(listSessions, [], []);
+  const places = useLiveQuery(listPlaces, [], []);
+  const openActivity = (doc, isNew = false) => setActivityView({ doc, isNew });
 
   const showReminder = count > 0 && !dismissed && needsExportReminder();
   const restVisible = rest.end != null || rest.over;
@@ -150,6 +155,15 @@ export default function App() {
               openRoutine(doc, true);
             }}
           />
+        ) : activityView ? (
+          <ActivityEditor
+            key={activityView.doc.id}
+            initial={activityView.doc}
+            isNew={activityView.isNew}
+            places={places}
+            unit={unit}
+            onClose={() => setActivityView(null)}
+          />
         ) : routineView ? (
           <RoutineEditor
             key={routineView.doc.id}
@@ -165,12 +179,15 @@ export default function App() {
                 name={profile?.display_name}
                 weekStart={profile?.week_start ?? 1}
                 onOpenSession={setEditId}
+                onLogActivity={() => openActivity(newActivity(), true)}
+                onOpenActivity={(a) => openActivity(a)}
                 onOpenRoutine={openRoutine}
                 onShowHistory={() => goTab('history')}
               />}
             {tab === 'history' && (
               <History
                 unit={unit}
+                onOpenActivity={(a) => openActivity(a)}
                 onOpen={(s, isActive) => {
                   if (isActive) setTab('workout');
                   else setEditId(s.id);
@@ -201,8 +218,8 @@ export default function App() {
           <button
             key={id}
             type="button"
-            className={tab === id && !editId && !routineView ? 'tab active' : 'tab'}
-            aria-current={tab === id && !editId && !routineView ? 'page' : undefined}
+            className={tab === id && !editId && !routineView && !activityView ? 'tab active' : 'tab'}
+            aria-current={tab === id && !editId && !routineView && !activityView ? 'page' : undefined}
             onClick={() => goTab(id)}
           >
             <span className="tab-icon">
