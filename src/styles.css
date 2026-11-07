@@ -865,3 +865,74 @@ button:focus-visible,
 .routine-delete {
   margin-top: 14px;
 }
+
+/* ---- body, goals, profile, privacy ---- */
+.range {
+  display: flex;
+  gap: 6px;
+}
+
+.range .btn[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.more-fields {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.more-fields summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.meas-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.goal {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+
+.goal-top,
+.goal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.goal-text {
+  margin: 4px 0 8px;
+}
+
+.bar {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.plain {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.plain li {
+  margin-bottom: 6px;
+}
+
+.danger-zone {
+  border-color: var(--danger);
+}

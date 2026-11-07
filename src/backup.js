@@ -1,22 +1,27 @@
-import { db, newId, sessionFromLegacy, setLastExport, today } from './db';
+import { cleanGoal, cleanMeasurements, db, newId, PROFILE_ID, sessionFromLegacy, setLastExport, today } from './db';
 import { key as nameKey } from './stats';
 import { EQUIPMENT, MUSCLES } from './library';
+import { MEASUREMENT_KEYS } from './body';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const SET_TYPES = new Set(['normal', 'warmup', 'drop', 'failure']);
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
-// Backups hold finished workouts, routines and your own exercises. Version 3 is
-// the current format; version 2 (sessions only) and version 1 (one row per
+// Backups hold finished workouts, routines, your own exercises, body measurements,
+// goals and your profile. Version 4 is the current format; versions 3 and 2 (sessions
+// only) and version 1 (sessions only) and version 1 (one row per
 // exercise entry) are still accepted and converted on import.
 export async function buildExport() {
   const sessions = (await db.sessions.toArray()).filter((s) => !s.deleted_at && s.ended_at && s.exercises.length);
   const routines = (await db.routines.toArray()).filter((r) => !r.deleted_at);
   const custom = (await db.customExercises.toArray()).filter((c) => !c.deleted_at);
+  const body = (await db.bodyEntries.toArray()).filter((e) => !e.deleted_at);
+  const goals = (await db.goals.toArray()).filter((g) => !g.deleted_at);
+  const profile = await db.profile.get(PROFILE_ID);
   return {
     app: 'repwise',
-    version: 3,
+    version: 4,
     exported_at: new Date().toISOString(),
     sessions: sessions.map(({ id, date, name, started_at, ended_at, notes, exercises, created_at }) => ({
       id,
@@ -30,6 +35,29 @@ export async function buildExport() {
     })),
     routines: routines.map(({ id, name, notes, exercises, created_at }) => ({ id, name, notes, exercises, created_at })),
     custom_exercises: custom.map(({ id, name, muscle, equipment, created_at }) => ({ id, name, muscle, equipment, created_at })),
+    body_entries: body.map(({ id, date, weight_kg, body_fat, measurements, notes, created_at }) => ({
+      id,
+      date,
+      weight_kg,
+      body_fat,
+      measurements,
+      notes,
+      created_at,
+    })),
+    goals: goals.map(({ id, type, exercise, metric, target, start_value, start_date, created_at }) => ({
+      id,
+      type,
+      exercise,
+      metric,
+      target,
+      start_value,
+      start_date,
+      created_at,
+    })),
+    profile:
+      profile && !profile.deleted_at
+        ? { display_name: profile.display_name, units: profile.units, height_cm: profile.height_cm, week_start: profile.week_start }
+        : null,
   };
 }
 
@@ -159,6 +187,43 @@ function normalizeCustom(raw) {
   };
 }
 
+function normalizeBody(raw) {
+  if (!raw || typeof raw.id !== 'string' || !UUID.test(raw.id)) return null;
+  if (typeof raw.date !== 'string' || !DATE.test(raw.date)) return null;
+  const w = raw.weight_kg == null ? null : Number(raw.weight_kg);
+  const f = raw.body_fat == null ? null : Number(raw.body_fat);
+  const weight = w != null && w > 0 && w < 700 ? w : null;
+  const fat = f != null && f > 0 && f < 100 ? f : null;
+  const measurements = cleanMeasurements(raw.measurements);
+  const keys = Object.keys(measurements).filter((k) => MEASUREMENT_KEYS.has(k));
+  const clean = Object.fromEntries(keys.map((k) => [k, measurements[k]]));
+  if (weight == null && fat == null && !keys.length) return null;
+  return {
+    id: raw.id,
+    date: raw.date,
+    weight_kg: weight,
+    body_fat: fat,
+    measurements: clean,
+    notes: typeof raw.notes === 'string' ? raw.notes.slice(0, 500) : '',
+    created_at: validIso(raw.created_at) ? raw.created_at : new Date().toISOString(),
+    deleted_at: null,
+    dirty: 1,
+    rev: 1,
+  };
+}
+
+function normalizeGoalRow(raw) {
+  if (!raw || typeof raw.id !== 'string' || !UUID.test(raw.id)) return null;
+  const g = cleanGoal({ ...raw, start_date: DATE.test(raw.start_date ?? '') ? raw.start_date : today() });
+  if (!g || (g.type === 'lift' && !g.exercise)) return null;
+  return {
+    ...g,
+    created_at: validIso(raw.created_at) ? raw.created_at : new Date().toISOString(),
+    dirty: 1,
+    rev: 1,
+  };
+}
+
 // Merge by ID: anything that already exists on this device (even a workout you
 // deleted) is left alone, so importing the same file twice never duplicates.
 // `added` counts workouts; routines and exercises are counted separately.
@@ -175,11 +240,13 @@ export async function importFile(file) {
   const sessionItems = Array.isArray(parsed.sessions) ? parsed.sessions : Array.isArray(parsed.workouts) ? parsed.workouts : null;
   const routineItems = Array.isArray(parsed.routines) ? parsed.routines : null;
   const customItems = Array.isArray(parsed.custom_exercises) ? parsed.custom_exercises : null;
-  if (!sessionItems && !routineItems && !customItems) throw new Error('That file is not a Repwise backup.');
+  const bodyItems = Array.isArray(parsed.body_entries) ? parsed.body_entries : null;
+  const goalItems = Array.isArray(parsed.goals) ? parsed.goals : null;
+  if (!sessionItems && !routineItems && !customItems && !bodyItems && !goalItems) throw new Error('That file is not a Repwise backup.');
   const normalizeSessionItem = Array.isArray(parsed.sessions) ? normalizeSession : normalizeLegacy;
 
-  const out = { added: 0, skipped: 0, invalid: 0, routines: 0, exercises: 0 };
-  await db.transaction('rw', db.sessions, db.routines, db.customExercises, async () => {
+  const out = { added: 0, skipped: 0, invalid: 0, routines: 0, exercises: 0, body: 0, goals: 0, profile: false };
+  await db.transaction('rw', [db.sessions, db.routines, db.customExercises, db.bodyEntries, db.goals, db.profile], async () => {
     for (const raw of sessionItems ?? []) {
       const row = normalizeSessionItem(raw);
       if (!row) out.invalid++;
@@ -208,6 +275,43 @@ export async function importFile(file) {
         haveNames.add(nameKey(row.name));
         out.exercises++;
       }
+    }
+    const haveDates = new Set((await db.bodyEntries.toArray()).filter((e) => !e.deleted_at).map((e) => e.date));
+    for (const raw of bodyItems ?? []) {
+      const row = normalizeBody(raw);
+      if (!row) out.invalid++;
+      else if ((await db.bodyEntries.get(row.id)) || haveDates.has(row.date)) out.skipped++;
+      else {
+        await db.bodyEntries.put(row);
+        haveDates.add(row.date);
+        out.body++;
+      }
+    }
+    for (const raw of goalItems ?? []) {
+      const row = normalizeGoalRow(raw);
+      if (!row) out.invalid++;
+      else if (await db.goals.get(row.id)) out.skipped++;
+      else {
+        await db.goals.put(row);
+        out.goals++;
+      }
+    }
+    // A backup never overwrites a profile that already exists on this device.
+    const p = parsed.profile;
+    if (p && typeof p === 'object' && !(await db.profile.get(PROFILE_ID))) {
+      const h = Number(p.height_cm);
+      await db.profile.put({
+        id: PROFILE_ID,
+        display_name: typeof p.display_name === 'string' ? p.display_name.trim().slice(0, 40) : '',
+        units: p.units === 'kg' ? 'kg' : 'lb',
+        height_cm: h > 0 && h < 300 ? h : null,
+        week_start: p.week_start === 0 ? 0 : 1,
+        created_at: new Date().toISOString(),
+        deleted_at: null,
+        dirty: 1,
+        rev: 1,
+      });
+      out.profile = true;
     }
   });
   return out;

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, listSessions, needsExportReminder } from './db';
+import { db, getProfile, listSessions, needsExportReminder, saveProfile } from './db';
 import { downloadExport } from './backup';
 import { loadLibrary } from './library';
 import { useRest } from './rest';
@@ -13,11 +13,13 @@ import RoutineEditor from './components/RoutineEditor';
 
 // The chart library is the heaviest dependency, so load it only when needed.
 const Progress = lazy(() => import('./components/Progress'));
+const Body = lazy(() => import('./components/Body'));
 
 const TABS = [
   ['workout', 'Workout'],
   ['history', 'History'],
   ['progress', 'Progress'],
+  ['body', 'Body'],
   ['settings', 'Settings'],
 ];
 
@@ -42,7 +44,7 @@ export default function App() {
   const [tab, setTab] = useState('workout');
   const [editId, setEditId] = useState(null);
   const [routineView, setRoutineView] = useState(null); // { doc, isNew } while the routine editor is open
-  const [unit, setUnitState] = useState(readUnit);
+  const [unitCache, setUnitCache] = useState(readUnit);
   const [dismissed, setDismissed] = useState(false);
   const [, setTick] = useState(0);
   const sync = useSync();
@@ -54,13 +56,26 @@ export default function App() {
     0,
   );
 
+  // The unit lives in your profile (so it follows you between devices); a copy in
+  // localStorage keeps it right before the profile has loaded.
+  const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], null);
+  const unit = profile?.units ?? unitCache;
+  useEffect(() => {
+    if (!profile?.units) return;
+    try {
+      localStorage.setItem('repwise.unit', profile.units);
+    } catch {
+      /* ignore */
+    }
+  }, [profile?.units]);
   const setUnit = (u) => {
-    setUnitState(u);
+    setUnitCache(u);
     try {
       localStorage.setItem('repwise.unit', u);
     } catch {
       /* ignore */
     }
+    saveProfile({ units: u });
   };
 
   const goTab = (id) => {
@@ -151,6 +166,11 @@ export default function App() {
             {tab === 'progress' && (
               <Suspense fallback={<p className="muted">Loading…</p>}>
                 <Progress unit={unit} />
+              </Suspense>
+            )}
+            {tab === 'body' && (
+              <Suspense fallback={<p className="muted">Loading…</p>}>
+                <Body unit={unit} />
               </Suspense>
             )}
             {tab === 'settings' && (

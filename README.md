@@ -14,9 +14,12 @@ A workout log that works like the popular gym trackers and syncs across your dev
 - **Personal records:** heaviest weight and estimated 1RM are flagged live and summarized when you finish.
 - **History:** search and date filters, edit any past workout, or log one after the fact.
 - **Progress:** charts for top weight, estimated 1RM, volume, and reps.
+- **Body tracking:** log weight, body fat and ten measurements by date, with a 7-day average trend, 30- and 90-day change, and BMI if you set a height.
+- **Goals:** workouts per week (with a weekly streak), a target body weight, or a lift target (top weight or estimated 1RM), each with a progress bar.
+- **Profile and privacy:** name, units, height and week start sync with your account. Settings has a plain-language privacy note and a button that permanently deletes your account and all of its data.
 - **Offline-first:** everything saves to the device first (IndexedDB via Dexie).
 - **Sync:** Supabase with email magic-link login.
-- **Backup:** JSON export/import of workouts, routines and your own exercises (merged by ID, so re-importing never duplicates; older backups still import) and a weekly export reminder.
+- **Backup:** JSON export/import of workouts, routines, your own exercises, body entries, goals and profile (merged by ID, so re-importing never duplicates; older backups still import) and a weekly export reminder.
 
 ## Stack
 
@@ -24,13 +27,19 @@ Vite + React, Dexie, Recharts, Supabase, Vitest, GitHub Pages (deployed by GitHu
 
 ## How data is stored
 
-A **session** is one workout: name, times, and a list of exercises, each with its sets. Each session is one row (one JSON document) in Supabase, so a whole workout syncs as a unit. **Routines** and your own **custom exercises** work the same way, in their own tables (`routines`, `custom_exercises`).
+A **session** is one workout: name, times, and a list of exercises, each with its sets. Each session is one row (one JSON document) in Supabase, so a whole workout syncs as a unit. **Routines**, your own **custom exercises**, **body entries** and **goals** work the same way, in their own tables (`routines`, `custom_exercises`, `body_entries`, `goals`). Your **profile** is one row per account (`profiles`, keyed by your account id).
 
 1. Edits save to IndexedDB a moment after you stop typing and mark the row `dirty`.
 2. While signed in, dirty rows are upserted to Supabase. The server sets `updated_at` (a trigger), so a wrong device clock can't win a conflict.
 3. The app then pulls rows changed since its last sync point and merges them. A local edit that hasn't uploaded yet is never overwritten.
 4. Deletes are soft (`deleted_at`) so they reach your other devices.
 5. Only one browser tab syncs at a time.
+6. Data on a device belongs to the account that signed in first. Signing out clears the device (after asking), and a different account signing in never inherits or uploads the previous account's rows.
+7. Body weight is stored in kg and lengths in cm; the app converts to your unit for display. Logged lifting weights are stored as typed.
+
+### Deleting an account
+
+Settings → Delete account (type `DELETE`) calls the `delete_my_account()` database function. It takes no arguments and removes only the signed-in user's auth record; every table references it with `on delete cascade`, so all rows go too. The device is then cleared. Supabase's security advisor flags this function as a warning because signed-in users can call it; that is intentional.
 
 If the same workout is edited on two devices at once, the last save wins for the whole workout, so edit a workout in progress on one device at a time.
 
@@ -76,4 +85,5 @@ node scripts/build-library.mjs path/to/free-exercise-db/dist/exercises.json
 - No Apple Watch / Wear OS app and no Apple Health or Health Connect sync.
 - The app doesn't yet open without a connection after the first load (offline support is planned). The exercise library is fetched once and, until offline support exists, may not be available without a connection; your own exercises always are.
 - Free-tier Supabase projects pause after a period of inactivity and have no automatic backups. The JSON export is your real backup.
-- Changing the weight unit only changes labels; it doesn't convert logged weights.
+- Changing the weight unit only changes labels; it doesn't convert logged workout weights (body weight and measurements do convert).
+- The privacy note describes how the app is built; the person who runs the Supabase project can technically read the database.

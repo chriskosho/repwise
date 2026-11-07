@@ -72,6 +72,18 @@ db.version(3).stores({
   meta: 'key',
 });
 
+// Version 4 adds your profile, body measurements and goals. No data needs converting.
+db.version(4).stores({
+  workouts: 'id, date, exercise, dirty', // legacy, no longer written to
+  sessions: 'id, date, dirty',
+  routines: 'id, dirty',
+  customExercises: 'id, dirty',
+  profile: 'id, dirty',
+  bodyEntries: 'id, date, dirty',
+  goals: 'id, dirty',
+  meta: 'key',
+});
+
 // Newest first. Date decides, then start time.
 export const sessionOrder = (s) => `${s.date}|${s.started_at || ''}`;
 export const byNewest = (a, b) => sessionOrder(b).localeCompare(sessionOrder(a));
@@ -239,6 +251,110 @@ export async function saveCustomExercise({ name, muscle = '', equipment = '' }) 
 export async function listCustomExercises() {
   const all = await db.customExercises.toArray();
   return all.filter((c) => !c.deleted_at).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+}
+
+// ---- profile (a single row, id 'me'; on the server its id is your account id) ----
+export const PROFILE_ID = 'me';
+export const PROFILE_DEFAULTS = { display_name: '', units: 'lb', height_cm: null, week_start: 1 };
+
+export async function getProfile() {
+  const row = await db.profile.get(PROFILE_ID);
+  return row && !row.deleted_at ? { ...PROFILE_DEFAULTS, ...row } : null;
+}
+
+export async function saveProfile(patch) {
+  const clean = {};
+  if ('display_name' in patch) clean.display_name = String(patch.display_name ?? '').trim().slice(0, 40);
+  if ('units' in patch) clean.units = patch.units === 'kg' ? 'kg' : 'lb';
+  if ('week_start' in patch) clean.week_start = Number(patch.week_start) === 0 ? 0 : 1;
+  if ('height_cm' in patch) {
+    const h = Number(patch.height_cm);
+    clean.height_cm = patch.height_cm === null || patch.height_cm === '' || !(h > 0 && h < 300) ? null : h;
+  }
+  return putRow(db.profile, { ...PROFILE_DEFAULTS, ...(await db.profile.get(PROFILE_ID)), ...clean, id: PROFILE_ID, deleted_at: null });
+}
+
+// ---- body entries: one per date; saving a date again updates that entry ----
+const MAX_CM = 400;
+export function cleanMeasurements(m) {
+  const out = {};
+  for (const [k, v] of Object.entries(m || {})) {
+    const n = Number(v);
+    if (v !== '' && v != null && Number.isFinite(n) && n > 0 && n < MAX_CM) out[k] = n;
+  }
+  return out;
+}
+
+export async function listBodyEntries() {
+  const all = (await db.bodyEntries.toArray()).filter((e) => !e.deleted_at);
+  // Two devices may have both logged the same day before syncing; keep the newer one.
+  const byDate = new Map();
+  for (const e of all) {
+    const cur = byDate.get(e.date);
+    const stamp = (x) => x.updated_at || x.created_at || '';
+    if (!cur || stamp(e) > stamp(cur)) byDate.set(e.date, e);
+  }
+  return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function saveBodyEntry({ date = today(), weight_kg = null, body_fat = null, measurements = {}, notes = '' }) {
+  const w = weight_kg === null || weight_kg === '' ? null : Number(weight_kg);
+  const f = body_fat === null || body_fat === '' ? null : Number(body_fat);
+  const entry = {
+    date,
+    weight_kg: w != null && w > 0 && w < 700 ? w : null,
+    body_fat: f != null && f > 0 && f < 100 ? f : null,
+    measurements: cleanMeasurements(measurements),
+    notes: String(notes ?? '').slice(0, 500),
+  };
+  const existing = (await db.bodyEntries.where('date').equals(date).toArray()).find((e) => !e.deleted_at);
+  return putRow(db.bodyEntries, { id: existing?.id ?? newId(), ...entry, deleted_at: null });
+}
+export const deleteBodyEntry = (id) => softDelete(db.bodyEntries, id);
+
+// ---- goals ----
+export function cleanGoal(g) {
+  const target = Number(g.target);
+  if (!['weekly_workouts', 'body_weight', 'lift'].includes(g.type) || !(target > 0)) return null;
+  const start = g.start_value === null || g.start_value === undefined || g.start_value === '' ? null : Number(g.start_value);
+  return {
+    id: g.id || newId(),
+    type: g.type,
+    exercise: g.type === 'lift' ? String(g.exercise ?? '').trim().slice(0, 100) : '',
+    metric: g.type === 'lift' ? (g.metric === 'e1rm' ? 'e1rm' : 'weight') : '',
+    target,
+    start_value: Number.isFinite(start) ? start : null,
+    start_date: g.start_date || today(),
+    deleted_at: null,
+  };
+}
+export async function saveGoal(g) {
+  const row = cleanGoal(g);
+  if (!row || (row.type === 'lift' && !row.exercise)) throw new Error('That goal is missing something.');
+  return putRow(db.goals, row);
+}
+export const deleteGoal = (id) => softDelete(db.goals, id);
+export async function listGoals() {
+  const all = await db.goals.toArray();
+  return all.filter((g) => !g.deleted_at).sort((a, b) => (a.created_at || '').localeCompare(b.created_at || ''));
+}
+
+// ---- who owns the data on this device ----
+const OWNER = 'repwise.uid';
+export const getOwner = () => read(OWNER);
+export const setOwner = (uid) => write(OWNER, uid);
+
+// Wipe everything stored on this device (used when signing out, switching accounts,
+// or deleting an account). The unit preference is kept.
+export async function clearLocalData() {
+  await db.transaction('rw', db.tables, async () => {
+    for (const t of db.tables) await t.clear();
+  });
+  try {
+    for (const k of [OWNER, LAST_EXPORT, BASELINE, 'repwise.lastSynced']) localStorage.removeItem(k);
+  } catch {
+    /* ignore */
+  }
 }
 
 // ---- backup bookkeeping (kept in localStorage; per device) ----

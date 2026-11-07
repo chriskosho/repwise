@@ -187,3 +187,108 @@ create policy "custom_exercises_delete_own" on public.custom_exercises
   for delete to authenticated using ((select auth.uid()) = user_id);
 
 revoke all on public.custom_exercises from anon;
+
+-- ============================================================================
+-- Profiles, body tracking, goals, account deletion (Piece 1)
+-- ============================================================================
+
+create table if not exists public.profiles (
+  id            uuid primary key references auth.users (id) on delete cascade,
+  display_name  text not null default '',
+  units         text not null default 'lb' check (units in ('lb', 'kg')),
+  height_cm     numeric check (height_cm is null or (height_cm > 0 and height_cm < 300)),
+  week_start    smallint not null default 1 check (week_start in (0, 1)),
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  deleted_at    timestamptz
+);
+drop trigger if exists profiles_set_updated_at on public.profiles;
+create trigger profiles_set_updated_at before insert or update on public.profiles
+  for each row execute function public.set_updated_at();
+alter table public.profiles enable row level security;
+drop policy if exists "profiles_select_own" on public.profiles;
+create policy "profiles_select_own" on public.profiles for select to authenticated using ((select auth.uid()) = id);
+drop policy if exists "profiles_insert_own" on public.profiles;
+create policy "profiles_insert_own" on public.profiles for insert to authenticated with check ((select auth.uid()) = id);
+drop policy if exists "profiles_update_own" on public.profiles;
+create policy "profiles_update_own" on public.profiles for update to authenticated
+  using ((select auth.uid()) = id) with check ((select auth.uid()) = id);
+drop policy if exists "profiles_delete_own" on public.profiles;
+create policy "profiles_delete_own" on public.profiles for delete to authenticated using ((select auth.uid()) = id);
+revoke all on public.profiles from anon;
+
+create table if not exists public.body_entries (
+  id            uuid primary key,
+  user_id       uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  date          date not null,
+  weight_kg     numeric check (weight_kg is null or (weight_kg > 0 and weight_kg < 700)),
+  body_fat      numeric check (body_fat is null or (body_fat > 0 and body_fat < 100)),
+  measurements  jsonb not null default '{}'::jsonb,
+  notes         text not null default '',
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  deleted_at    timestamptz
+);
+create index if not exists body_entries_user_updated_idx on public.body_entries (user_id, updated_at);
+drop trigger if exists body_entries_set_updated_at on public.body_entries;
+create trigger body_entries_set_updated_at before insert or update on public.body_entries
+  for each row execute function public.set_updated_at();
+alter table public.body_entries enable row level security;
+drop policy if exists "body_entries_select_own" on public.body_entries;
+create policy "body_entries_select_own" on public.body_entries for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists "body_entries_insert_own" on public.body_entries;
+create policy "body_entries_insert_own" on public.body_entries for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists "body_entries_update_own" on public.body_entries;
+create policy "body_entries_update_own" on public.body_entries for update to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+drop policy if exists "body_entries_delete_own" on public.body_entries;
+create policy "body_entries_delete_own" on public.body_entries for delete to authenticated using ((select auth.uid()) = user_id);
+revoke all on public.body_entries from anon;
+
+create table if not exists public.goals (
+  id           uuid primary key,
+  user_id      uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  type         text not null check (type in ('weekly_workouts', 'body_weight', 'lift')),
+  exercise     text not null default '',
+  metric       text not null default '' check (metric in ('', 'weight', 'e1rm')),
+  target       numeric not null check (target > 0),
+  start_value  numeric,
+  start_date   date,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now(),
+  deleted_at   timestamptz
+);
+create index if not exists goals_user_updated_idx on public.goals (user_id, updated_at);
+drop trigger if exists goals_set_updated_at on public.goals;
+create trigger goals_set_updated_at before insert or update on public.goals
+  for each row execute function public.set_updated_at();
+alter table public.goals enable row level security;
+drop policy if exists "goals_select_own" on public.goals;
+create policy "goals_select_own" on public.goals for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists "goals_insert_own" on public.goals;
+create policy "goals_insert_own" on public.goals for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists "goals_update_own" on public.goals;
+create policy "goals_update_own" on public.goals for update to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+drop policy if exists "goals_delete_own" on public.goals;
+create policy "goals_delete_own" on public.goals for delete to authenticated using ((select auth.uid()) = user_id);
+revoke all on public.goals from anon;
+
+-- Lets a signed-in user delete their OWN account; related rows cascade.
+-- Takes no arguments, so it can only ever act on the caller. (The Supabase
+-- advisor warns about SECURITY DEFINER functions; this one is intentional.)
+create or replace function public.delete_my_account()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Not signed in';
+  end if;
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+revoke all on function public.delete_my_account() from public, anon;
+grant execute on function public.delete_my_account() to authenticated;

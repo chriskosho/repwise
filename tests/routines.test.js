@@ -110,8 +110,8 @@ describe('custom exercises', () => {
 describe('what gets sent to the server', () => {
   const byName = Object.fromEntries(TABLES.map((t) => [t.remote, t]));
 
-  it('covers sessions, routines and custom exercises', () => {
-    expect(Object.keys(byName).sort()).toEqual(['custom_exercises', 'routines', 'sessions']);
+  it('covers every synced table', () => {
+    expect(Object.keys(byName).sort()).toEqual(['body_entries', 'custom_exercises', 'goals', 'profiles', 'routines', 'sessions']);
   });
 
   it('never sends updated_at (the server owns it) and always sends the owner', () => {
@@ -119,14 +119,18 @@ describe('what gets sent to the server', () => {
       sessions: { id: 'a', date: '2026-11-01', started_at: 'x', exercises: [], updated_at: 'client', dirty: 1, rev: 3 },
       routines: { id: 'b', name: 'R', exercises: [], updated_at: 'client', dirty: 1, rev: 3 },
       custom_exercises: { id: 'c', name: 'C', updated_at: 'client', dirty: 1, rev: 3 },
+      body_entries: { id: 'd', date: '2026-11-01', weight_kg: 80, updated_at: 'client', dirty: 1, rev: 3 },
+      profiles: { id: 'me', display_name: 'Chris', units: 'kg', updated_at: 'client', dirty: 1, rev: 3 },
+      goals: { id: 'e', type: 'weekly_workouts', target: 3, updated_at: 'client', dirty: 1, rev: 3 },
     };
     for (const [name, row] of Object.entries(rows)) {
       const out = byName[name].toRemote(row, 'user-1');
-      expect(out.user_id).toBe('user-1');
+      if (name === 'profiles') expect(out).not.toHaveProperty('user_id');
+      else expect(out.user_id).toBe('user-1');
       expect(out).not.toHaveProperty('updated_at');
       expect(out).not.toHaveProperty('dirty');
       expect(out).not.toHaveProperty('rev');
-      expect(out.id).toBe(row.id);
+      expect(out.id).toBe(name === 'profiles' ? 'user-1' : row.id);
     }
   });
 
