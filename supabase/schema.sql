@@ -292,3 +292,69 @@ end;
 $$;
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
+
+-- ============================================================================
+-- Places, activities, workout location, goal notes
+-- ============================================================================
+
+-- Places you exercise (names only; no coordinates are stored).
+create table if not exists public.places (
+  id          uuid primary key,
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  name        text not null check (char_length(btrim(name)) between 1 and 80),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  deleted_at  timestamptz
+);
+create index if not exists places_user_updated_idx on public.places (user_id, updated_at);
+drop trigger if exists places_set_updated_at on public.places;
+create trigger places_set_updated_at before insert or update on public.places
+  for each row execute function public.set_updated_at();
+alter table public.places enable row level security;
+drop policy if exists "places_select_own" on public.places;
+create policy "places_select_own" on public.places for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists "places_insert_own" on public.places;
+create policy "places_insert_own" on public.places for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists "places_update_own" on public.places;
+create policy "places_update_own" on public.places for update to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+drop policy if exists "places_delete_own" on public.places;
+create policy "places_delete_own" on public.places for delete to authenticated using ((select auth.uid()) = user_id);
+revoke all on public.places from anon;
+
+-- Non-gym activities: runs, rides, sports and so on. Distance is stored in km.
+-- place_id is deliberately not a foreign key: places and activities sync independently.
+create table if not exists public.activities (
+  id            uuid primary key,
+  user_id       uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  date          date not null,
+  type          text not null check (char_length(type) between 1 and 40),
+  title         text not null default '' check (char_length(title) <= 80),
+  duration_min  numeric not null check (duration_min > 0 and duration_min <= 1440),
+  distance_km   numeric check (distance_km is null or (distance_km >= 0 and distance_km <= 5000)),
+  effort        smallint check (effort is null or (effort between 1 and 10)),
+  place_id      uuid,
+  notes         text not null default '' check (char_length(notes) <= 2000),
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  deleted_at    timestamptz
+);
+create index if not exists activities_user_updated_idx on public.activities (user_id, updated_at);
+drop trigger if exists activities_set_updated_at on public.activities;
+create trigger activities_set_updated_at before insert or update on public.activities
+  for each row execute function public.set_updated_at();
+alter table public.activities enable row level security;
+drop policy if exists "activities_select_own" on public.activities;
+create policy "activities_select_own" on public.activities for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists "activities_insert_own" on public.activities;
+create policy "activities_insert_own" on public.activities for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists "activities_update_own" on public.activities;
+create policy "activities_update_own" on public.activities for update to authenticated
+  using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+drop policy if exists "activities_delete_own" on public.activities;
+create policy "activities_delete_own" on public.activities for delete to authenticated using ((select auth.uid()) = user_id);
+revoke all on public.activities from anon;
+
+-- A workout can say where it happened; a goal can carry a note.
+alter table public.sessions add column if not exists place_id uuid;
+alter table public.goals add column if not exists notes text not null default '' check (char_length(notes) <= 2000);
