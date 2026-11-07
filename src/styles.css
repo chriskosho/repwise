@@ -21,8 +21,10 @@
   accent-color: var(--accent);
 }
 
+/* Dark palette. It applies when the device is in dark mode (unless the app is set to Light),
+   or whenever the app is set to Dark. Keep the two copies identical. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #0f1115;
     --card: #181b21;
     --text: #eceff4;
@@ -38,7 +40,31 @@
     --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2398a2b3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --warmup-ink: #fdb022;
     --drop-ink: #b692f6;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f1115;
+  --card: #181b21;
+  --text: #eceff4;
+  --muted: #98a2b3;
+  --line: #2a2f3a;
+  --accent: #2dd4bf;
+  --accent-ink: #06201d;
+  --danger: #f97066;
+  --ok: #47cd89;
+  --warn-bg: #2b2410;
+  --warn-line: #5a4a14;
+  --shadow: none;
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2398a2b3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --warmup-ink: #fdb022;
+  --drop-ink: #b692f6;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
 * {

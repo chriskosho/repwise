@@ -24,7 +24,7 @@ A workout log that works like the popular gym trackers and syncs across your dev
 
 ## Design
 
-Mobile-first, light and dark themes from the system setting, one accent color (teal). The tab bar uses small inline SVG icons (`src/components/Icons.jsx`); there are no web fonts or icon libraries, so nothing extra is downloaded and everything works offline.
+Mobile-first, light and dark themes (Settings → Appearance: match the device, or force Light or Dark on this device), one accent color (teal). The tab bar uses small inline SVG icons (`src/components/Icons.jsx`); there are no web fonts or icon libraries, so nothing extra is downloaded and everything works offline.
 
 ## Stack
 

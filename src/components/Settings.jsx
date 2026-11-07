@@ -4,6 +4,7 @@ import { downloadExport, importFile } from '../backup';
 import { getProfile, lastExportAt, saveProfile } from '../db';
 import { heightIn, heightOut, lengthUnit } from '../units';
 import { setPrefs, usePrefs } from '../prefs';
+import { setTheme, useTheme } from '../theme';
 
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300];
 const restLabel = (s) => (s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
@@ -18,6 +19,7 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
   const [backupMsg, setBackupMsg] = useState('');
   const [backupErr, setBackupErr] = useState('');
   const prefs = usePrefs();
+  const theme = useTheme();
   const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], null);
   const [name, setName] = useState('');
   const [height, setHeight] = useState('');
@@ -112,6 +114,14 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
           <label className="field">
             <span>Height ({lengthUnit(unit)})</span>
             <input type="number" inputMode="decimal" step="0.1" min="0" value={height} onChange={(e) => setHeight(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Appearance (this device)</span>
+            <select value={theme} onChange={(e) => setTheme(e.target.value)}>
+              <option value="system">Match my device</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
           </label>
           <label className="field">
             <span>Week starts on</span>
