@@ -1,6 +1,6 @@
 // Suggested workouts for when you can't decide. Pure functions: give them your library,
 // history and goals and they return a plan. "Shuffle" just changes the seed.
-import { key } from './stats';
+import { e1rm, key } from './stats';
 import { cardioEvents, weekStartOf, weeklyTotalProgress } from './goals';
 import { typeLabel } from './activities';
 import { deriveMode, isMode } from './measure';
@@ -65,6 +65,95 @@ export function daysSinceTrained(sessions, muscleOf, todayStr) {
   return Object.fromEntries(Object.keys(GROUPS).map((g) => [g, last[g] ? Math.max(0, dayDiff(todayStr, last[g])) : Infinity]));
 }
 
+
+// ---- recovery: should you rest, go light, or train hard? ----
+export const FEELING = [
+  ['auto', 'Not sure'],
+  ['great', 'Great: full effort'],
+  ['ok', 'OK'],
+  ['beat', 'Beat up: keep it light'],
+];
+
+// Looks at how many days in a row you've trained and how many weeks you've been at it.
+export function assessRecovery(workouts, todayStr) {
+  const days = new Set(workouts.filter((w) => !w.deleted_at).map((w) => w.date));
+  let streak = 0;
+  // A streak counts back from today, or from yesterday if you haven't trained yet today.
+  let d = days.has(todayStr) ? 0 : 1;
+  while (days.has(shiftDay(todayStr, -d)) && streak < 30) {
+    streak++;
+    d++;
+  }
+  const trainedToday = days.has(todayStr);
+  // Weeks (counted back in 7-day blocks from today) with at least three workouts.
+  let heavyWeeks = 0;
+  for (let w = 0; w < 8; w++) {
+    let n = 0;
+    for (let i = w * 7; i < w * 7 + 7; i++) if (days.has(shiftDay(todayStr, -i))) n++;
+    if (n >= 3) heavyWeeks++;
+    else break;
+  }
+  return { streak, trainedToday, heavyWeeks, rest: streak >= 3, deload: heavyWeeks >= 5 };
+}
+function shiftDay(dateStr, delta) {
+  const d = new Date(`${dateStr}T12:00:00`);
+  d.setDate(d.getDate() + delta);
+  return d.toLocaleDateString('en-CA');
+}
+
+// ---- weights: progress from what you did last time ----
+const repRange = (text) => {
+  const m = String(text).match(/(\d+)\D+(\d+)/);
+  return m ? [Number(m[1]), Number(m[2])] : [8, 12];
+};
+const roundTo = (v, step) => Math.round(v / step) * step;
+const clean = (n) => Math.round(n * 10) / 10;
+
+// Suggest a working weight in your unit, or null when there is nothing to go on.
+export function suggestWeight(name, sessions, { unit = 'lb', reps = '8–12', equipment = '', goal = null, light = false } = {}) {
+  const k = key(name);
+  const dumb = equipment === 'dumbbell' || equipment === 'kettlebell';
+  const step = unit === 'kg' ? (dumb ? 1 : 2.5) : dumb ? 5 : 5;
+  const bump = unit === 'kg' ? (dumb ? 2 : 2.5) : 5;
+  const done = sessions
+    .filter((s) => s.ended_at && !s.deleted_at)
+    .sort((a, b) => (b.date + (b.started_at || '')).localeCompare(a.date + (a.started_at || '')));
+  let last = null;
+  for (const s of done) {
+    const ex = s.exercises.find((e) => key(e.name) === k && (e.mode === undefined || e.mode === 'weight' || e.mode === ''));
+    const work = (ex?.sets ?? []).filter((x) => x.done && (x.type || 'normal') !== 'warmup' && Number(x.weight) > 0 && Number(x.reps) > 0);
+    if (work.length) {
+      last = work;
+      break;
+    }
+  }
+  if (!last) return null;
+  const top = Math.max(...last.map((x) => Number(x.weight)));
+  const atTop = last.filter((x) => Number(x.weight) === top);
+  const [lo, hi] = repRange(reps);
+  let weight = top;
+  let why = `Last time ${clean(top)} × ${atTop.map((x) => x.reps).join(', ')}`;
+  if (goal) {
+    // Strength goal: aim near a 5-rep weight for the e1RM you've shown.
+    const best = Math.max(...last.map((x) => e1rm(Number(x.reps), Number(x.weight))));
+    weight = Math.max(top, roundTo(best / (1 + 5 / 30), step));
+    why += weight > top ? '; stepping toward your goal' : '';
+  } else if (atTop.length && atTop.every((x) => Number(x.reps) >= hi)) {
+    weight = top + bump;
+    why += `, so add ${bump}`;
+  } else if (atTop.some((x) => Number(x.reps) < lo)) {
+    weight = Math.max(step, roundTo(top - bump, step));
+    why += ', so ease back a little';
+  } else {
+    why += ', so repeat it and try to add a rep';
+  }
+  if (light) {
+    weight = Math.max(step, roundTo(weight * 0.9, step));
+    why += ' (lighter today)';
+  }
+  return { weight: clean(weight), note: why };
+}
+
 export function suggestWorkout({
   library = [],
   custom = [],
@@ -78,7 +167,7 @@ export function suggestWorkout({
   todayStr = new Date().toLocaleDateString('en-CA'),
   weekStart = 1,
 }) {
-  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0 } = options;
+  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0, feeling = 'auto' } = options;
   const rand = rng(seed + 1);
   const meta = new Map();
   for (const l of library) meta.set(key(l.name), l);
@@ -88,6 +177,11 @@ export function suggestWorkout({
   };
   const since = daysSinceTrained(sessions, muscleOf, todayStr);
   const reasons = [];
+  const recovery = assessRecovery([...workouts, ...sessions.filter((x) => x.ended_at)], todayStr);
+  const light = feeling === 'beat' || (feeling === 'auto' && recovery.deload);
+  if (feeling === 'beat') reasons.push('You said you feel beat up, so this is a lighter session: fewer sets and about 10% less weight.');
+  else if (feeling === 'auto' && recovery.deload) reasons.push(`You've trained 3+ times a week for ${recovery.heavyWeeks} weeks. This is a lighter "deload" session so your body can catch up. Pick Great to go full effort.`);
+  if (recovery.rest && feeling !== 'great') reasons.push(`You've worked out ${recovery.streak} days in a row. A rest day or an easy walk is a good idea.`);
 
   // ---- what are we working toward? ----
   const live = goals.filter((g) => !g.deleted_at);
@@ -108,7 +202,7 @@ export function suggestWorkout({
   else if (focus !== 'auto' && GROUPS[focus]) groups = [focus];
   else {
     const liftGroups = new Set(lifts.map((g) => groupOf(muscleOf(g.exercise))).filter(Boolean));
-    const score = (g) => Math.min(since[g], 14) + (liftGroups.has(g) ? 3 : 0) + rand() * 0.5;
+    const score = (g) => Math.min(since[g], 14) + (since[g] < 2 ? -6 : 0) + (liftGroups.has(g) ? 3 : 0) + rand() * 0.5;
     const best = ['legs', 'push', 'pull'].sort((a, b) => score(b) - score(a))[0];
     groups = [best];
     const parts = ['push', 'pull', 'legs'].map((g) => `${GROUPS[g].label.toLowerCase()} ${since[g] === Infinity ? 'never' : since[g] === 0 ? 'today' : `${since[g]} day${since[g] === 1 ? '' : 's'} ago`}`);
@@ -198,6 +292,21 @@ export function suggestWorkout({
     perGroup.set(groupOf(best.muscle), (perGroup.get(groupOf(best.muscle)) ?? 0) + 1);
   }
 
+  // ---- weights, and a lighter day when you need one ----
+  const equipOf = (name) => custom.find((c) => !c.deleted_at && key(c.name) === key(name))?.equipment || meta.get(key(name))?.equipment || '';
+  for (const p of picked) {
+    if (light && p.sets > 2) p.sets -= 1;
+    if (p.mode !== 'weight') continue;
+    const goalLift = lifts.find((g) => key(g.exercise) === key(p.name) && g.metric === 'weight');
+    const w = suggestWeight(p.name, sessions, { unit, reps: p.reps, equipment: equipOf(p.name), goal: !!goalLift, light });
+    if (w) {
+      p.weight = w.weight;
+      p.why = w.note;
+    } else {
+      p.why = 'No history yet: pick a weight where the last rep is hard but clean.';
+    }
+  }
+
   // ---- cool-down stretches for the muscles you worked ----
   const worked = new Set(picked.map((p) => p.muscle));
   const stretchPool = library.filter(
@@ -249,7 +358,7 @@ export function suggestWorkout({
   ideas.length = Math.min(ideas.length, 3);
 
   const title = groups.length > 1 ? 'Full body' : `${GROUPS[groups[0]].label} day`;
-  return { title, groups, intent, minutes, exercises: picked, stretches, ideas, reasons, empty: picked.length === 0 };
+  return { title, groups, intent, minutes, light, recovery, exercises: picked, stretches, ideas, reasons, empty: picked.length === 0 };
 }
 
 // Turn a suggestion into a routine-shaped template the workout screen can start from.
@@ -260,7 +369,8 @@ export function suggestionAsRoutine(s) {
       name: e.name,
       mode: e.mode,
       link: false,
-      notes: [`${e.sets} × ${e.reps}`, e.note].filter(Boolean).join('. '),
+      notes: [`${e.sets} × ${e.reps}`, e.note, e.why].filter(Boolean).join('. '),
+      ...(e.weight ? { target: { weight: e.weight, reps: Number(String(e.reps).match(/\d+/)?.[0]) || undefined } } : {}),
       sets: Array.from({ length: e.sets }, () => ({ type: 'normal' })),
     })),
   };

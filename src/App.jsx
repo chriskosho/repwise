@@ -190,6 +190,7 @@ export default function App() {
             initial={routineView.doc}
             isNew={routineView.isNew}
             sessions={sessions}
+            unit={unit}
             onClose={() => setRoutineView(null)}
           />
         ) : (

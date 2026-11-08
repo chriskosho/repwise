@@ -2,6 +2,7 @@ import Dexie from 'dexie';
 import { key } from './stats';
 import { isActivityType } from './activities';
 import { isMode } from './measure';
+import { findExercise, loadLibrary } from './library';
 
 export const newId = () => crypto.randomUUID();
 export const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
@@ -215,6 +216,36 @@ export function newRoutine() {
   return { id: newId(), name: '', notes: '', exercises: [], created_at: nowIso(), deleted_at: null };
 }
 
+
+// A routine exercise can carry a target: weight (in your unit), reps, or seconds for holds.
+export function cleanTarget(t) {
+  if (!t || typeof t !== 'object') return null;
+  const num = (v, max) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n * 100) / 100 : null;
+  };
+  const out = {};
+  const w = num(t.weight, 2000);
+  const r = num(t.reps, 1000);
+  const sec = num(t.time, 36000);
+  if (w) out.weight = w;
+  if (r) out.reps = Math.round(r);
+  if (sec) out.time = Math.round(sec);
+  return Object.keys(out).length ? out : null;
+}
+const withTarget = (t) => {
+  const c = cleanTarget(t);
+  return c ? { target: c } : {};
+};
+// Pre-fill a fresh set from a routine target.
+const targetSet = (type, target) => {
+  const st = blankSet(type, false);
+  if (target?.weight && type !== 'warmup') st.weight = target.weight;
+  if (target?.reps) st.reps = target.reps;
+  if (target?.time) st.time = target.time;
+  return st;
+};
+
 // A routine is a template: exercises in order, with the number and type of each
 // set. Weights and reps aren't stored; the "previous" column supplies those.
 export function routineFromSession(session) {
@@ -226,6 +257,7 @@ export function routineFromSession(session) {
       ...(isMode(e.mode) ? { mode: e.mode } : {}),
       link: !!e.link,
       notes: e.notes || '',
+      ...withTarget(e.target),
       sets: e.sets.slice(0, MAX_ROUTINE_SETS).map((s) => ({ id: newId(), type: s.type || 'normal' })),
     }));
   return { ...newRoutine(), name: (session.name || '').trim(), exercises };
@@ -243,7 +275,8 @@ export function sessionFromRoutine(routine) {
       ...(isMode(e.mode) ? { mode: e.mode } : {}),
       link: !!e.link,
       notes: e.notes || '',
-      sets: (e.sets.length ? e.sets : [{ type: 'normal' }]).map((s) => blankSet(s.type || 'normal', false)),
+      ...withTarget(e.target),
+      sets: (e.sets.length ? e.sets : [{ type: 'normal' }]).map((s) => targetSet(s.type || 'normal', cleanTarget(e.target))),
     })),
   };
 }
@@ -265,6 +298,40 @@ export async function saveCustomExercise({ name, muscle = '', equipment = '', mo
   if (existing) return existing;
   return putRow(db.customExercises, { id: newId(), name: clean, muscle, equipment, mode: isMode(mode) ? mode : '', deleted_at: null });
 }
+const cleanExName = (name) => String(name ?? '').trim().replace(/\s+/g, ' ').slice(0, 100);
+
+// Change one of your own exercises. A new name is also written into past workouts
+// and routines so your history stays together.
+export async function updateCustomExercise(id, { name, muscle, equipment, mode }) {
+  const row = await db.customExercises.get(id);
+  if (!row || row.deleted_at) throw new Error('That exercise no longer exists.');
+  const clean = cleanExName(name ?? row.name);
+  if (!clean) throw new Error('Give the exercise a name.');
+  if (key(clean) !== key(row.name)) {
+    const clash = (await db.customExercises.toArray()).find((c) => !c.deleted_at && c.id !== id && key(c.name) === key(clean));
+    if (clash) throw new Error('You already have an exercise with that name.');
+    if (findExercise(await loadLibrary().catch(() => []), clean)) throw new Error('That name is already in the exercise library.');
+  }
+  const renamed = clean !== row.name;
+  const saved = await putRow(db.customExercises, {
+    ...row,
+    name: clean,
+    muscle: muscle ?? row.muscle ?? '',
+    equipment: equipment ?? row.equipment ?? '',
+    mode: mode === undefined ? row.mode ?? '' : isMode(mode) ? mode : '',
+  });
+  if (renamed) {
+    const from = key(row.name);
+    for (const table of [db.sessions, db.routines]) {
+      const rows = (await table.toArray()).filter((r) => !r.deleted_at && (r.exercises ?? []).some((e) => key(e.name) === from));
+      for (const r of rows) {
+        await putRow(table, { ...r, exercises: r.exercises.map((e) => (key(e.name) === from ? { ...e, name: clean } : e)) });
+      }
+    }
+  }
+  return saved;
+}
+export const deleteCustomExercise = (id) => softDelete(db.customExercises, id);
 export async function listCustomExercises() {
   const all = await db.customExercises.toArray();
   return all.filter((c) => !c.deleted_at).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
@@ -352,6 +419,33 @@ export function cleanGoal(g) {
     notes: String(g.notes ?? '').slice(0, 2000),
     deleted_at: null,
   };
+}
+// Switching between lb and kg: rewrite every logged lifting weight, routine target
+// and lift goal so the numbers still mean the same load. Returns how many rows changed.
+export async function convertLiftWeights(from, to) {
+  if (from === to || !['lb', 'kg'].includes(from) || !['lb', 'kg'].includes(to)) return 0;
+  const f = from === 'lb' ? 1 / 2.2046226218 : 2.2046226218;
+  const conv = (w) => (Number.isFinite(Number(w)) && Number(w) > 0 ? Math.round(Number(w) * f * 10) / 10 : w);
+  const convSets = (sets) => (sets ?? []).map((st) => (st && Number(st.weight) > 0 ? { ...st, weight: conv(st.weight) } : st));
+  const convEx = (e) => ({
+    ...e,
+    sets: convSets(e.sets),
+    ...(e.target && Number(e.target.weight) > 0 ? { target: { ...e.target, weight: conv(e.target.weight) } } : {}),
+  });
+  let changed = 0;
+  for (const table of [db.sessions, db.routines]) {
+    for (const r of await table.toArray()) {
+      if (r.deleted_at || !r.exercises?.length) continue;
+      await putRow(table, { ...r, exercises: r.exercises.map(convEx) });
+      changed++;
+    }
+  }
+  for (const g of await db.goals.toArray()) {
+    if (g.deleted_at || g.type !== 'lift') continue;
+    await putRow(db.goals, { ...g, target: conv(g.target), start_value: g.start_value == null ? null : conv(g.start_value) });
+    changed++;
+  }
+  return changed;
 }
 export async function saveGoal(g) {
   const row = cleanGoal(g);

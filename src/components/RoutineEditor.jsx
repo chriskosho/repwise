@@ -1,12 +1,18 @@
 import { useState } from 'react';
-import { deleteRoutine, newId, saveRoutine } from '../db';
+import { cleanTarget, deleteRoutine, newId, saveRoutine } from '../db';
 import ExercisePicker from './ExercisePicker';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { listCustomExercises } from '../db';
+import { useLibrary } from '../library';
+import { resolveMode } from '../measure';
 
 const MAX_SETS = 12;
 
 // Create or change a routine: its name, exercises, set counts and supersets.
 // Nothing is saved until you tap Save.
-export default function RoutineEditor({ initial, isNew, sessions, onClose }) {
+export default function RoutineEditor({ initial, isNew, sessions, unit = 'lb', onClose }) {
+  const { list: library } = useLibrary();
+  const custom = useLiveQuery(listCustomExercises, [], []);
   const [doc, setDoc] = useState(() => ({ ...initial }));
   const [picker, setPicker] = useState(false);
   const [error, setError] = useState('');
@@ -55,7 +61,7 @@ export default function RoutineEditor({ initial, isNew, sessions, onClose }) {
     const name = doc.name.trim();
     if (!name) return setError('Give the routine a name.');
     if (!doc.exercises.length) return setError('Add at least one exercise.');
-    await saveRoutine({ ...doc, name });
+    await saveRoutine({ ...doc, name, exercises: doc.exercises.map(({ target, ...e }) => (cleanTarget(target) ? { ...e, target: cleanTarget(target) } : e)) });
     onClose();
   }
 
@@ -105,6 +111,35 @@ export default function RoutineEditor({ initial, isNew, sessions, onClose }) {
               </div>
               {warm > 0 && <span className="muted">{warm} warm-up</span>}
             </div>
+            {(() => {
+              const mode = ex.mode || resolveMode(ex.name, { library: library ?? [], custom, prior: sessions ?? [] });
+              if (mode === 'cardio') return null;
+              const t = ex.target ?? {};
+              const setT = (k, v) => updateEx(ex.id, (x) => ({ ...x, target: { ...(x.target ?? {}), [k]: v } }));
+              const timed = mode === 'time' || mode === 'stretch';
+              return (
+                <div className="target-row">
+                  {(mode === 'weight' || mode === 'carry' || mode === 'bodyweight') && (
+                    <label className="field">
+                      <span>Target weight ({unit})</span>
+                      <input type="number" inputMode="decimal" min="0" step="any" value={t.weight ?? ''} aria-label={`Target weight for ${ex.name}`} onChange={(e) => setT('weight', e.target.value)} />
+                    </label>
+                  )}
+                  {(mode === 'weight' || mode === 'bodyweight') && (
+                    <label className="field">
+                      <span>Target reps</span>
+                      <input type="number" inputMode="numeric" min="0" step="1" value={t.reps ?? ''} aria-label={`Target reps for ${ex.name}`} onChange={(e) => setT('reps', e.target.value)} />
+                    </label>
+                  )}
+                  {timed && (
+                    <label className="field">
+                      <span>Target seconds</span>
+                      <input type="number" inputMode="numeric" min="0" step="1" value={t.time ?? ''} aria-label={`Target seconds for ${ex.name}`} onChange={(e) => setT('time', e.target.value)} />
+                    </label>
+                  )}
+                </div>
+              );
+            })()}
             <label className="check-row">
               <input type="checkbox" checked={!!ex.link} disabled={last} onChange={(e) => updateEx(ex.id, (x) => ({ ...x, link: e.target.checked }))} />
               <span>Superset with the next exercise</span>

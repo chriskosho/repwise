@@ -107,3 +107,11 @@ node scripts/build-library.mjs path/to/free-exercise-db/dist/exercises.json
 - Free-tier Supabase projects pause after a period of inactivity and have no automatic backups. The JSON export is your real backup.
 - Changing the weight unit only changes labels; it doesn't convert logged workout weights (body weight and measurements do convert).
 - The privacy note describes how the app is built; the person who runs the Supabase project can technically read the database.
+
+
+## Also in this version
+
+- **My exercises** (Settings): rename, change muscle/equipment/tracking, or delete exercises you added. Renaming updates past workouts and routines.
+- **Unit change**: switching lb/kg asks whether to convert logged lifts, routine targets and lift goals, or only change labels.
+- **Routine targets**: optional target weight, reps or seconds per exercise; starting the routine pre-fills them.
+- **Suggested workouts** now include weights (progressing from your last session or toward a lift goal), a "How are you feeling?" picker, rest-day advice after 3 days in a row, and automatic lighter deload sessions after about 5 hard weeks.

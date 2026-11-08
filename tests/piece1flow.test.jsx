@@ -42,6 +42,7 @@ it('shows weights in kg when the profile unit is kg', async () => {
   render(<App />);
   await user.click(screen.getByRole('button', { name: 'Settings' }));
   await user.selectOptions(await screen.findByLabelText('Weight unit'), 'kg');
+  await user.click(await screen.findByRole('button', { name: 'Only change labels' }));
   await waitFor(async () => expect((await getProfile()).units).toBe('kg'));
   await user.click(screen.getByRole('button', { name: 'Body' }));
   expect((await screen.findAllByText(/80 kg/)).length).toBeGreaterThan(0);

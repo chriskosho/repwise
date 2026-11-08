@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { downloadExport, importFile } from '../backup';
-import { deletePlace, getProfile, lastExportAt, listPlaces, renamePlace, saveProfile, savePlace } from '../db';
+import { convertLiftWeights, deleteCustomExercise, deletePlace, getProfile, listCustomExercises, updateCustomExercise, lastExportAt, listPlaces, renamePlace, saveProfile, savePlace } from '../db';
 import { heightIn, heightOut, lengthUnit } from '../units';
+import { EQUIPMENT, MUSCLES, equipmentLabel, muscleLabel } from '../library';
+import { MODES } from '../measure';
 import { setPrefs, usePrefs } from '../prefs';
 import { setTheme, useTheme } from '../theme';
 
@@ -10,6 +12,121 @@ const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300];
 const restLabel = (s) => (s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString() : 'never');
+
+function MyExercises() {
+  const list = useLiveQuery(listCustomExercises, [], []);
+  const [editing, setEditing] = useState(null);
+  const [removing, setRemoving] = useState(null);
+  const [error, setError] = useState('');
+  const modeLabel = (m) => (MODES.find(([k]) => k === m) ?? [])[1] ?? 'Automatic';
+
+  async function save(e) {
+    e.preventDefault();
+    setError('');
+    try {
+      await updateCustomExercise(editing.id, editing);
+      setEditing(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  if (!list.length) return null;
+  return (
+    <section className="card">
+      <h2>My exercises</h2>
+      <p className="muted">Exercises you added yourself. Renaming one also updates it in past workouts and routines. Deleting one keeps your history.</p>
+      <ul className="plain place-list">
+        {list.map((c) => (
+          <li key={c.id}>
+            {editing?.id === c.id ? (
+              <form className="stack" onSubmit={save}>
+                <label className="field">
+                  <span>Name</span>
+                  <input value={editing.name} maxLength={100} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+                </label>
+                <label className="field">
+                  <span>Muscle</span>
+                  <select value={editing.muscle || ''} onChange={(e) => setEditing({ ...editing, muscle: e.target.value })}>
+                    <option value="">Not set</option>
+                    {MUSCLES.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Equipment</span>
+                  <select value={editing.equipment || ''} onChange={(e) => setEditing({ ...editing, equipment: e.target.value })}>
+                    <option value="">Not set</option>
+                    {EQUIPMENT.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Tracked by</span>
+                  <select value={editing.mode || ''} onChange={(e) => setEditing({ ...editing, mode: e.target.value })}>
+                    <option value="">Automatic</option>
+                    {MODES.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span className="actions">
+                  <button type="submit" className="btn btn-small">
+                    Save
+                  </button>
+                  <button type="button" className="btn btn-small btn-ghost" onClick={() => setEditing(null)}>
+                    Cancel
+                  </button>
+                </span>
+              </form>
+            ) : removing === c.id ? (
+              <span className="actions">
+                <span>Delete {c.name}? Past workouts keep it.</span>
+                <button type="button" className="btn btn-small btn-danger" onClick={() => deleteCustomExercise(c.id).then(() => setRemoving(null))}>
+                  Yes, delete
+                </button>
+                <button type="button" className="btn btn-small btn-ghost" onClick={() => setRemoving(null)}>
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <>
+                <span>
+                  <strong>{c.name}</strong>
+                  <span className="muted">
+                    {' '}
+                    {[muscleLabel(c.muscle), equipmentLabel(c.equipment), modeLabel(c.mode)].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+                <span className="actions">
+                  <button type="button" className="btn btn-small btn-ghost" onClick={() => { setError(''); setEditing({ id: c.id, name: c.name, muscle: c.muscle || '', equipment: c.equipment || '', mode: c.mode || '' }); }} aria-label={`Edit ${c.name}`}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn btn-small btn-ghost" onClick={() => setRemoving(c.id)} aria-label={`Delete ${c.name}`}>
+                    Delete
+                  </button>
+                </span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
 
 function Places() {
   const places = useLiveQuery(listPlaces, [], []);
@@ -107,6 +224,7 @@ function Places() {
 }
 
 export default function Settings({ sync, unit, setUnit, onExported }) {
+  const [pendingUnit, setPendingUnit] = useState(null);
   const [email, setEmail] = useState('');
   const [linkSent, setLinkSent] = useState(false);
   const [authError, setAuthError] = useState('');
@@ -203,11 +321,47 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
           </label>
           <label className="field">
             <span>Weight unit</span>
-            <select value={unit} onChange={(e) => setUnit(e.target.value)}>
+            <select value={unit} onChange={(e) => (e.target.value === unit ? null : setPendingUnit(e.target.value))}>
               <option value="lb">Pounds (lb)</option>
               <option value="kg">Kilograms (kg)</option>
             </select>
           </label>
+          {pendingUnit && (
+            <div className="notice" role="group" aria-label="Convert weights">
+              <p>
+                Switch to {pendingUnit === 'kg' ? 'kilograms' : 'pounds'}? Convert your logged lifts, routine targets and lift goals to{' '}
+                {pendingUnit}, or only change the labels.
+              </p>
+              <span className="actions">
+                <button
+                  type="button"
+                  className="btn btn-small"
+                  onClick={async () => {
+                    const from = unit;
+                    const to = pendingUnit;
+                    setPendingUnit(null);
+                    await convertLiftWeights(from, to);
+                    setUnit(to);
+                  }}
+                >
+                  Convert weights
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-small btn-ghost"
+                  onClick={() => {
+                    setUnit(pendingUnit);
+                    setPendingUnit(null);
+                  }}
+                >
+                  Only change labels
+                </button>
+                <button type="button" className="btn btn-small btn-ghost" onClick={() => setPendingUnit(null)}>
+                  Cancel
+                </button>
+              </span>
+            </div>
+          )}
           <label className="field">
             <span>Height ({lengthUnit(unit)})</span>
             <input type="number" inputMode="decimal" step="0.1" min="0" value={height} onChange={(e) => setHeight(e.target.value)} />
@@ -238,8 +392,8 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
             )}
           </div>
           <p className="muted">
-            Changing the unit only changes labels for lifting weights; logged workout weights are not converted. Body weight and measurements
-            are stored in kg and cm and convert automatically.
+            When you change the unit you can convert logged lifting weights too, or only change the labels. Body weight and measurements are
+            stored in kg and cm and always convert automatically.
           </p>
         </form>
       </section>
@@ -363,6 +517,7 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
         </div>
       </section>
 
+      <MyExercises />
       <Places />
 
       <section className="card">

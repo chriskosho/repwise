@@ -1,4 +1,4 @@
-import { cleanActivity, cleanGoal, cleanMeasurements, db, newId, PROFILE_ID, sessionFromLegacy, setLastExport, today } from './db';
+import { cleanActivity, cleanTarget, cleanGoal, cleanMeasurements, db, newId, PROFILE_ID, sessionFromLegacy, setLastExport, today } from './db';
 import { key as nameKey } from './stats';
 import { EQUIPMENT, MUSCLES } from './library';
 import { MEASUREMENT_KEYS } from './body';
@@ -193,6 +193,7 @@ function normalizeRoutine(raw) {
       ...(isMode(ex.mode) ? { mode: ex.mode } : {}),
       link: !!ex.link,
       notes: typeof ex.notes === 'string' ? ex.notes.slice(0, 2000) : '',
+      ...(cleanTarget(ex.target) ? { target: cleanTarget(ex.target) } : {}),
       sets: sets.length ? sets : [{ id: newId(), type: 'normal' }],
     });
   }
