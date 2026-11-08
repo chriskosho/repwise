@@ -4,6 +4,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { deleteBodyEntry, getProfile, listBodyEntries, listGoals, listSessions, saveBodyEntry, today } from '../db';
 import { MEASUREMENTS, bmi, changeOver, latestWeightKg, measurementLabel, weightTrend } from '../body';
 import { lengthIn, lengthOut, lengthUnit, weightIn, weightOut } from '../units';
+import Photos from './Photos';
 import Goals from './Goals';
 import { useWorkouts } from '../workouts';
 import { fmtDayDate } from '../stats';
@@ -234,6 +235,8 @@ export default function Body({ unit }) {
       )}
 
       <Goals goals={goals} sessions={sessions} workouts={workouts} activities={activities} entries={entries} profile={profile} unit={unit} latestKg={latest} />
+
+      <Photos entries={entries} unit={unit} />
 
       <section className="card">
         <h2>History</h2>

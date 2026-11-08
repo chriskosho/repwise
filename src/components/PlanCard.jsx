@@ -1,4 +1,4 @@
-import { dayTitle, isWorkoutDay, phaseOf, planProgress, recentNotes } from '../plan';
+import { continuePlan, dayTitle, isWorkoutDay, phaseOf, planProgress, recentNotes } from '../plan';
 import { typeLabel } from '../activities';
 
 const dowName = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
@@ -12,7 +12,7 @@ export function dayLine(d) {
   return `${dayTitle(d)} · ${d.m} min${d.ease ? ' · easy' : ''}`;
 }
 
-export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, onNewPlan, onEndPlan, onSuggest }) {
+export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, onNewPlan, onEndPlan, onSuggest, onContinue }) {
   const p = planProgress(plan, workouts, todayStr);
 
   if (p.status === 'upcoming') {
@@ -35,9 +35,25 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
           You finished {p.done} of {p.planned} planned workouts ({p.percent}%) over {plan.length} days.
         </p>
         <p className="muted">Check Progress for your records, and the Body tab for how your weight changed.</p>
+        {onContinue && (() => {
+          const next = continuePlan(plan, p, todayStr);
+          return (
+            <div className="plan-next">
+              <h4>Next up</h4>
+              <ul className="tour-lines">
+                {next.lines.map((l) => (
+                  <li key={l}>{l}</li>
+                ))}
+              </ul>
+              <button type="button" className="btn" onClick={() => onContinue(next)}>
+                Continue with this plan
+              </button>
+            </div>
+          );
+        })()}
         <div className="actions">
-          <button type="button" className="btn" onClick={onNewPlan}>
-            Start a new plan
+          <button type="button" className="btn btn-ghost" onClick={onNewPlan}>
+            Choose something different
           </button>
           <button type="button" className="btn btn-ghost" onClick={onEndPlan}>
             Close plan

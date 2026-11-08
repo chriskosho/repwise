@@ -1,3 +1,4 @@
+import lib from '../src/data/library.json';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LENGTHS, addDays, buildPlan, cleanOnboarding, cleanPlan, planProgress, shouldOnboard } from '../src/plan';
 import { clearLocalData, getProfile, saveProfile } from '../src/db';
@@ -159,7 +160,7 @@ describe('adapting to what you do', () => {
     const p = mk({ per_week: 3, length: 28, level: 'pro' });
     const done = [0, 2, 4, 7, 9, 11].map((n) => ({ date: D(n) }));
     const r = adaptPlan(p, done, D(14));
-    expect(recentNotes(r.plan, D(14))[0].t).toMatch(/Two full weeks/);
+    expect(recentNotes(r.plan, D(14)).some((e) => /Two full weeks/.test(e.t))).toBe(true);
   });
 });
 
@@ -206,3 +207,52 @@ describe('days you are free and what you enjoy', () => {
     expect(s.ideas.find((i) => i.type === 'pickleball').minutes).toBe(45);
   });
 });
+
+import { continuePlan } from '../src/plan';
+describe('plans that progress', () => {
+  const D2 = (n) => addDays(START, n);
+  it('adds a boost after a strong week, with a note, and only once', () => {
+    const p = mk({ per_week: 3, length: 21, level: 'pro' });
+    const done = [0, 2, 4].map((n) => ({ date: D2(n) }));
+    const r = adaptPlan(p, done, D2(7));
+    expect(r.plan.boost).toBe(1);
+    expect(recentNotes(r.plan, D2(7)).some((e) => /Strong week \(3 of 3\)/.test(e.t))).toBe(true);
+    expect(adaptPlan(r.plan, done, D2(7)).changed).toBe(false);
+    expect(cleanPlan(r.plan).boost).toBe(1);
+    // Another strong week: boost 2, capped at 3.
+    const more = [...done, ...[7, 9, 11].map((n) => ({ date: D2(n) }))];
+    expect(adaptPlan(r.plan, more, D2(14)).plan.boost).toBe(2);
+  });
+  it('takes the boost back after a rough week', () => {
+    const p = { ...mk({ per_week: 3, length: 21, level: 'pro' }), boost: 2 };
+    const r = adaptPlan(p, [], D2(7));
+    expect(r.plan.boost).toBe(1);
+  });
+  it('puts extra sets into suggested workouts, but not on easy days', () => {
+    const lib = lib0();
+    const base = { library: lib, todayStr: '2026-11-07', options: { focus: 'legs', seed: 1 } };
+    const a = suggestWorkout(base);
+    const b = suggestWorkout({ ...base, options: { ...base.options, boost: 2 } });
+    const c = suggestWorkout({ ...base, options: { ...base.options, boost: 2, ease: true } });
+    expect(b.exercises[0].sets).toBe(Math.min(5, a.exercises[0].sets + 2));
+    expect(b.exercises[2].sets).toBe(a.exercises[2].sets);
+    expect(c.exercises[0].sets).toBeLessThanOrEqual(a.exercises[0].sets);
+    expect(b.reasons.join(' ')).toMatch(/extra sets/);
+  });
+  it('builds the next plan from how this one went', () => {
+    const p = mk({ per_week: 3, length: 21, level: 'new' });
+    const all = p.days.map((d, i) => ({ d, i })).filter(({ d }) => d.k === 's' || d.k === 'c').map(({ i }) => ({ date: addDays(START, i) }));
+    const prog = planProgress(p, all, addDays(START, 25));
+    const next = continuePlan({ ...p, boost: 1 }, prog, addDays(START, 25));
+    expect(next).toMatchObject({ level: 'some', per_week: 4 });
+    expect(next.plan).toMatchObject({ length: 30, level: 'some', per_week: 4, boost: 1, start: addDays(START, 25) });
+    expect(next.lines.join(' ')).toMatch(/One more workout/);
+    expect(cleanPlan(next.plan).boost).toBe(1);
+    // A rough run eases off instead.
+    const bad = continuePlan(p, planProgress(p, [], addDays(START, 25)), addDays(START, 25));
+    expect(bad).toMatchObject({ level: 'new', per_week: 2 });
+  });
+});
+function lib0() {
+  return lib.map(([name, muscle, equipment, category, id, level, m]) => ({ name, muscle, equipment, category, id, level, compound: m === 'c' }));
+}

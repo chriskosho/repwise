@@ -146,3 +146,10 @@ Onboarding also asks for your best time of day (morning, afternoon, evening, var
 - **Days:** plan workouts only land on the weekdays you pick. If you pick fewer days than workouts per week, the plan has that many workouts. Missed workouts only move to days you are free.
 - **Time of day:** shown on today's plan card ("Planned for the evening").
 - **Activities:** your picks (plus what you actually log) appear first as "Your activities" in the activity picker, are used for non-gym workout ideas, and set the cardio days in your plan.
+
+### Progress, review and photos
+
+- **Plans that progress:** after a strong week (80%+ of planned workouts) your first lifts get an extra set on regular days (up to +2); a rough week takes it back. A finished plan offers "Continue with this plan": new beginners graduate to the normal level, a 90%+ run adds a workout a week, a rough one eases off, and extra sets carry over.
+- **Weekly review:** on a week's last day and the two days after, the Workout tab shows a "week in review" card. It opens a summary: workout days, active minutes, volume and change vs the week before, new records, plan adherence, weight change, plan updates and next week's schedule. A link at the bottom of the Workout tab reopens it any time.
+- **Progress photos (Body tab):** add photos (shrunk to about 1280 px), tag a pose, add a note, change the date, and compare any two side by side with the weight on each date. Photos are stored in this browser only: not synced, not in backups, removed by "delete my data". (IndexedDB schema v6.)
+- Height in Settings uses feet and inches, or meters and centimeters, like onboarding.

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { downloadExport, importFile } from '../backup';
 import { convertLiftWeights, deleteCustomExercise, deletePlace, getProfile, listCustomExercises, updateCustomExercise, lastExportAt, listPlaces, renamePlace, saveProfile, savePlace } from '../db';
-import { heightIn, heightOut, lengthUnit } from '../units';
+import { heightFromParts, heightToParts } from '../units';
 import { EQUIPMENT, MUSCLES, equipmentLabel, muscleLabel } from '../library';
 import { MODES } from '../measure';
 import { setPrefs, usePrefs } from '../prefs';
@@ -236,7 +236,8 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
   const theme = useTheme();
   const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], null);
   const [name, setName] = useState('');
-  const [height, setHeight] = useState('');
+  const [h1, setH1] = useState('');
+  const [h2, setH2] = useState('');
   const [profileMsg, setProfileMsg] = useState('');
   const [signOutAsk, setSignOutAsk] = useState(false);
   const [deleteAsk, setDeleteAsk] = useState(false);
@@ -247,12 +248,12 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
   // Show what's saved. (Typing is kept until you save.)
   useEffect(() => {
     setName(profile?.display_name ?? '');
-    setHeight(profile?.height_cm != null ? String(heightOut(profile.height_cm, unit)) : '');
+    [setH1, setH2].forEach((fn, i) => fn(heightToParts(profile?.height_cm, unit)[i]));
   }, [profile?.display_name, profile?.height_cm, unit]);
 
   async function onSaveProfile(e) {
     e.preventDefault();
-    await saveProfile({ display_name: name, height_cm: height === '' ? null : heightIn(height, unit) });
+    await saveProfile({ display_name: name, height_cm: h1 === '' && h2 === '' ? null : heightFromParts(unit, h1, h2) });
     setProfileMsg('Saved.');
   }
 
@@ -363,10 +364,19 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
               </span>
             </div>
           )}
-          <label className="field">
-            <span>Height ({lengthUnit(unit)})</span>
-            <input type="number" inputMode="decimal" step="0.1" min="0" value={height} onChange={(e) => setHeight(e.target.value)} />
-          </label>
+          <div className="field">
+            <span id="settings-height">Height</span>
+            <div className="row" role="group" aria-labelledby="settings-height">
+              <label className="field">
+                <span>{unit === 'kg' ? 'Meters' : 'Feet'}</span>
+                <input type="number" inputMode="numeric" min="0" max={unit === 'kg' ? 2 : 8} step="1" value={h1} onChange={(e) => setH1(e.target.value)} />
+              </label>
+              <label className="field">
+                <span>{unit === 'kg' ? 'Centimeters' : 'Inches'}</span>
+                <input type="number" inputMode="decimal" min="0" max={unit === 'kg' ? 99 : 11.9} step="any" value={h2} onChange={(e) => setH2(e.target.value)} />
+              </label>
+            </div>
+          </div>
           <label className="field">
             <span>Appearance (this device)</span>
             <select value={theme} onChange={(e) => setTheme(e.target.value)}>

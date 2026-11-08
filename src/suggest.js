@@ -190,7 +190,7 @@ export function suggestWorkout({
   todayStr = new Date().toLocaleDateString('en-CA'),
   weekStart = 1,
 }) {
-  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0, feeling = 'auto', style = '', ease = false, interests = [] } = options;
+  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0, feeling = 'auto', style = '', ease = false, interests = [], boost = 0 } = options;
   const rand = rng(seed + 1);
   const meta = new Map();
   for (const l of library) meta.set(key(l.name), l);
@@ -326,6 +326,11 @@ export function suggestWorkout({
 
   // ---- weights, and a lighter day when you need one ----
   const equipOf = (name) => custom.find((c) => !c.deleted_at && key(c.name) === key(name))?.equipment || meta.get(key(name))?.equipment || '';
+  const extra = light ? 0 : Math.min(2, Math.max(0, Math.round(boost)));
+  if (extra && picked.some((p) => p.mode === 'weight')) reasons.push(`Strong recent weeks, so your first lifts get ${extra === 1 ? 'an extra set' : 'two extra sets'}.`);
+  picked.forEach((p, i) => {
+    if (extra && i < 2 && p.mode === 'weight') p.sets = Math.min(5, p.sets + extra);
+  });
   for (const p of picked) {
     if (light && p.sets > 2) p.sets -= 1;
     if (p.mode !== 'weight') continue;

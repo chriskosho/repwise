@@ -241,6 +241,7 @@ export function cleanPlan(p) {
     gear: GEARS.has(p.gear) ? p.gear : 'gym',
     cardio: (Array.isArray(p.cardio) ? p.cardio : []).filter((t) => CARDIO_TYPES.has(t)).slice(0, 8),
     ...cleanWhen(p),
+    ...(Math.round(Number(p.boost)) > 0 ? { boost: Math.min(3, Math.round(Number(p.boost))) } : {}),
     days,
     ...(typeof p.ended_at === 'string' ? { ended_at: p.ended_at.slice(0, 30) } : {}),
     ...(Array.isArray(p.log) && p.log.length
@@ -379,6 +380,22 @@ export function adaptPlan(plan, workouts, todayStr) {
     }
   }
 
+  // E: strong weeks add a set to your first lifts; rough weeks take one back.
+  let boost = plan.boost ?? 0;
+  if (week >= 2 && !seen.has(`boost:${week}`)) {
+    const prev = weekStats(week - 1);
+    const next = prev.planned >= 2 && prev.done / prev.planned >= 0.8 ? Math.min(3, boost + 1) : prev.planned >= 2 && prev.done / prev.planned < 0.5 ? Math.max(0, boost - 1) : boost;
+    if (next > boost) {
+      boost = next;
+      note(`boost:${week}`, `Strong week (${prev.done} of ${prev.planned}). Your first lifts now get an extra set on regular days.`);
+      changed = true;
+    } else if (next < boost) {
+      boost = next;
+      note(`boost:${week}`, 'Dialing the extra sets back while you find your rhythm.');
+      changed = true;
+    } else seen.add(`boost:${week}`);
+  }
+
   // D: a week or more away means an easy first workout back.
   const past = [...dates].filter((dt) => dt <= todayStr).sort();
   const lastDate = past[past.length - 1] ?? addDays(plan.start, -1);
@@ -394,8 +411,32 @@ export function adaptPlan(plan, workouts, todayStr) {
   }
 
   if (!changed) return { plan, changed: false };
-  return { plan: { ...plan, days: days.map(({ date, ...d }) => d), log: log.slice(-30) }, changed: true };
+  const out = { ...plan, days: days.map(({ date, ...d }) => d), log: log.slice(-30) };
+  if (boost > 0) out.boost = boost;
+  else delete out.boost;
+  return { plan: out, changed: true };
 }
 
 // Plan notes from the last couple of days, newest first.
 export const recentNotes = (plan, todayStr) => (plan.log ?? []).filter((e) => e.d >= addDays(todayStr, -1)).reverse();
+
+
+// The next plan, built from how this one went: promote beginners, add a day for a great run,
+// ease off after a rough one. `prog` is planProgress() for the finished plan.
+export function continuePlan(plan, prog, todayStr) {
+  const rate = prog.planned ? prog.done / prog.planned : 0;
+  const level = rate >= 0.7 && plan.level === 'new' && plan.length >= 21 ? 'some' : plan.level;
+  const room = (plan.available?.length ?? 7) > plan.per_week;
+  const per_week = rate >= 0.9 && plan.per_week < 5 && room ? plan.per_week + 1 : rate < 0.5 && plan.per_week > 2 ? plan.per_week - 1 : plan.per_week;
+  const length = plan.length >= 30 ? 60 : plan.length === 21 ? 30 : 21;
+  const end = addDays(plan.start, plan.length);
+  const start = end > todayStr ? end : todayStr;
+  const next = buildPlan({ length, start, goal: plan.goal, level, per_week, minutes: plan.minutes, gear: plan.gear, cardio: plan.cardio, available: plan.available, time: plan.time });
+  if (plan.boost) next.boost = plan.boost;
+  const lines = [`${length} days, starting ${start === todayStr ? 'today' : 'tomorrow'}.`];
+  if (level !== plan.level) lines.push('You finished strong, so no more easy-start weeks.');
+  if (per_week > plan.per_week) lines.push(`One more workout a week (${per_week}).`);
+  if (per_week < plan.per_week) lines.push(`One fewer workout a week (${per_week}) to build consistency.`);
+  if (next.boost) lines.push('Your extra sets carry over.');
+  return { plan: next, level, per_week, lines };
+}

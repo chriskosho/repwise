@@ -16,6 +16,7 @@ import ActivityEditor from './components/ActivityEditor';
 import Suggest from './components/Suggest';
 import Onboarding from './components/Onboarding';
 import Tour from './components/Tour';
+import Review from './components/Review';
 import { PlanView } from './components/PlanCard';
 import { topActivityTypes } from './activities';
 import { STYLE_FOR_GOAL, adaptPlan, shouldOnboard } from './plan';
@@ -118,12 +119,12 @@ export default function App() {
   const places = useLiveQuery(listPlaces, [], []);
   const openActivity = (doc, isNew = false) => setActivityView({ doc, isNew });
 
-  const { workouts: workoutsList, activities: activityRows } = useWorkouts();
+  const { workouts: workoutsList, activities: activityRows, sessions: sessionRows } = useWorkouts();
   const favorites = topActivityTypes(profile?.onboarding?.interests ?? [], activityRows ?? []);
   const planDone = (day) => {
     const plan = profile?.plan;
     if (day.k === 's') {
-      setSuggestPreset({ focus: day.f, minutes: day.m, gear: plan.gear, style: STYLE_FOR_GOAL[plan.goal], ease: !!day.ease });
+      setSuggestPreset({ focus: day.f, minutes: day.m, gear: plan.gear, style: STYLE_FOR_GOAL[plan.goal], ease: !!day.ease, boost: plan.boost ?? 0 });
       setSuggestOpen(true);
     } else {
       openActivity({ ...newActivity(), type: day.t, duration_min: day.m }, true);
@@ -146,6 +147,8 @@ export default function App() {
     if (r.changed) saveProfile({ plan: r.plan });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planJson, workoutsList]);
+  const continueWith = (next) =>
+    saveProfile({ plan: next.plan, onboarding: { ...(profile?.onboarding ?? {}), level: next.level, per_week: next.per_week } });
   const endPlan = () => saveProfile({ plan: null }).then(() => setGuide(null));
   // Once the welcome flow starts it stays up until it finishes, even after answers are saved.
   useEffect(() => {
@@ -208,6 +211,16 @@ export default function App() {
               closeGuide();
               setTab('workout');
             }}
+          />
+        ) : guideMode === 'review' ? (
+          <Review
+            sessions={sessionRows ?? []}
+            activities={activityRows ?? []}
+            plan={profile?.plan ?? null}
+            unit={unit}
+            weekStart={profile?.week_start ?? 1}
+            todayStr={today()}
+            onClose={closeGuide}
           />
         ) : guideMode === 'tour' ? (
           <Tour onDone={closeGuide} doneLabel="Done" />
@@ -285,6 +298,8 @@ export default function App() {
                 onPlanView={() => setGuide('plan-view')}
                 onNewPlan={() => setGuide(profile?.onboarding?.goal ? 'plan' : 'first')}
                 onEndPlan={endPlan}
+                onContinue={continueWith}
+                onOpenReview={() => setGuide('review')}
                 onDismissOffer={() => saveProfile({ onboarding: { skipped: true } })}
                 onOpenActivity={(a) => openActivity(a)}
                 onOpenRoutine={openRoutine}

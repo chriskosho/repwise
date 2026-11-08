@@ -174,7 +174,7 @@ describe('profile plan field', () => {
 describe('height boxes', () => {
   it('uses feet and inches for pounds, meters and centimeters for kilograms', async () => {
     expect(heightCm('lb', '5', '10')).toBe(177.8);
-    expect(heightCm('lb', '6', '')).toBe(182.9);
+    expect(heightCm('lb', '6', '')).toBe(182.88);
     expect(heightCm('kg', '1', '75')).toBe(175);
     expect(heightCm('kg', '', '')).toBeNull();
     expect(heightCm('lb', '0', '5')).toBeNull();
@@ -233,5 +233,19 @@ describe('activity picker favorites', () => {
     render(<ActivityEditor initial={newActivity()} isNew places={[]} unit="lb" onClose={() => {}} />);
     expect(screen.queryByText('Your activities')).toBeNull();
     expect(screen.getByLabelText('Activity')).toBeTruthy();
+  });
+});
+
+describe('finished plan', () => {
+  it('offers to continue with a promoted next plan', async () => {
+    const user = userEvent.setup();
+    const start = '2026-11-09';
+    const plan = buildPlan({ length: 21, start, goal: 'muscle', level: 'new', per_week: 3, minutes: 45 });
+    const all = plan.days.map((d, i) => ({ d, i })).filter(({ d }) => d.k !== 'r').map(({ i }) => ({ date: addDays(start, i) }));
+    const onContinue = vi.fn();
+    render(<PlanCard plan={plan} workouts={all} todayStr={addDays(start, 30)} onDo={() => {}} onViewPlan={() => {}} onNewPlan={() => {}} onEndPlan={() => {}} onSuggest={() => {}} onContinue={onContinue} />);
+    expect(screen.getByText(/One more workout a week \(4\)/)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Continue with this plan' }));
+    expect(onContinue).toHaveBeenCalledWith(expect.objectContaining({ level: 'some', per_week: 4 }));
   });
 });

@@ -22,3 +22,22 @@ export const lengthIn = (v, unit) => (unit === 'kg' ? Number(v) : inToCm(Number(
 // Height is shown as cm for kg users and total inches for lb users.
 export const heightOut = lengthOut;
 export const heightIn = lengthIn;
+
+// Height in two boxes: feet + inches for pounds, meters + centimeters for kilograms.
+export function heightFromParts(unit, a, b) {
+  const x = Number(a) || 0;
+  const y = Number(b) || 0;
+  const cm = unit === 'kg' ? x * 100 + y : (x * 12 + y) * 2.54;
+  return cm >= 50 && cm <= 272 ? Math.round(cm * 100) / 100 : null;
+}
+export function heightToParts(cm, unit) {
+  if (cm == null || !(cm > 0)) return ['', ''];
+  if (unit === 'kg') return [String(Math.floor(cm / 100)), String(Math.round((cm % 100) * 10) / 10)];
+  let ft = Math.floor(cm / 2.54 / 12);
+  let inch = Math.round((cm / 2.54 - ft * 12) * 10) / 10;
+  if (inch >= 12) {
+    ft += 1;
+    inch = 0;
+  }
+  return [String(ft), String(inch)];
+}

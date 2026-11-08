@@ -3,7 +3,7 @@ import { getProfile, listGoals, saveBodyEntry, saveGoal, saveProfile, today } fr
 import { CARDIO_CHOICES, DAYS_PER_WEEK, GOALS, LENGTHS, LEVELS, TIMES_OF_DAY, WEEKDAYS as DOW, addDays, buildPlan, dayTitle } from '../plan';
 import { GEAR, TIMES } from '../suggest';
 import { ACTIVITY_TYPES, typeLabel } from '../activities';
-import { weightIn } from '../units';
+import { heightFromParts, weightIn } from '../units';
 import Tour from './Tour';
 
 const STEPS = ['welcome', 'goal', 'level', 'schedule', 'when', 'interests', 'gear', 'body', 'length', 'review', 'tour'];
@@ -24,13 +24,7 @@ function Choice({ selected, title, text, onClick, tag }) {
   );
 }
 
-// Height from two boxes: feet + inches for pounds, meters + centimeters for kilograms.
-export function heightCm(unit, a, b) {
-  const x = Number(a) || 0;
-  const y = Number(b) || 0;
-  const cm = unit === 'kg' ? x * 100 + y : (x * 12 + y) * 2.54;
-  return cm >= 50 && cm <= 272 ? Math.round(cm * 10) / 10 : null;
-}
+export const heightCm = heightFromParts;
 
 function nextMonday(from) {
   const dow = new Date(`${from}T12:00:00`).getDay();

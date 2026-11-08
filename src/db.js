@@ -102,6 +102,9 @@ db.version(5).stores({
   meta: 'key',
 });
 
+// Version 6 adds progress photos. They live only on this device (never synced or backed up).
+db.version(6).stores({ photos: 'id, date' });
+
 // Newest first. Date decides, then start time.
 export const sessionOrder = (s) => `${s.date}|${s.started_at || ''}`;
 export const byNewest = (a, b) => sessionOrder(b).localeCompare(sessionOrder(a));
@@ -590,6 +593,44 @@ export async function clearLocalData() {
     /* ignore */
   }
 }
+
+// ---- progress photos (this device only) ----
+export const POSES = [
+  ['', 'No pose'],
+  ['front', 'Front'],
+  ['side', 'Side'],
+  ['back', 'Back'],
+];
+const cleanPose = (p) => (POSES.some(([k]) => k === p) ? p : '');
+export async function addPhoto({ data, type = 'image/jpeg', date, pose = '', note = '' }) {
+  if (!(data instanceof ArrayBuffer) || !data.byteLength) throw new Error('That photo could not be read.');
+  if (data.byteLength > 15 * 1024 * 1024) throw new Error('That photo is too large (15 MB maximum).');
+  const row = {
+    id: newId(),
+    date: /^\d{4}-\d{2}-\d{2}$/.test(date ?? '') ? date : today(),
+    pose: cleanPose(pose),
+    note: String(note ?? '').slice(0, 200),
+    type: /^image\//.test(type) ? type : 'image/jpeg',
+    data,
+    created_at: new Date().toISOString(),
+  };
+  await db.photos.put(row);
+  return row;
+}
+export const listPhotos = async () => (await db.photos.toArray()).sort((a, b) => b.date.localeCompare(a.date) || b.created_at.localeCompare(a.created_at));
+export async function updatePhoto(id, { date, pose, note }) {
+  const row = await db.photos.get(id);
+  if (!row) return null;
+  const next = {
+    ...row,
+    date: /^\d{4}-\d{2}-\d{2}$/.test(date ?? '') ? date : row.date,
+    pose: pose === undefined ? row.pose : cleanPose(pose),
+    note: note === undefined ? row.note : String(note).slice(0, 200),
+  };
+  await db.photos.put(next);
+  return next;
+}
+export const deletePhoto = (id) => db.photos.delete(id);
 
 // ---- backup bookkeeping (kept in localStorage; per device) ----
 const LAST_EXPORT = 'repwise.lastExport';

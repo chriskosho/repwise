@@ -20,6 +20,8 @@ import ActivityCard from './ActivityCard';
 import { useWorkouts } from '../workouts';
 import WorkoutEditor from './WorkoutEditor';
 import PlanCard from './PlanCard';
+import { ReviewCard } from './Review';
+import { reviewPeriod, showReviewCard } from '../review';
 
 function Summary({ info, unit, onDone, onSaveRoutine }) {
   const { session, stats, prs } = info;
@@ -150,11 +152,12 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onOpenActivity, onSuggest, plan = null, hasOnboarding = false, onPlanDo, onPlanView, onNewPlan, onEndPlan, onDismissOffer }) {
+export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onOpenActivity, onSuggest, plan = null, hasOnboarding = false, onContinue, onOpenReview, onPlanDo, onPlanView, onNewPlan, onEndPlan, onDismissOffer }) {
   const active = useLiveQuery(getActiveSession, [], undefined);
   const { sessions, activities, places, workouts } = useWorkouts();
   const routines = useLiveQuery(listRoutines, [], undefined);
   const [summary, setSummary] = useState(null);
+  const [reviewHidden, setReviewHidden] = useState(false);
   const [busy, setBusy] = useState(false);
 
   if (summary) {
@@ -190,13 +193,36 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
 
   const recent = workouts.slice(0, 2);
   const placeName = (id) => places.find((p) => p.id === id)?.name;
+  let dismissed = '';
+  try {
+    dismissed = localStorage.getItem('repwise.reviewDismissed') ?? '';
+  } catch {
+    /* ignore */
+  }
+  const showReview = !reviewHidden && showReviewCard(today(), weekStart) && dismissed !== reviewPeriod(today(), weekStart).start;
   const weekFrom = weekStartOf(today(), weekStart);
   const thisWeek = workouts.filter((s) => s.date >= weekFrom).length;
 
   return (
     <div>
+      {showReview && (
+        <ReviewCard
+          workouts={workouts}
+          todayStr={today()}
+          weekStart={weekStart}
+          onOpen={onOpenReview}
+          onDismiss={() => {
+            try {
+              localStorage.setItem('repwise.reviewDismissed', reviewPeriod(today(), weekStart).start);
+            } catch {
+              /* ignore */
+            }
+            setReviewHidden(true);
+          }}
+        />
+      )}
       {plan && (
-        <PlanCard plan={plan} workouts={workouts} todayStr={today()} onDo={onPlanDo} onViewPlan={onPlanView} onNewPlan={onNewPlan} onEndPlan={onEndPlan} onSuggest={onSuggest} />
+        <PlanCard plan={plan} workouts={workouts} todayStr={today()} onDo={onPlanDo} onViewPlan={onPlanView} onNewPlan={onNewPlan} onEndPlan={onEndPlan} onSuggest={onSuggest} onContinue={onContinue} />
       )}
       {!plan && !hasOnboarding && workouts.length > 0 && (
         <section className="card" aria-label="Starter plans">
@@ -266,6 +292,9 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
               <SessionCard key={s.id} session={s} unit={unit} placeName={placeName(s.place_id)} onOpen={(x) => onOpenSession(x.id)} />
             ),
           )}
+          <button type="button" className="btn btn-link" onClick={onOpenReview}>
+            Weekly review
+          </button>
         </>
       )}
     </div>

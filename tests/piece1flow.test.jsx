@@ -105,7 +105,8 @@ it('saves the profile', async () => {
   const user = userEvent.setup();
   render(<Settings sync={fakeSync()} unit="lb" setUnit={() => {}} onExported={() => {}} />);
   await user.type(await screen.findByLabelText('Name'), '  Chris ');
-  await user.type(screen.getByLabelText('Height (in)'), '71');
+  await user.type(screen.getByLabelText('Feet'), '5');
+  await user.type(screen.getByLabelText('Inches'), '11');
   await user.click(screen.getByRole('button', { name: 'Save profile' }));
   expect(await screen.findByText('Saved.')).toBeTruthy();
   const p = await getProfile();
@@ -155,4 +156,15 @@ it('does not offer account deletion when signed out', () => {
   render(<Settings sync={fakeSync({ session: null })} unit="lb" setUnit={() => {}} onExported={() => {}} />);
   expect(screen.queryByRole('button', { name: /Delete my account/ })).toBeNull();
   expect(screen.getByText('Privacy')).toBeTruthy();
+});
+
+it('shows a saved height as feet and inches, or meters and centimeters', async () => {
+  const { heightToParts, heightFromParts } = await import('../src/units');
+  expect(heightToParts(180.34, 'lb')).toEqual(['5', '11']);
+  expect(heightToParts(177.8, 'lb')).toEqual(['5', '10']);
+  expect(heightToParts(182.88, 'lb')).toEqual(['6', '0']);
+  expect(heightToParts(175, 'kg')).toEqual(['1', '75']);
+  expect(heightToParts(null, 'kg')).toEqual(['', '']);
+  expect(heightFromParts('lb', '5', '11')).toBe(180.34);
+  expect(heightFromParts('kg', '2', '5')).toBe(205);
 });
