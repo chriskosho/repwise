@@ -167,3 +167,7 @@ Onboarding also asks for your best time of day (morning, afternoon, evening, var
 ## Plan days
 
 `src/components/PlanDay.jsx` is the screen for one plan day. It previews the workout with the same engine as Suggest (`src/useSuggestion.js`; the day number seeds it, so what you preview is what you start), and edits the plan through `swapDays`, `skipDay`, `addWorkout` and `updateDay` in `src/plan.js`. Starting a future day swaps it with today first so the plan stays truthful.
+
+## Food log
+
+The Food tab (`src/components/Food.jsx`, `FoodComposer.jsx`) is a simple running log: no meal categories. Typing searches your own foods and ~180 built-in common foods (`src/foodData.js`, rounded estimates) with word-prefix matching (`searchFoods` in `src/food.js`); anything not found can be added as a new food, or logged as a one-off by typing `name 450`. Entries store a snapshot of the per-serving nutrition so editing a saved food never rewrites history. Data: Dexie v7 tables `foods` and `foodLog`, Supabase tables `foods` and `food_log` (RLS, see `supabase/schema.sql`), optional `calorie_target` and `protein_target` on the profile. Included in backups.

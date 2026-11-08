@@ -1795,3 +1795,26 @@ button:focus-visible,
 .day-nav { margin-top: 0.4rem; }
 .day-nav + * { margin-top: 0.6rem; }
 .card .btn-danger.btn-small { margin-top: 0.6rem; }
+
+/* ---- food log ---- */
+.food > .card { margin-bottom: 0.8rem; }
+.day-switch { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.day-switch input[type='date'] { border: 0; background: none; font: inherit; color: var(--muted); text-align: center; }
+.food-total { font-size: 1.1rem; margin: 0.2rem 0 0.4rem; }
+.food-total strong { font-size: 1.9rem; }
+.suggest-list { list-style: none; padding: 0; margin: 0.3rem 0 0; border-top: 1px solid var(--line); }
+.suggest-list li, .food-list li { border-bottom: 1px solid var(--line); }
+.food-list { list-style: none; padding: 0; margin: 0.4rem 0 0; }
+.food-list li { display: flex; align-items: center; gap: 0.4rem; }
+.food-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.65rem 0.1rem; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; width: 100%; min-height: 44px; }
+.food-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.food-new { color: var(--accent); }
+.food-time { flex: 0 0 4.6rem; color: var(--muted); font-size: 0.85rem; }
+.food-name { flex: 1; min-width: 0; }
+.food-cal { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.chip-btn { color: inherit; }
+.stepper { display: flex; align-items: center; gap: 0.3rem; }
+.stepper input { width: 4.5rem; text-align: center; }
+.nutrition-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+.food-sum { margin: 0.2rem 0; }
+.toast { position: sticky; bottom: calc(var(--tab-h) + 0.6rem); background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.4rem 0.8rem; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }

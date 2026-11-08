@@ -54,6 +54,13 @@ export const COACH_STEPS = [
     body: 'Records, charts, muscle balance and goals live here, so you can see your lifts and weekly totals improve.',
   },
   {
+    id: 'food',
+    tab: 'food',
+    target: '[data-tour="tab-food"]',
+    title: 'Food',
+    body: 'Log what you eat as you go. Type a food and pick it from the list, or add your own. No meals or categories to fill in.',
+  },
+  {
     id: 'body',
     tab: 'body',
     target: '[data-tour="tab-body"]',

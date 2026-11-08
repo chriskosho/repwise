@@ -111,7 +111,7 @@ describe('what gets sent to the server', () => {
   const byName = Object.fromEntries(TABLES.map((t) => [t.remote, t]));
 
   it('covers every synced table', () => {
-    expect(Object.keys(byName).sort()).toEqual(['activities', 'body_entries', 'custom_exercises', 'goals', 'places', 'profiles', 'routines', 'sessions']);
+    expect(Object.keys(byName).sort()).toEqual(['activities', 'body_entries', 'custom_exercises', 'food_log', 'foods', 'goals', 'places', 'profiles', 'routines', 'sessions']);
   });
 
   it('never sends updated_at (the server owns it) and always sends the owner', () => {
@@ -123,6 +123,8 @@ describe('what gets sent to the server', () => {
       profiles: { id: 'me', display_name: 'Chris', units: 'kg', updated_at: 'client', dirty: 1, rev: 3 },
       goals: { id: 'e', type: 'weekly_workouts', target: 3, updated_at: 'client', dirty: 1, rev: 3 },
       places: { id: 'f', name: 'Gym', updated_at: 'client', dirty: 1, rev: 3 },
+      foods: { id: 'h', name: 'Oats', updated_at: 'client', dirty: 1, rev: 3 },
+      food_log: { id: 'i', date: '2026-11-01', name: 'Oats', updated_at: 'client', dirty: 1, rev: 3 },
       activities: { id: 'g', date: '2026-11-01', type: 'run', duration_min: 30, updated_at: 'client', dirty: 1, rev: 3 },
     };
     for (const [name, row] of Object.entries(rows)) {

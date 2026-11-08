@@ -326,12 +326,13 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
     setBackupMsg('');
     setBackupErr('');
     try {
-      const { added, skipped, invalid, routines, exercises, body, goals, places, activities } = await importFile(file);
+      const { added, skipped, invalid, routines, exercises, body, goals, places, activities, foods } = await importFile(file);
       const parts = [`${added} new workout${added === 1 ? '' : 's'}`];
       if (routines) parts.push(`${routines} routine${routines === 1 ? '' : 's'}`);
       if (exercises) parts.push(`${exercises} exercise${exercises === 1 ? '' : 's'}`);
       if (body) parts.push(`${body} body entr${body === 1 ? 'y' : 'ies'}`);
       if (activities) parts.push(`${activities} activit${activities === 1 ? 'y' : 'ies'}`);
+      if (foods) parts.push(`${foods} food entr${foods === 1 ? 'y' : 'ies'}`);
       if (places) parts.push(`${places} place${places === 1 ? '' : 's'}`);
       if (goals) parts.push(`${goals} goal${goals === 1 ? '' : 's'}`);
       setBackupMsg(

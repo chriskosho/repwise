@@ -382,3 +382,69 @@ drop table if exists public.workouts;
 -- Onboarding answers and the active starter plan, kept on your profile.
 alter table public.profiles add column if not exists onboarding jsonb;
 alter table public.profiles add column if not exists plan jsonb;
+
+-- ============================================================================
+-- Food log: your own foods, what you ate, and optional daily targets
+-- ============================================================================
+create table if not exists public.foods (
+  id          uuid primary key,
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  name        text not null check (char_length(btrim(name)) between 1 and 100),
+  serving     text not null default '' check (char_length(serving) <= 60),
+  calories numeric check (calories is null or (calories >= 0 and calories <= 10000)),
+  protein numeric check (protein is null or (protein >= 0 and protein <= 1000)),
+  carbs numeric check (carbs is null or (carbs >= 0 and carbs <= 1000)),
+  fat numeric check (fat is null or (fat >= 0 and fat <= 1000)),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  deleted_at  timestamptz
+);
+alter table public.foods enable row level security;
+drop policy if exists "foods_select_own" on public.foods;
+create policy "foods_select_own" on public.foods for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists "foods_insert_own" on public.foods;
+create policy "foods_insert_own" on public.foods for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists "foods_update_own" on public.foods;
+create policy "foods_update_own" on public.foods for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+drop policy if exists "foods_delete_own" on public.foods;
+create policy "foods_delete_own" on public.foods for delete to authenticated using ((select auth.uid()) = user_id);
+revoke all on public.foods from anon;
+create index if not exists foods_user_updated_idx on public.foods (user_id, updated_at);
+drop trigger if exists foods_set_updated_at on public.foods;
+create trigger foods_set_updated_at before insert or update on public.foods for each row execute function public.set_updated_at();
+
+create table if not exists public.food_log (
+  id          uuid primary key,
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  date        date not null,
+  time        text not null default '' check (time = '' or time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'),
+  name        text not null check (char_length(btrim(name)) between 1 and 100),
+  serving     text not null default '' check (char_length(serving) <= 60),
+  servings    numeric not null default 1 check (servings > 0 and servings <= 1000),
+  calories numeric check (calories is null or (calories >= 0 and calories <= 10000)),
+  protein numeric check (protein is null or (protein >= 0 and protein <= 1000)),
+  carbs numeric check (carbs is null or (carbs >= 0 and carbs <= 1000)),
+  fat numeric check (fat is null or (fat >= 0 and fat <= 1000)),
+  food_id     uuid,
+  notes       text not null default '' check (char_length(notes) <= 500),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  deleted_at  timestamptz
+);
+create index if not exists food_log_user_date_idx on public.food_log (user_id, date);
+alter table public.food_log enable row level security;
+drop policy if exists "food_log_select_own" on public.food_log;
+create policy "food_log_select_own" on public.food_log for select to authenticated using ((select auth.uid()) = user_id);
+drop policy if exists "food_log_insert_own" on public.food_log;
+create policy "food_log_insert_own" on public.food_log for insert to authenticated with check ((select auth.uid()) = user_id);
+drop policy if exists "food_log_update_own" on public.food_log;
+create policy "food_log_update_own" on public.food_log for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+drop policy if exists "food_log_delete_own" on public.food_log;
+create policy "food_log_delete_own" on public.food_log for delete to authenticated using ((select auth.uid()) = user_id);
+revoke all on public.food_log from anon;
+create index if not exists food_log_user_updated_idx on public.food_log (user_id, updated_at);
+drop trigger if exists food_log_set_updated_at on public.food_log;
+create trigger food_log_set_updated_at before insert or update on public.food_log for each row execute function public.set_updated_at();
+
+alter table public.profiles add column if not exists calorie_target integer check (calorie_target is null or (calorie_target between 500 and 10000));
+alter table public.profiles add column if not exists protein_target integer check (protein_target is null or (protein_target between 10 and 600));

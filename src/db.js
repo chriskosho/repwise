@@ -105,6 +105,9 @@ db.version(5).stores({
 // Version 6 adds progress photos. They live only on this device (never synced or backed up).
 db.version(6).stores({ photos: 'id, date' });
 
+// Version 7 adds the food log: your own foods and everything you have eaten.
+db.version(7).stores({ foods: 'id, dirty', foodLog: 'id, date, dirty' });
+
 // Newest first. Date decides, then start time.
 export const sessionOrder = (s) => `${s.date}|${s.started_at || ''}`;
 export const byNewest = (a, b) => sessionOrder(b).localeCompare(sessionOrder(a));
@@ -354,7 +357,7 @@ export async function listCustomExercises() {
 
 // ---- profile (a single row, id 'me'; on the server its id is your account id) ----
 export const PROFILE_ID = 'me';
-export const PROFILE_DEFAULTS = { display_name: '', units: 'lb', height_cm: null, week_start: 1, onboarding: null, plan: null };
+export const PROFILE_DEFAULTS = { display_name: '', units: 'lb', height_cm: null, week_start: 1, onboarding: null, plan: null, calorie_target: null, protein_target: null };
 
 export async function getProfile() {
   const row = await db.profile.get(PROFILE_ID);
@@ -369,6 +372,12 @@ export async function saveProfile(patch) {
   if ('height_cm' in patch) {
     const h = Number(patch.height_cm);
     clean.height_cm = patch.height_cm === null || patch.height_cm === '' || !(h > 0 && h < 300) ? null : h;
+  }
+  for (const [k, lo, hi] of [['calorie_target', 500, 10000], ['protein_target', 10, 600]]) {
+    if (k in patch) {
+      const v = Math.round(Number(patch[k]));
+      clean[k] = patch[k] === null || patch[k] === '' || !(v >= lo && v <= hi) ? null : v;
+    }
   }
   if ('onboarding' in patch) clean.onboarding = cleanOnboarding(patch.onboarding);
   if ('plan' in patch) clean.plan = cleanPlan(patch.plan);
@@ -666,3 +675,87 @@ export function needsExportReminder() {
   if (!last) return false;
   return Date.now() - Date.parse(last) > WEEK_MS;
 }
+
+// ---- food log ----
+const FOOD_NUMS = ['calories', 'protein', 'carbs', 'fat'];
+const cleanFoodNum = (v, max) => {
+  if (v === '' || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n * 10) / 10 : null;
+};
+const foodKey = (s) => String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+const cleanName = (s, n = 100) => String(s ?? '').trim().replace(/\s+/g, ' ').slice(0, n);
+
+export const listFoods = async () => (await db.foods.toArray()).filter((f) => !f.deleted_at).sort((a, b) => a.name.localeCompare(b.name));
+export const listFoodLog = async () => (await db.foodLog.toArray()).filter((e) => !e.deleted_at);
+
+// Saves one of your own foods. A food with the same name is updated rather than duplicated.
+export async function saveFood({ id, name, serving = '', calories = null, protein = null, carbs = null, fat = null }) {
+  const clean = cleanName(name);
+  if (!clean) throw new Error('Give the food a name.');
+  const all = (await db.foods.toArray()).filter((f) => !f.deleted_at);
+  const same = all.find((f) => foodKey(f.name) === foodKey(clean) && f.id !== id);
+  const target = id ?? same?.id ?? newId();
+  return putRow(db.foods, {
+    id: target,
+    name: clean,
+    serving: cleanName(serving, 60),
+    calories: cleanFoodNum(calories, 10000),
+    protein: cleanFoodNum(protein, 1000),
+    carbs: cleanFoodNum(carbs, 1000),
+    fat: cleanFoodNum(fat, 1000),
+    deleted_at: null,
+  });
+}
+export const deleteFood = (id) => softDelete(db.foods, id);
+
+// One thing you ate. The nutrition per serving is copied in, so changing a saved food later
+// never rewrites what you logged before.
+export async function addFoodEntry({ date = today(), time = '', name, serving = '', servings = 1, calories = null, protein = null, carbs = null, fat = null, food_id = null, notes = '' }) {
+  const clean = cleanName(name);
+  if (!clean) throw new Error('Give the food a name.');
+  const s = Number(servings);
+  return putRow(db.foodLog, {
+    id: newId(),
+    date,
+    time: /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : '',
+    name: clean,
+    serving: cleanName(serving, 60),
+    servings: Number.isFinite(s) && s > 0 && s <= 1000 ? Math.round(s * 100) / 100 : 1,
+    calories: cleanFoodNum(calories, 10000),
+    protein: cleanFoodNum(protein, 1000),
+    carbs: cleanFoodNum(carbs, 1000),
+    fat: cleanFoodNum(fat, 1000),
+    food_id: typeof food_id === 'string' && !food_id.startsWith('common:') ? food_id : null,
+    notes: String(notes ?? '').slice(0, 500),
+    deleted_at: null,
+  });
+}
+
+export async function updateFoodEntry(id, patch) {
+  const row = await db.foodLog.get(id);
+  if (!row || row.deleted_at) throw new Error('That entry no longer exists.');
+  const next = { ...row, ...patch };
+  const s = Number(next.servings);
+  return putRow(db.foodLog, {
+    ...row,
+    date: /^\d{4}-\d{2}-\d{2}$/.test(next.date) ? next.date : row.date,
+    time: /^([01]\d|2[0-3]):[0-5]\d$/.test(next.time) ? next.time : '',
+    name: cleanName(next.name) || row.name,
+    serving: cleanName(next.serving, 60),
+    servings: Number.isFinite(s) && s > 0 && s <= 1000 ? Math.round(s * 100) / 100 : row.servings,
+    calories: cleanFoodNum(next.calories, 10000),
+    protein: cleanFoodNum(next.protein, 1000),
+    carbs: cleanFoodNum(next.carbs, 1000),
+    fat: cleanFoodNum(next.fat, 1000),
+    notes: String(next.notes ?? '').slice(0, 500),
+  });
+}
+export const deleteFoodEntry = (id) => softDelete(db.foodLog, id);
+export const restoreFoodEntry = async (id) => {
+  await db.foodLog.where('id').equals(id).modify((r) => {
+    r.deleted_at = null;
+    r.dirty = 1;
+    r.rev = (r.rev ?? 0) + 1;
+  });
+};

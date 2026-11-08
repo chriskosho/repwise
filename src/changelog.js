@@ -2,6 +2,21 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.2',
+    date: '2026-11-08',
+    title: 'Food log',
+    highlights: [
+      'A new Food tab: just type what you ate and pick it from the suggestions. No meals or categories.',
+      'Not in the list? Add your own food once and it autofills from then on. Or type “pasta 450” for a quick entry.',
+      'Set the time, adjust servings, copy yesterday’s foods, and see your day’s calories and protein with an optional goal.',
+    ],
+    items: [
+      'Food tab with search-as-you-type over about 180 common foods plus your own, one-tap “often logged” foods, time and servings per entry, edit, delete with undo, and “Log again now”.',
+      'Optional daily calorie and protein goals, a 7-day average, copy yesterday, and a My foods list to edit or remove foods you added.',
+      'Food entries sync with your account and are included in backups.',
+    ],
+  },
+  {
     id: '2.1',
     date: '2026-11-08',
     title: 'Plans you can open, a guided tour, easier finishing',

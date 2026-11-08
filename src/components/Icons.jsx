@@ -51,3 +51,8 @@ export const Logo = () => (
     </g>
   </svg>
 );
+export const FoodIcon = () => (
+  <svg {...base}>
+    <path d="M7 3v8a2 2 0 0 0 2 2v8M7 3v5M11 3v5a2 2 0 0 1-2 2M17 21V3c-2.2 1.2-3 4-3 7 0 1.6 1.2 3 3 3" />
+  </svg>
+);

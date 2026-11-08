@@ -24,16 +24,18 @@ import { LATEST, readSeen, shouldShowWhatsNew, writeSeen } from './changelog';
 import { useUpdateReady } from './update';
 import { topActivityTypes } from './activities';
 import { STYLE_FOR_GOAL, adaptPlan, shouldOnboard } from './plan';
-import { BodyIcon, HistoryIcon, Logo, ProgressIcon, SettingsIcon, WorkoutIcon } from './components/Icons';
+import { BodyIcon, FoodIcon, HistoryIcon, Logo, ProgressIcon, SettingsIcon, WorkoutIcon } from './components/Icons';
 
 // The chart library is the heaviest dependency, so load it only when needed.
 const Progress = lazy(() => import('./components/Progress'));
 const Body = lazy(() => import('./components/Body'));
+const Food = lazy(() => import('./components/Food'));
 
 const TABS = [
   ['workout', 'Workout', WorkoutIcon],
   ['history', 'History', HistoryIcon],
   ['progress', 'Progress', ProgressIcon],
+  ['food', 'Food', FoodIcon],
   ['body', 'Body', BodyIcon],
   ['settings', 'Settings', SettingsIcon],
 ];
@@ -395,6 +397,11 @@ export default function App() {
             {tab === 'body' && (
               <Suspense fallback={<p className="muted">Loading…</p>}>
                 <Body unit={unit} />
+              </Suspense>
+            )}
+            {tab === 'food' && (
+              <Suspense fallback={<p className="muted">Loading…</p>}>
+                <Food />
               </Suspense>
             )}
             {tab === 'settings' && (
