@@ -31,6 +31,8 @@ const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 
   const base = 'http://localhost:4179/repwise/';
 
   await page.goto(base);
+  // A brand-new browser starts with the welcome questions; skip them.
+  await page.getByRole('button', { name: 'Skip for now' }).click();
   await page.getByRole('button', { name: 'Start workout' }).waitFor();
   check('app loads online', true);
 

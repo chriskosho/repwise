@@ -56,6 +56,7 @@ export default function App() {
   const [routineView, setRoutineView] = useState(null); // { doc, isNew } while the routine editor is open
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestPreset, setSuggestPreset] = useState(null);
+  const [welcomeDone, setWelcomeDone] = useState(false);
   const [guide, setGuide] = useState(null); // 'first' | 'plan' | 'tour' | 'plan-view'
   const [activityView, setActivityView] = useState(null); // { doc, isNew } while the activity editor is open
   const [unitCache, setUnitCache] = useState(readUnit);
@@ -129,6 +130,7 @@ export default function App() {
   // New users get the welcome flow automatically (tests render it directly instead).
   const autoOnboard =
     import.meta.env.MODE !== 'test' &&
+    !welcomeDone &&
     profileLoaded &&
     shouldOnboard({ profile, workoutCount: count, signedIn: !!sync.session, synced: !!sync.lastSynced });
   const closeGuide = () => setGuide(null);
@@ -190,6 +192,7 @@ export default function App() {
             name={profile?.display_name ?? ''}
             saved={profile?.onboarding ?? null}
             onDone={() => {
+              setWelcomeDone(true);
               closeGuide();
               setTab('workout');
             }}
