@@ -85,7 +85,7 @@ export default function Photos({ entries, unit }) {
           </button>
         )}
       </div>
-      <p className="muted">Photos stay on this device only. They are not synced or included in backups, and are removed if you delete your data here.</p>
+      <p className="muted">Photos live only on this device, in this browser’s storage. They are not uploaded, synced or included in backups. They are lost if you clear this site’s data, delete your data here, or open Repwise in a different browser or on another device.</p>
 
       {compare && (
         <div className="photo-compare">

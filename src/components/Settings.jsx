@@ -8,6 +8,8 @@ import { MODES } from '../measure';
 import { setPrefs, usePrefs } from '../prefs';
 import { PLATE_DEFAULTS, parsePlates } from '../plates';
 import { setTheme, useTheme } from '../theme';
+import { ChangeLog } from './WhatsNew';
+import { DONATE_URL, shareApp } from '../share';
 
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300];
 const restLabel = (s) => (s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
@@ -218,6 +220,33 @@ function Places() {
       {error && (
         <p className="error" role="alert">
           {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
+function ShareCard() {
+  const [note, setNote] = useState('');
+  const onShare = async () => {
+    const r = await shareApp();
+    setNote(r === 'copied' ? 'Link copied.' : r === 'failed' ? 'Could not share. Copy the address from your browser instead.' : '');
+  };
+  return (
+    <section className="card">
+      <h2>Share and support</h2>
+      <p className="muted">Repwise is free. If it helps you, tell a friend, or chip in to keep it going.</p>
+      <div className="actions">
+        <button type="button" className="btn btn-small" onClick={onShare}>
+          Share Repwise
+        </button>
+        <a className="btn btn-small btn-ghost" href={DONATE_URL} target="_blank" rel="noopener noreferrer">
+          Donate
+        </a>
+      </div>
+      {note && (
+        <p className="muted" role="status">
+          {note}
         </p>
       )}
     </section>
@@ -553,6 +582,13 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
             background, which is why the screen stays on during a workout.
           </p>
         </div>
+      </section>
+
+      <ShareCard />
+
+      <section className="card">
+        <h2>What’s new</h2>
+        <ChangeLog />
       </section>
 
       <section className="card">

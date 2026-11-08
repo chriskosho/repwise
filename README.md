@@ -153,3 +153,9 @@ Onboarding also asks for your best time of day (morning, afternoon, evening, var
 - **Weekly review:** on a week's last day and the two days after, the Workout tab shows a "week in review" card. It opens a summary: workout days, active minutes, volume and change vs the week before, new records, plan adherence, weight change, plan updates and next week's schedule. A link at the bottom of the Workout tab reopens it any time.
 - **Progress photos (Body tab):** add photos (shrunk to about 1280 px), tag a pose, add a note, change the date, and compare any two side by side with the weight on each date. Photos are stored in this browser only: not synced, not in backups, removed by "delete my data". (IndexedDB schema v6.)
 - Height in Settings uses feet and inches, or meters and centimeters, like onboarding.
+
+## Sharing, support and updates
+
+- **Settings → Share and support**: Share opens the phone's share sheet (or copies the link); Donate opens paypal.me/chriskosho.
+- **Settings → What's new** lists every release. Add a new entry at the top of `src/changelog.js` for each release; give it `highlights` to show a one-time pop-up, or leave them empty to skip the pop-up. Brand-new users never see it.
+- **Updates are automatic.** The service worker installs a new version in the background; the next open gets it. If the app is already open, a "new version is ready" bar offers Reload.

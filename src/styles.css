@@ -1769,3 +1769,10 @@ button:focus-visible,
 .compare-pair figcaption { font-size: 0.8rem; margin-top: 0.25rem; }
 .compare-pair > p { grid-column: 1 / -1; margin: 0; text-align: center; }
 .photo-grid { list-style: none; padding: 0; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: grid; place-items: center; padding: 1rem; z-index: 50; }
+.modal { background: var(--card, var(--bg)); color: inherit; border-radius: 16px; padding: 1.1rem; max-width: 26rem; width: 100%; max-height: 85vh; overflow: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); }
+.changelog details { border-bottom: 1px solid var(--line); padding: 0.5rem 0; }
+.changelog summary { cursor: pointer; }
+.changelog ul { margin: 0.4rem 0 0.2rem; padding-left: 1.1rem; display: grid; gap: 0.3rem; }
+.update-banner { position: sticky; top: 0; z-index: 40; display: flex; gap: 0.6rem; align-items: center; justify-content: space-between; padding: 0.55rem 0.9rem; background: var(--accent); color: var(--accent-ink); }
+.update-banner button { color: inherit; border-color: currentColor; }

@@ -18,6 +18,9 @@ import Onboarding from './components/Onboarding';
 import Tour from './components/Tour';
 import Review from './components/Review';
 import { PlanView } from './components/PlanCard';
+import WhatsNew from './components/WhatsNew';
+import { LATEST, readSeen, shouldShowWhatsNew, writeSeen } from './changelog';
+import { useUpdateReady } from './update';
 import { topActivityTypes } from './activities';
 import { STYLE_FOR_GOAL, adaptPlan, shouldOnboard } from './plan';
 import { BodyIcon, HistoryIcon, Logo, ProgressIcon, SettingsIcon, WorkoutIcon } from './components/Icons';
@@ -63,6 +66,8 @@ export default function App() {
   const [activityView, setActivityView] = useState(null); // { doc, isNew } while the activity editor is open
   const [unitCache, setUnitCache] = useState(readUnit);
   const [dismissed, setDismissed] = useState(false);
+  const [seenRelease, setSeenRelease] = useState(readSeen);
+  const updateReady = useUpdateReady();
   const [, setTick] = useState(0);
   const sync = useSync();
   const online = useOnline();
@@ -156,6 +161,20 @@ export default function App() {
   }, [autoOnboard, guide]);
   const guideMode = autoOnboard && !guide ? 'first' : guide;
 
+  // New users have nothing to compare against, so they are marked as up to date instead of seeing the pop-up.
+  useEffect(() => {
+    if (count === 0 && !seenRelease && !guideMode) {
+      writeSeen();
+      setSeenRelease(LATEST.id);
+    }
+  }, [count, seenRelease, guideMode]);
+  const closeWhatsNew = () => {
+    writeSeen();
+    setSeenRelease(LATEST.id);
+  };
+  const showWhatsNew =
+    count > 0 && !guideMode && !editId && !routineView && !activityView && !suggestOpen && shouldShowWhatsNew(seenRelease);
+
   const showReminder = count > 0 && !dismissed && needsExportReminder();
   const restVisible = rest.end != null || rest.over;
 
@@ -175,6 +194,15 @@ export default function App() {
           {statusLabel(sync, online)}
         </button>
       </header>
+
+      {updateReady && (
+        <div className="update-banner" role="status">
+          <span>A new version of Repwise is ready.</span>
+          <button type="button" className="btn btn-small btn-ghost" onClick={() => window.location.reload()}>
+            Reload
+          </button>
+        </div>
+      )}
 
       <main className={`content${restVisible ? ' with-rest' : ''}`}>
         {showReminder && (
@@ -333,6 +361,17 @@ export default function App() {
       </main>
 
       <RestBar />
+
+      {showWhatsNew && (
+        <WhatsNew
+          release={LATEST}
+          onClose={closeWhatsNew}
+          onSeeAll={() => {
+            closeWhatsNew();
+            goTab('settings');
+          }}
+        />
+      )}
 
       {!(guideMode === 'first') && (
       <nav className="tabbar" aria-label="Main">
