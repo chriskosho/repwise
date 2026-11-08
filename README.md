@@ -128,3 +128,14 @@ node scripts/build-library.mjs path/to/free-exercise-db/dist/exercises.json
 - A six-card tour explains the app. Reopen it, or build a new plan, from Settings → Plan and tour.
 - The plan and your answers live on your profile, so they sync between devices and are included in backups. Supabase: `profiles.onboarding` and `profiles.plan` (jsonb), see `supabase/schema.sql`.
 - The welcome flow only appears for accounts with no workouts and no saved answers; signed-in users wait for the first sync so it doesn't show on a second device.
+
+### Plans adapt to what you do
+
+Each time you open the app, the days still to come are adjusted (and the change is saved with a "Plan update" note):
+- A workout you missed moves to the next free rest day once today has its own workout, or after two days. It never creates more than three training days in a row.
+- After four training days in a row, tomorrow becomes a rest day and its workout moves.
+- After a week where you did under half the planned workouts, the new week is lighter (one fewer strength day, easier sessions).
+- After a week or more away, the next strength workout is an easy one.
+- Two full weeks in a row get a pat on the back.
+Each adjustment is recorded once, so reopening the app never repeats it. Plans and notes sync like the rest of your profile.
+Onboarding asks for height in feet and inches (pounds) or meters and centimeters (kilograms).

@@ -3,7 +3,7 @@ import { getProfile, listGoals, saveBodyEntry, saveGoal, saveProfile, today } fr
 import { CARDIO_CHOICES, DAYS_PER_WEEK, GOALS, LENGTHS, LEVELS, addDays, buildPlan, dayTitle } from '../plan';
 import { GEAR, TIMES } from '../suggest';
 import { typeLabel } from '../activities';
-import { heightIn, lengthUnit, weightIn } from '../units';
+import { weightIn } from '../units';
 import Tour from './Tour';
 
 const STEPS = ['welcome', 'goal', 'level', 'schedule', 'gear', 'body', 'length', 'review', 'tour'];
@@ -21,6 +21,14 @@ function Choice({ selected, title, text, onClick, tag }) {
       {text && <span className="muted">{text}</span>}
     </button>
   );
+}
+
+// Height from two boxes: feet + inches for pounds, meters + centimeters for kilograms.
+export function heightCm(unit, a, b) {
+  const x = Number(a) || 0;
+  const y = Number(b) || 0;
+  const cm = unit === 'kg' ? x * 100 + y : (x * 12 + y) * 2.54;
+  return cm >= 50 && cm <= 272 ? Math.round(cm * 10) / 10 : null;
 }
 
 function nextMonday(from) {
@@ -41,7 +49,8 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
   const [gear, setGear] = useState(saved?.gear ?? 'gym');
   const [cardio, setCardio] = useState(saved?.cardio ?? []);
   const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
+  const [h1, setH1] = useState(''); // feet, or meters
+  const [h2, setH2] = useState(''); // inches, or centimeters
   const [target, setTarget] = useState('');
   const [length, setLength] = useState(0);
   const [startOn, setStartOn] = useState('today');
@@ -72,7 +81,8 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
       if (mode === 'first') {
         if (u !== unit) setUnit(u);
         const patch = { display_name: name, units: u };
-        if (height !== '' && Number(height) > 0) patch.height_cm = heightIn(height, u);
+        const cm = heightCm(u, h1, h2);
+        if (cm) patch.height_cm = cm;
         await saveProfile(patch);
         if (weight !== '' && Number(weight) > 0) {
           await saveBodyEntry({ weight_kg: weightIn(weight, u) });
@@ -237,10 +247,19 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
                     <input type="number" inputMode="decimal" min="0" step="any" value={target} onChange={(e) => setTarget(e.target.value)} />
                   </label>
                 )}
-                <label className="field">
-                  <span>Height ({lengthUnit(wUnit)})</span>
-                  <input type="number" inputMode="decimal" min="0" step="any" value={height} onChange={(e) => setHeight(e.target.value)} />
-                </label>
+                <div className="field">
+                  <span id="height-label">Height</span>
+                  <div className="row" role="group" aria-labelledby="height-label">
+                    <label className="field">
+                      <span>{wUnit === 'kg' ? 'Meters' : 'Feet'}</span>
+                      <input type="number" inputMode="numeric" min="0" max={wUnit === 'kg' ? 2 : 8} step="1" value={h1} onChange={(e) => setH1(e.target.value)} />
+                    </label>
+                    <label className="field">
+                      <span>{wUnit === 'kg' ? 'Centimeters' : 'Inches'}</span>
+                      <input type="number" inputMode="decimal" min="0" max={wUnit === 'kg' ? 99 : 11.9} step="any" value={h2} onChange={(e) => setH2(e.target.value)} />
+                    </label>
+                  </div>
+                </div>
               </>
             )}
             <p className="muted">

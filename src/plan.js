@@ -131,7 +131,7 @@ export function planProgress(plan, workouts, todayStr) {
   for (const d of days) d.done = dates.has(d.date);
   const dayNumber = diffDays(todayStr, plan.start) + 1;
   const status = dayNumber < 1 ? 'upcoming' : dayNumber > plan.length ? 'finished' : 'active';
-  const work = days.filter(isWorkoutDay);
+  const work = days.filter((d) => isWorkoutDay(d) && !d.mv);
   const doneCount = work.filter((d) => d.done).length;
   const toDate = work.filter((d) => d.date <= todayStr);
   const today = status === 'active' ? days[dayNumber - 1] : null;
@@ -169,6 +169,8 @@ export function cleanPlan(p) {
       if (d.ease) out.ease = true;
     }
     if (k === 's' || k === 'c' || k === 'a') out.m = Math.min(240, Math.max(5, Math.round(Number(d.m)) || 30));
+    if (d.mv) out.mv = true;
+    if (typeof d.adj === 'string' && d.adj) out.adj = d.adj.slice(0, 40);
     if (k === 'c' || k === 'a') out.t = CARDIO_TYPES.has(d.t) ? d.t : 'walk';
     return out;
   });
@@ -184,6 +186,14 @@ export function cleanPlan(p) {
     cardio: (Array.isArray(p.cardio) ? p.cardio : []).filter((t) => CARDIO_TYPES.has(t)).slice(0, 8),
     days,
     ...(typeof p.ended_at === 'string' ? { ended_at: p.ended_at.slice(0, 30) } : {}),
+    ...(Array.isArray(p.log) && p.log.length
+      ? {
+          log: p.log
+            .filter((e) => e && typeof e.k === 'string' && typeof e.t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.d))
+            .slice(-30)
+            .map((e) => ({ k: e.k.slice(0, 40), d: e.d, t: e.t.slice(0, 200) })),
+        }
+      : {}),
   };
 }
 
@@ -211,3 +221,117 @@ export function shouldOnboard({ profile, workoutCount, signedIn, synced }) {
   if (signedIn && !synced) return false; // wait: your profile may be on the server already
   return true;
 }
+
+
+// ---- adapting to what you actually do ----
+const weekday = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short' });
+const training = (d, dates) => (d.k === 's' || d.k === 'c') && !d.mv ? true : dates.has(d.date);
+
+// Move a workout to the first free rest day soon after `fromIdx`, without making a long run of training days.
+function moveWorkout(days, fromIdx, todayIdx, dates) {
+  const src = days[fromIdx];
+  days[fromIdx] = { ...src, mv: true }; // so the run count below ignores the day being moved
+  for (let j = todayIdx + 1; j <= Math.min(days.length - 1, todayIdx + 4); j++) {
+    if (j === fromIdx || !(days[j].k === 'r' || days[j].k === 'a') || dates.has(days[j].date)) continue;
+    // Count the training run this day would create.
+    let run = 1;
+    for (let i = j - 1; i >= 0 && training(days[i], dates); i--) run++;
+    for (let i = j + 1; i < days.length && training(days[i], dates); i++) run++;
+    if (run > 3) continue;
+    const { k, f, m, t, ease } = src;
+    days[j] = { k, ...(f ? { f } : {}), m, ...(t ? { t } : {}), ...(ease ? { ease: true } : {}), adj: `Moved from ${weekday(src.date)}`, date: days[j].date };
+    return days[j];
+  }
+  days[fromIdx] = src;
+  return null;
+}
+
+// Look at what you have really done and adjust the days still to come. Safe to call
+// often: every change is recorded in `plan.log` by key, so it only happens once.
+// Returns { plan, changed }.
+export function adaptPlan(plan, workouts, todayStr) {
+  const dates = new Set(workouts.filter((w) => !w.deleted_at).map((w) => w.date));
+  const dayNumber = diffDays(todayStr, plan.start) + 1;
+  if (dayNumber < 1 || dayNumber > plan.length) return { plan, changed: false };
+  const days = plan.days.map((d, i) => ({ ...d, date: planDate(plan, i + 1) }));
+  const log = [...(plan.log ?? [])];
+  const seen = new Set(log.map((e) => e.k));
+  const note = (k, t) => {
+    seen.add(k);
+    log.push({ k, d: todayStr, t });
+  };
+  const ti = dayNumber - 1;
+  const today = days[ti];
+  let changed = false;
+
+  // A: a workout you missed is moved to a free day, once today has its own workout (or it's 2+ days old).
+  for (let i = Math.max(0, ti - 3); i < ti; i++) {
+    const d = days[i];
+    const key = `miss:${d.date}`;
+    if (seen.has(key) || !isWorkoutDay(d) || d.mv || dates.has(d.date)) continue;
+    const todayBusy = isWorkoutDay(today) && !today.mv && !dates.has(todayStr);
+    if (!todayBusy && ti - i < 2) continue;
+    const moved = moveWorkout(days, i, ti, dates);
+    if (moved) note(key, `You missed ${weekday(d.date)}'s ${d.k === 's' ? dayTitle(d).toLowerCase() : 'cardio'} workout, so it moved to ${weekday(moved.date)}.`);
+    else note(key, `You missed ${weekday(d.date)}'s workout. There was no good day to move it to, so we've left it.`);
+    changed = true;
+  }
+
+  // B: lots of training days in a row means tomorrow becomes a rest day.
+  let run = 0;
+  for (let i = dates.has(todayStr) ? ti : ti - 1; i >= 0 && dates.has(days[i].date); i--) run++;
+  const tomorrow = days[ti + 1];
+  if (run >= 4 && tomorrow && isWorkoutDay(tomorrow) && !tomorrow.mv && !seen.has(`rest:${tomorrow.date}`)) {
+    const moved = moveWorkout(days, ti + 1, ti + 1, dates);
+    if (moved) {
+      note(`rest:${tomorrow.date}`, `You've trained ${run} days in a row, so ${weekday(tomorrow.date)} is now a rest day and that workout moved to ${weekday(moved.date)}.`);
+    } else {
+      days[ti + 1] = { ...tomorrow, mv: true };
+      note(`rest:${tomorrow.date}`, `You've trained ${run} days in a row, so ${weekday(tomorrow.date)} is now a rest day.`);
+    }
+    changed = true;
+  }
+
+  // C: after a rough week, the new week is lighter. After two perfect weeks, a pat on the back.
+  const week = planWeek(dayNumber);
+  const weekStats = (w) => {
+    const ds = days.slice((w - 1) * 7, w * 7).filter((d) => isWorkoutDay(d) && !d.mv);
+    return { planned: ds.length, done: ds.filter((d) => dates.has(d.date)).length };
+  };
+  if (week >= 2 && !seen.has(`week:${week}`)) {
+    const prev = weekStats(week - 1);
+    if (prev.planned >= 2 && prev.done / prev.planned < 0.5) {
+      const rest = days.slice((week - 1) * 7, week * 7).filter((d) => d.k === 's' && !d.mv && d.date >= todayStr && !dates.has(d.date));
+      const last = rest[rest.length - 1];
+      if (rest.length > 1 && last) days[diffDays(last.date, plan.start)] = { ...last, mv: true };
+      for (const d of rest.slice(0, -1)) days[diffDays(d.date, plan.start)] = { ...d, ease: true };
+      note(`week:${week}`, `Last week was tough (${prev.done} of ${prev.planned} workouts), so this week is lighter to help you get back in the groove.`);
+      changed = true;
+    } else if (week >= 3 && prev.planned >= 2 && prev.done >= prev.planned && weekStats(week - 2).planned >= 2 && weekStats(week - 2).done >= weekStats(week - 2).planned) {
+      note(`week:${week}`, 'Two full weeks in a row. Nice consistency!');
+      changed = true;
+    } else {
+      seen.add(`week:${week}`);
+    }
+  }
+
+  // D: a week or more away means an easy first workout back.
+  const past = [...dates].filter((dt) => dt <= todayStr).sort();
+  const lastDate = past[past.length - 1] ?? addDays(plan.start, -1);
+  const away = diffDays(todayStr, lastDate);
+  const plannedSince = days.filter((d) => isWorkoutDay(d) && !d.mv && d.date > lastDate && d.date < todayStr && d.date >= plan.start).length;
+  if (away >= 7 && plannedSince >= 2 && !seen.has(`back:${lastDate}`)) {
+    const nextS = days.findIndex((d) => d.k === 's' && !d.mv && d.date >= todayStr);
+    if (nextS >= 0) {
+      days[nextS] = { ...days[nextS], ease: true };
+      note(`back:${lastDate}`, `It's been ${away} days since your last workout. Your next one is an easy session to ease back in.`);
+      changed = true;
+    }
+  }
+
+  if (!changed) return { plan, changed: false };
+  return { plan: { ...plan, days: days.map(({ date, ...d }) => d), log: log.slice(-30) }, changed: true };
+}
+
+// Plan notes from the last couple of days, newest first.
+export const recentNotes = (plan, todayStr) => (plan.log ?? []).filter((e) => e.d >= addDays(todayStr, -1)).reverse();

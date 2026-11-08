@@ -17,7 +17,7 @@ import Suggest from './components/Suggest';
 import Onboarding from './components/Onboarding';
 import Tour from './components/Tour';
 import { PlanView } from './components/PlanCard';
-import { STYLE_FOR_GOAL, shouldOnboard } from './plan';
+import { STYLE_FOR_GOAL, adaptPlan, shouldOnboard } from './plan';
 import { BodyIcon, HistoryIcon, Logo, ProgressIcon, SettingsIcon, WorkoutIcon } from './components/Icons';
 
 // The chart library is the heaviest dependency, so load it only when needed.
@@ -134,6 +134,16 @@ export default function App() {
     profileLoaded &&
     shouldOnboard({ profile, workoutCount: count, signedIn: !!sync.session, synced: !!sync.lastSynced });
   const closeGuide = () => setGuide(null);
+
+  // Keep the plan in step with what you actually do: missed workouts move, extra days
+  // add rest, rough weeks get lighter. The change is saved once, with a note.
+  const planJson = profile?.plan ? JSON.stringify(profile.plan) : '';
+  useEffect(() => {
+    if (!profile?.plan || !workoutsList) return;
+    const r = adaptPlan(profile.plan, workoutsList, today());
+    if (r.changed) saveProfile({ plan: r.plan });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planJson, workoutsList]);
   const endPlan = () => saveProfile({ plan: null }).then(() => setGuide(null));
   // Once the welcome flow starts it stays up until it finishes, even after answers are saved.
   useEffect(() => {

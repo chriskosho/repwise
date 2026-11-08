@@ -102,3 +102,63 @@ describe('storage and gating', () => {
     expect(shouldOnboard({ ...base, signedIn: true, synced: true })).toBe(true);
   });
 });
+
+import { adaptPlan, recentNotes } from '../src/plan';
+describe('adapting to what you do', () => {
+  const p3 = () => mk({ per_week: 3, length: 28, level: 'pro' }); // workouts Mon, Wed, Fri
+  const D = (n) => addDays(START, n); // D(0)=Mon
+  const wk = (...ns) => ns.map((n) => ({ date: D(n) }));
+
+  it('does nothing when you are on track, before the plan, or after it', () => {
+    expect(adaptPlan(p3(), wk(0), D(1)).changed).toBe(false);
+    expect(adaptPlan(p3(), [], addDays(START, -3)).changed).toBe(false);
+    expect(adaptPlan(p3(), [], addDays(START, 40)).changed).toBe(false);
+  });
+  it('moves a missed workout to the next rest day when today is also a workout day', () => {
+    // Mon done, Wed missed, now Fri (a workout day): Wed's workout moves to Sat.
+    const r = adaptPlan(p3(), wk(0), D(4));
+    expect(r.changed).toBe(true);
+    expect(r.plan.days[2].mv).toBe(true);
+    expect(r.plan.days[5]).toMatchObject({ k: 's', adj: 'Moved from Wed' });
+    expect(recentNotes(r.plan, D(4))[0].t).toMatch(/missed Wed.*moved to Sat/);
+    // Idempotent, and the moved workout no longer counts as planned for Wed.
+    expect(adaptPlan(r.plan, wk(0), D(4)).changed).toBe(false);
+    expect(planProgress(r.plan, wk(0), D(4)).catchUp).toBeNull();
+    expect(cleanPlan(r.plan)).toEqual(r.plan);
+  });
+  it('waits one day so you can still catch up yourself', () => {
+    expect(adaptPlan(p3(), wk(0), D(3)).changed).toBe(false); // Thu: Wed's miss is offered as a catch-up
+    expect(adaptPlan(p3(), wk(0), D(4)).changed).toBe(true);
+  });
+  it('adds a rest day after four days in a row', () => {
+    // Trained Mon-Thu (extra Tue and Thu), tomorrow Fri was planned.
+    const r = adaptPlan(p3(), wk(0, 1, 2, 3), D(3));
+    expect(r.changed).toBe(true);
+    expect(r.plan.days[4].mv).toBe(true);
+    expect(r.plan.days[5].adj).toBe('Moved from Fri');
+    expect(recentNotes(r.plan, D(3))[0].t).toMatch(/4 days in a row/);
+  });
+  it('lightens a week that follows a rough one', () => {
+    const p = mk({ per_week: 4, length: 28, level: 'pro' });
+    // Week 1 almost entirely missed, now Monday of week 2.
+    const r = adaptPlan(p, wk(0), D(7));
+    expect(r.changed).toBe(true);
+    const w2 = r.plan.days.slice(7, 14).filter((d) => d.k === 's');
+    expect(w2.some((d) => d.mv)).toBe(true);
+    expect(w2.filter((d) => !d.mv).every((d) => d.ease)).toBe(true);
+    expect(recentNotes(r.plan, D(7)).some((e) => /Last week was tough/.test(e.t))).toBe(true);
+  });
+  it('eases you back in after a week away', () => {
+    const p = mk({ per_week: 4, length: 28, level: 'pro' });
+    const r = adaptPlan(p, wk(0), D(9)); // last workout Monday, now Wed of week 2
+    expect(r.plan.log.some((e) => e.k.startsWith('back:'))).toBe(true);
+    const first = r.plan.days.slice(9).find((d) => d.k === 's' && !d.mv);
+    expect(first.ease).toBe(true);
+  });
+  it('praises two full weeks', () => {
+    const p = mk({ per_week: 3, length: 28, level: 'pro' });
+    const done = [0, 2, 4, 7, 9, 11].map((n) => ({ date: D(n) }));
+    const r = adaptPlan(p, done, D(14));
+    expect(recentNotes(r.plan, D(14))[0].t).toMatch(/Two full weeks/);
+  });
+});

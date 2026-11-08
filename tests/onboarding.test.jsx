@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Onboarding from '../src/components/Onboarding';
+import Onboarding, { heightCm } from '../src/components/Onboarding';
 import PlanCard, { PlanView } from '../src/components/PlanCard';
 import Tour, { TOUR } from '../src/components/Tour';
 import { buildPlan, addDays } from '../src/plan';
@@ -39,6 +39,8 @@ describe('welcome flow', () => {
     await next(user);
     await user.type(screen.getByLabelText(/Current weight/), '80');
     await user.type(screen.getByLabelText(/Goal weight/), '72');
+    await user.type(screen.getByLabelText('Meters'), '1');
+    await user.type(screen.getByLabelText('Centimeters'), '78');
     await next(user);
     // New lifters are steered to the 21-day plan
     expect(screen.getByRole('button', { name: /21 days/ }).getAttribute('aria-pressed')).toBe('true');
@@ -57,6 +59,7 @@ describe('welcome flow', () => {
     expect(profile.onboarding).toMatchObject({ goal: 'lose', level: 'new', per_week: 4, minutes: 30, gear: 'dumbbells', cardio: ['swim'] });
     expect(profile.plan).toMatchObject({ length: 60, start: addDays(today(), 1), goal: 'lose' });
     expect(profile.plan.days.some((d) => d.k === 'c' && d.t === 'swim')).toBe(true);
+    expect(profile.height_cm).toBe(178);
     expect((await listBodyEntries())[0].weight_kg).toBe(80);
     const goals = await listGoals();
     expect(goals.find((g) => g.type === 'body_weight')).toMatchObject({ target: 72, start_value: 80 });
@@ -154,5 +157,48 @@ describe('profile plan field', () => {
     expect((await getProfile()).plan.length).toBe(7);
     await saveProfile({ plan: null });
     expect((await getProfile()).plan).toBeNull();
+  });
+});
+
+describe('height boxes', () => {
+  it('uses feet and inches for pounds, meters and centimeters for kilograms', async () => {
+    expect(heightCm('lb', '5', '10')).toBe(177.8);
+    expect(heightCm('lb', '6', '')).toBe(182.9);
+    expect(heightCm('kg', '1', '75')).toBe(175);
+    expect(heightCm('kg', '', '')).toBeNull();
+    expect(heightCm('lb', '0', '5')).toBeNull();
+    const user = userEvent.setup();
+    render(<Onboarding unit="lb" setUnit={() => {}} onDone={() => {}} />);
+    await next(user);
+    await user.click(screen.getByRole('button', { name: /Build muscle/ }));
+    await next(user);
+    await user.click(screen.getByRole('button', { name: /Some experience/ }));
+    await next(user);
+    await next(user);
+    await next(user);
+    expect(screen.getByLabelText('Feet')).toBeTruthy();
+    expect(screen.getByLabelText('Inches')).toBeTruthy();
+    await user.type(screen.getByLabelText('Feet'), '5');
+    await user.type(screen.getByLabelText('Inches'), '10');
+    await next(user);
+    await next(user);
+    await user.click(screen.getByRole('button', { name: 'Create my plan' }));
+    await waitFor(async () => expect((await getProfile()).height_cm).toBe(177.8));
+  });
+});
+
+import { adaptPlan } from '../src/plan';
+describe('plan card after adapting', () => {
+  it('shows what changed and where a moved workout went', () => {
+    const start = '2026-11-09';
+    const plan = buildPlan({ length: 28, start, goal: 'muscle', level: 'pro', per_week: 3, minutes: 45 });
+    const fri = '2026-11-13';
+    const adapted = adaptPlan(plan, [{ date: start }], fri).plan;
+    render(<PlanCard plan={adapted} workouts={[{ date: start }]} todayStr={fri} onDo={() => {}} onViewPlan={() => {}} onNewPlan={() => {}} onEndPlan={() => {}} onSuggest={() => {}} />);
+    expect(screen.getByText(/Plan update: You missed Wed/)).toBeTruthy();
+    cleanup();
+    render(<PlanView plan={adapted} workouts={[{ date: start }]} todayStr={fri} onClose={() => {}} onNewPlan={() => {}} onEndPlan={() => {}} />);
+    expect(screen.getByText('Moved')).toBeTruthy();
+    expect(screen.getByText(/Moved from Wed/)).toBeTruthy();
   });
 });

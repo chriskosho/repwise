@@ -1750,3 +1750,5 @@ button:focus-visible,
 .plan-days li.done .plan-state { color: #3aa76d; }
 .plan-state { font-size: 0.8rem; }
 .plan-card .actions { margin-top: 0.6rem; }
+.plan-note { background: var(--accent-soft); border-radius: 10px; padding: 0.5rem 0.7rem; margin: 0.5rem 0; font-size: 0.9rem; }
+.plan-days li.moved .plan-state { color: var(--muted); }

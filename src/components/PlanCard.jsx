@@ -1,4 +1,4 @@
-import { addDays, dayTitle, isWorkoutDay, phaseOf, planProgress } from '../plan';
+import { dayTitle, isWorkoutDay, phaseOf, planProgress, recentNotes } from '../plan';
 import { typeLabel } from '../activities';
 
 const dowName = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
@@ -61,28 +61,35 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
         {p.done} of {p.planned} workouts done
       </p>
 
+      {recentNotes(plan, todayStr).map((n) => (
+        <p key={n.k} className="plan-note" role="note">
+          Plan update: {n.t}
+        </p>
+      ))}
+
       {t.done && isWorkoutDay(t) ? (
         <h3>Today: done ✓ Nice work.</h3>
       ) : (
         <>
-          <h3>Today: {dayLine(t)}</h3>
-          {t.k === 'r' && <p className="muted">Recovery is when your body adapts. Take it easy, or go for a walk.</p>}
+          <h3>Today: {t.mv ? 'Rest day' : dayLine(t)}</h3>
+          {t.adj && <p className="muted">{t.adj}.</p>}
+          {(t.k === 'r' || t.mv) && <p className="muted">Recovery is when your body adapts. Take it easy, or go for a walk.</p>}
           {t.k === 's' && t.ease && <p className="muted">An easy session: fewer sets and lighter weights.</p>}
         </>
       )}
 
       <div className="actions">
-        {t.k === 's' && !t.done && (
+        {t.k === 's' && !t.mv && !t.done && (
           <button type="button" className="btn" onClick={() => onDo(t)}>
             Start {dayTitle(t).toLowerCase()} workout
           </button>
         )}
-        {(t.k === 'c' || t.k === 'a') && !t.done && (
+        {(t.k === 'c' || t.k === 'a') && !t.mv && !t.done && (
           <button type="button" className="btn" onClick={() => onDo(t)}>
             Log {typeLabel(t.t).toLowerCase()}
           </button>
         )}
-        {t.k === 'r' && (
+        {(t.k === 'r' || t.mv) && (
           <button type="button" className="btn btn-ghost" onClick={onSuggest}>
             Feeling good? Train anyway
           </button>
@@ -132,12 +139,15 @@ export function PlanView({ plan, workouts, todayStr, onClose, onNewPlan, onEndPl
           <ul className="plain plan-days">
             {days.map((d) => {
               const past = d.date < todayStr;
-              const state = d.date === todayStr ? 'today' : d.done ? 'done' : past && isWorkoutDay(d) ? 'missed' : '';
+              const state = d.date === todayStr ? 'today' : d.done ? 'done' : d.mv ? 'moved' : past && isWorkoutDay(d) ? 'missed' : '';
               return (
-                <li key={d.n} className={`${state} ${d.k === 'r' ? 'is-rest' : ''}`}>
+                <li key={d.n} className={`${state} ${d.k === 'r' || d.mv ? 'is-rest' : ''}`}>
                   <strong>{longDate(d.date)}</strong>
-                  <span>{dayLine(d)}</span>
-                  <span className="plan-state">{state === 'done' ? '✓' : state === 'today' ? 'Today' : state === 'missed' ? 'Missed' : ''}</span>
+                  <span>
+                    {d.mv ? `${dayLine(d)} (moved)` : dayLine(d)}
+                    {d.adj ? ` · ${d.adj}` : ''}
+                  </span>
+                  <span className="plan-state">{state === 'done' ? '✓' : state === 'today' ? 'Today' : state === 'missed' ? 'Missed' : state === 'moved' ? 'Moved' : ''}</span>
                 </li>
               );
             })}
