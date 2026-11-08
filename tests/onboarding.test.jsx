@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import Onboarding, { heightCm } from '../src/components/Onboarding';
 import PlanCard, { PlanView } from '../src/components/PlanCard';
-import Tour, { TOUR } from '../src/components/Tour';
+import Coach from '../src/components/Coach';
 import { buildPlan, addDays } from '../src/plan';
 import { clearLocalData, getProfile, listBodyEntries, listGoals, saveProfile, today } from '../src/db';
 
@@ -76,8 +76,8 @@ describe('welcome flow', () => {
     expect(goals.find((g) => g.type === 'body_weight')).toMatchObject({ target: 72, start_value: 80 });
     expect(goals.find((g) => g.type === 'weekly_workouts').target).toBe(4);
 
-    await user.click(screen.getByRole('button', { name: 'Skip tour' }));
-    expect(onDone).toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Show me around' }));
+    expect(onDone).toHaveBeenCalledWith({ tour: true });
   });
 
   it('can be skipped and then stays out of the way', async () => {
@@ -104,14 +104,42 @@ describe('welcome flow', () => {
   });
 });
 
-describe('tour', () => {
-  it('pages through every card', async () => {
+describe('guided tour', () => {
+  const steps = [
+    { id: 'a', tab: 'workout', target: '[data-tour="a"]', title: 'First', body: 'Points at A.' },
+    { id: 'gone', tab: 'workout', target: '[data-tour="missing"]', optional: true, title: 'Skipped', body: 'No target.' },
+    { id: 'b', tab: 'history', target: '[data-tour="b"]', title: 'Second', body: 'Points at B.' },
+    { id: 'end', tab: 'workout', target: null, title: 'Finish', body: 'All done.' },
+  ];
+  it('spotlights real elements, switches tabs and skips steps with nothing to point at', async () => {
     const user = userEvent.setup();
     const onDone = vi.fn();
-    render(<Tour onDone={onDone} />);
-    for (let i = 1; i < TOUR.length; i++) await next(user);
-    expect(screen.getByText(`${TOUR.length} of ${TOUR.length}`)).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: 'Got it' }));
+    const onTab = vi.fn();
+    render(
+      <div>
+        <button data-tour="a">A</button>
+        <button data-tour="b">B</button>
+        <Coach steps={steps} onTab={onTab} onDone={onDone} />
+      </div>,
+    );
+    expect(await screen.findByText('First')).toBeTruthy();
+    expect(document.querySelector('.coach-spot')).toBeTruthy();
+    expect(onTab).toHaveBeenCalledWith('workout');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText('Second', {}, { timeout: 2000 })).toBeTruthy();
+    expect(onTab).toHaveBeenCalledWith('history');
+    expect(screen.getByText('2 of 3')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByText('Finish')).toBeTruthy();
+    expect(document.querySelector('.coach-spot')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(onDone).toHaveBeenCalled();
+  });
+  it('can be skipped', async () => {
+    const user = userEvent.setup();
+    const onDone = vi.fn();
+    render(<Coach steps={steps} onTab={() => {}} onDone={onDone} />);
+    await user.click(await screen.findByRole('button', { name: 'Skip tour' }));
     expect(onDone).toHaveBeenCalled();
   });
 });

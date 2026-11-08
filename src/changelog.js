@@ -2,6 +2,18 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.1',
+    date: '2026-11-08',
+    title: 'A guided tour',
+    highlights: [
+      'The tour now points at the real buttons and tabs, one step at a time, and switches screens for you.',
+      'Reopen it any time from Settings → Plan and tour.',
+    ],
+    items: [
+      'Guided tour with a spotlight on each feature (replaces the text cards), offered at the end of the welcome questions.',
+    ],
+  },
+  {
     id: '2.0',
     date: '2026-11-08',
     title: 'Reviews, photos and plans that grow',

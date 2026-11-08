@@ -15,7 +15,7 @@ import RoutineEditor from './components/RoutineEditor';
 import ActivityEditor from './components/ActivityEditor';
 import Suggest from './components/Suggest';
 import Onboarding from './components/Onboarding';
-import Tour from './components/Tour';
+import Coach from './components/Coach';
 import Review from './components/Review';
 import { PlanView } from './components/PlanCard';
 import WhatsNew from './components/WhatsNew';
@@ -109,6 +109,15 @@ export default function App() {
     setActivityView(null);
     setSuggestOpen(false);
     setGuide(null);
+    setTab(id);
+  };
+
+  // The guided tour switches tabs without ending itself.
+  const showTab = (id) => {
+    setEditId(null);
+    setRoutineView(null);
+    setActivityView(null);
+    setSuggestOpen(false);
     setTab(id);
   };
 
@@ -234,10 +243,11 @@ export default function App() {
             setUnit={setUnit}
             name={profile?.display_name ?? ''}
             saved={profile?.onboarding ?? null}
-            onDone={() => {
+            onDone={(opts) => {
               setWelcomeDone(true);
-              closeGuide();
               setTab('workout');
+              if (opts?.tour) setGuide('tour');
+              else closeGuide();
             }}
           />
         ) : guideMode === 'review' ? (
@@ -250,8 +260,6 @@ export default function App() {
             todayStr={today()}
             onClose={closeGuide}
           />
-        ) : guideMode === 'tour' ? (
-          <Tour onDone={closeGuide} doneLabel="Done" />
         ) : guideMode === 'plan-view' && profile?.plan ? (
           <PlanView
             plan={profile.plan}
@@ -362,6 +370,8 @@ export default function App() {
 
       <RestBar />
 
+      {guideMode === 'tour' && <Coach onTab={showTab} onDone={closeGuide} />}
+
       {showWhatsNew && (
         <WhatsNew
           release={LATEST}
@@ -379,6 +389,7 @@ export default function App() {
           <button
             key={id}
             type="button"
+            data-tour={`tab-${id}`}
             className={tab === id && !editId && !routineView && !activityView && !suggestOpen ? 'tab active' : 'tab'}
             aria-current={tab === id && !editId && !routineView && !activityView && !suggestOpen ? 'page' : undefined}
             onClick={() => goTab(id)}

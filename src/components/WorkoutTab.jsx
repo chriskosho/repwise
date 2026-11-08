@@ -246,21 +246,21 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
         <p className="muted">
           {thisWeek ? `${plural(thisWeek, 'workout')} this week. Keep it going.` : 'No workouts yet this week.'}
         </p>
-        <button type="button" className="btn btn-big btn-block" disabled={busy} onClick={() => start(null)}>
+        <button type="button" data-tour="start" className="btn btn-big btn-block" disabled={busy} onClick={() => start(null)}>
           Start workout
         </button>
-        <button type="button" className="btn btn-ghost btn-block" onClick={onSuggest}>
+        <button type="button" data-tour="suggest" className="btn btn-ghost btn-block" onClick={onSuggest}>
           Not sure what to do? Suggest a workout
         </button>
         <button type="button" className="btn btn-link" onClick={logPast}>
           Log a past workout
         </button>
-        <button type="button" className="btn btn-link" onClick={onLogActivity}>
+        <button type="button" data-tour="activity" className="btn btn-link" onClick={onLogActivity}>
           Log an activity (run, sport…)
         </button>
       </section>
 
-      <div className="section-head">
+      <div className="section-head" data-tour="routines">
         <h3>Routines</h3>
         <button type="button" className="btn btn-ghost btn-small" onClick={() => onOpenRoutine(newRoutine(), true)}>
           + New routine

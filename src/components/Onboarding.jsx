@@ -4,7 +4,6 @@ import { CARDIO_CHOICES, DAYS_PER_WEEK, GOALS, LENGTHS, LEVELS, TIMES_OF_DAY, WE
 import { GEAR, TIMES } from '../suggest';
 import { ACTIVITY_TYPES, typeLabel } from '../activities';
 import { heightFromParts, weightIn } from '../units';
-import Tour from './Tour';
 
 const STEPS = ['welcome', 'goal', 'level', 'schedule', 'when', 'interests', 'gear', 'body', 'length', 'review', 'tour'];
 const PLAN_STEPS = ['goal', 'level', 'schedule', 'when', 'interests', 'gear', 'length', 'review'];
@@ -109,9 +108,17 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
       <div className="onboarding">
         <div className="card">
           <h2>You're all set{name ? `, ${name}` : ''}</h2>
-          <p className="muted">Your plan starts {startOn === 'today' ? 'today' : startOn === 'tomorrow' ? 'tomorrow' : 'next Monday'}. Here is a quick look around.</p>
+          <p className="muted">Your plan starts {startOn === 'today' ? 'today' : startOn === 'tomorrow' ? 'tomorrow' : 'next Monday'}.</p>
+          <p>Want a 30-second walk through the app? Repwise will point at each part and show you what it does.</p>
+          <div className="actions">
+            <button type="button" className="btn" onClick={() => onDone({ tour: true })}>
+              Show me around
+            </button>
+            <button type="button" className="btn btn-link" onClick={() => onDone()}>
+              Skip the tour
+            </button>
+          </div>
         </div>
-        <Tour onDone={onDone} doneLabel="Start using Repwise" />
       </div>
     );
   }

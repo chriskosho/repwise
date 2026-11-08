@@ -17,7 +17,7 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
 
   if (p.status === 'upcoming') {
     return (
-      <section className="card plan-card">
+      <section data-tour="plan" className="card plan-card">
         <h3>Your plan starts {longDate(plan.start)}</h3>
         <p className="muted">{dayLine(p.days[0])} is first.</p>
         <button type="button" className="btn btn-link" onClick={onViewPlan}>
@@ -29,7 +29,7 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
 
   if (p.status === 'finished') {
     return (
-      <section className="card plan-card">
+      <section data-tour="plan" className="card plan-card">
         <h3>Plan complete 🎉</h3>
         <p>
           You finished {p.done} of {p.planned} planned workouts ({p.percent}%) over {plan.length} days.
@@ -66,7 +66,7 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
   const t = p.today;
   const phase = phaseOf(plan, p.week);
   return (
-    <section className="card plan-card" aria-label="Your plan">
+    <section data-tour="plan" className="card plan-card" aria-label="Your plan">
       <p className="muted plan-meta">
         Day {p.dayNumber} of {plan.length} · Week {p.week}: {phase}
       </p>

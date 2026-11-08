@@ -159,3 +159,7 @@ Onboarding also asks for your best time of day (morning, afternoon, evening, var
 - **Settings → Share and support**: Share opens the phone's share sheet (or copies the link); Donate opens paypal.me/chriskosho.
 - **Settings → What's new** lists every release. Add a new entry at the top of `src/changelog.js` for each release; give it `highlights` to show a one-time pop-up, or leave them empty to skip the pop-up. Brand-new users never see it.
 - **Updates are automatic.** The service worker installs a new version in the background; the next open gets it. If the app is already open, a "new version is ready" bar offers Reload.
+
+## Guided tour
+
+`src/components/Coach.jsx` dims the screen and spotlights the real element for each step (found by a `data-tour` attribute), switching tabs as it goes. Steps whose target is missing are skipped when marked `optional` (the plan card) or shown centered. To add a step, add a `data-tour` hook to the element and an entry in `COACH_STEPS`. It starts at the end of the welcome flow and from Settings → Take the tour.

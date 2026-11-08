@@ -1776,3 +1776,11 @@ button:focus-visible,
 .changelog ul { margin: 0.4rem 0 0.2rem; padding-left: 1.1rem; display: grid; gap: 0.3rem; }
 .update-banner { position: sticky; top: 0; z-index: 40; display: flex; gap: 0.6rem; align-items: center; justify-content: space-between; padding: 0.55rem 0.9rem; background: var(--accent); color: var(--accent-ink); }
 .update-banner button { color: inherit; border-color: currentColor; }
+.coach { position: fixed; inset: 0; z-index: 60; }
+.coach-block { position: absolute; inset: 0; }
+.coach-dim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); }
+.coach-spot { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 0 3px var(--accent); pointer-events: none; transition: all 0.2s ease; }
+.coach-tip { position: fixed; left: 50%; margin-left: calc(min(21rem, 100vw - 2rem) / -2); width: min(21rem, calc(100vw - 2rem)); background: var(--card); color: inherit; border-radius: 16px; padding: 1rem; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); }
+.coach-tip h2 { margin: 0.1rem 0 0.4rem; font-size: 1.1rem; }
+.coach-tip p { margin: 0 0 0.4rem; }
+@media (prefers-reduced-motion: reduce) { .coach-spot { transition: none; } }
