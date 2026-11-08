@@ -7,6 +7,12 @@ export const WorkoutIcon = () => (
     <path d="M3 10v4M6.5 7.5v9M17.5 7.5v9M21 10v4M6.5 12h11" />
   </svg>
 );
+export const InfoIcon = () => (
+  <svg {...base} width={18} height={18}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v5M12 7.6v.1" />
+  </svg>
+);
 export const HistoryIcon = () => (
   <svg {...base}>
     <path d="M3.5 12a8.5 8.5 0 1 0 2.5-6" />

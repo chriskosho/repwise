@@ -144,6 +144,7 @@ export const TABLES = [
       distance_km: a.distance_km ?? null,
       effort: a.effort ?? null,
       place_id: a.place_id ?? null,
+      stretches: a.stretches ?? [],
       notes: a.notes ?? '',
       created_at: a.created_at,
       deleted_at: a.deleted_at ?? null,

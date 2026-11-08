@@ -59,7 +59,7 @@ export async function buildExport() {
       created_at,
     })),
     places: places.map(({ id, name, created_at }) => ({ id, name, created_at })),
-    activities: activities.map(({ id, date, type, title, duration_min, distance_km, effort, place_id, notes, created_at }) => ({
+    activities: activities.map(({ id, date, type, title, duration_min, distance_km, effort, place_id, stretches, notes, created_at }) => ({
       id,
       date,
       type,
@@ -68,6 +68,7 @@ export async function buildExport() {
       distance_km,
       effort,
       place_id: place_id ?? null,
+      stretches: stretches ?? [],
       notes,
       created_at,
     })),

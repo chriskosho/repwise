@@ -16,10 +16,14 @@ export const ACTIVITY_TYPES = [
   ['soccer', 'Soccer', ''],
   ['tennis', 'Tennis', ''],
   ['pickleball', 'Pickleball', ''],
+  ['baseball', 'Baseball', ''],
+  ['softball', 'Softball', ''],
+  ['table_tennis', 'Table tennis', ''],
   ['volleyball', 'Volleyball', ''],
   ['golf', 'Golf', ''],
   ['climb', 'Climbing', ''],
-  ['yoga', 'Yoga / stretching', ''],
+  ['stretching', 'Stretching / mobility', ''],
+  ['yoga', 'Yoga', ''],
   ['hiit', 'HIIT / class', ''],
   ['martial', 'Martial arts', ''],
   ['other', 'Other', ''],
@@ -76,6 +80,7 @@ export function activitySummary(a, unit) {
   const p = paceText(a, unit);
   if (p) parts.push(p);
   if (a.effort) parts.push(`effort ${a.effort}/10`);
+  if (a.stretches?.length) parts.push(`${a.stretches.length} stretch${a.stretches.length === 1 ? '' : 'es'}`);
   return parts.join(' · ');
 }
 

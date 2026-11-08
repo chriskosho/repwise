@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { listCustomExercises, saveCustomExercise } from '../db';
-import { EQUIPMENT, MUSCLES, equipmentLabel, historyNames, muscleLabel, searchExercises, useLibrary } from '../library';
+import ExerciseInfo from './ExerciseInfo';
+import { InfoIcon } from './Icons';
+import { CATEGORIES, EQUIPMENT, MUSCLES, equipmentLabel, historyNames, muscleLabel, searchExercises, useLibrary } from '../library';
 import { key } from '../stats';
 
 const PAGE = 60;
@@ -9,10 +11,12 @@ const PAGE = 60;
 // Full-screen exercise chooser. Pick one or several, then add them together.
 // Your own and previously logged exercises come first, then the library
 // (filterable by muscle and equipment). Anything new can be created on the spot.
-export default function ExercisePicker({ sessions, onAdd, onClose }) {
+export default function ExercisePicker({ sessions, onAdd, onClose, initialCategory = '' }) {
   const [q, setQ] = useState('');
   const [muscle, setMuscle] = useState('');
   const [equipment, setEquipment] = useState('');
+  const [category, setCategory] = useState(initialCategory);
+  const [info, setInfo] = useState(null);
   const [limit, setLimit] = useState(PAGE);
   const [selected, setSelected] = useState([]);
   const [creating, setCreating] = useState(false);
@@ -32,8 +36,8 @@ export default function ExercisePicker({ sessions, onAdd, onClose }) {
   }, [onClose]);
 
   const results = useMemo(
-    () => searchExercises({ library: library ?? [], custom, history, query: q, muscle, equipment }),
-    [library, custom, history, q, muscle, equipment],
+    () => searchExercises({ library: library ?? [], custom, history, query: q, muscle, equipment, category }),
+    [library, custom, history, q, muscle, equipment, category],
   );
 
   // Every name that already exists, ignoring filters, to decide whether to offer "Create".
@@ -96,6 +100,20 @@ export default function ExercisePicker({ sessions, onAdd, onClose }) {
         >
           <option value="">All muscles</option>
           {MUSCLES.map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Filter by type"
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            setLimit(PAGE);
+          }}
+        >
+          {CATEGORIES.map(([k, label]) => (
             <option key={k} value={k}>
               {label}
             </option>
@@ -175,15 +193,20 @@ export default function ExercisePicker({ sessions, onAdd, onClose }) {
           return (
             <div key={r.key}>
               {!term && (i === 0 || shown[i - 1].mine !== r.mine) && <h3>{r.mine ? 'Your exercises' : 'Library'}</h3>}
-              <button type="button" className={`pick${on ? ' on' : ''}`} aria-label={r.name} aria-pressed={on} onClick={() => toggle(r.name)}>
-                <span className="pick-main">
-                  <span>{r.name}</span>
-                  {sub && <span className="pick-sub">{sub}</span>}
-                </span>
-                <span className="pick-check" aria-hidden="true">
-                  {on ? '✓' : ''}
-                </span>
-              </button>
+              <div className="pick-row">
+                <button type="button" className={`pick${on ? ' on' : ''}`} aria-label={r.name} aria-pressed={on} onClick={() => toggle(r.name)}>
+                  <span className="pick-main">
+                    <span>{r.name}</span>
+                    {sub && <span className="pick-sub">{sub}</span>}
+                  </span>
+                  <span className="pick-check" aria-hidden="true">
+                    {on ? '✓' : ''}
+                  </span>
+                </button>
+                <button type="button" className="icon-btn" aria-label={`How to: ${r.name}`} onClick={() => setInfo(r.name)}>
+                  <InfoIcon />
+                </button>
+              </div>
             </div>
           );
         })}
@@ -195,6 +218,8 @@ export default function ExercisePicker({ sessions, onAdd, onClose }) {
         )}
         {!results.length && library && !canCreate && <p className="muted empty">No exercises match.</p>}
       </div>
+
+      {info && <ExerciseInfo name={info} onClose={() => setInfo(null)} />}
 
       <div className="sheet-foot">
         <button type="button" className="btn btn-block" disabled={!selected.length} onClick={() => onAdd(selected)}>

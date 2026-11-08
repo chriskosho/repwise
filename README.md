@@ -22,6 +22,8 @@ A workout log that works like the popular gym trackers and syncs across your dev
 - **Sync:** Supabase with email magic-link login.
 - **Activities:** log runs, walks, rides, swims, sports and classes by hand (type, time, optional distance, effort, notes). Pace or speed is worked out when there's a distance. They count toward streaks, the calendar and weekly workout goals, and have an Activity view under Progress. No GPS.
 - **Places and notes:** save named places (a gym, a park) once and pick them on any workout or activity; manage them in Settings. Only the name you type is stored, never coordinates. Workouts, activities and goals all take notes, and History search covers notes and places.
+- **Suggested workouts:** "Suggest a workout" on the Workout tab builds a session from your goals (lift targets lead, body-weight goals shape sets and reps), what you've trained least recently, your time and equipment, plus cool-down stretches and non-gym ideas. Shuffle for alternatives, start it, or save it as a routine.
+- **How-to help:** every exercise has an info button with start/end pictures (loaded from the public free-exercise-db folder when online), written steps, and YouTube Shorts / longer-video searches built from its name. The exercise picker can filter to stretching, and activities can list the stretches you did.
 - **Backup:** JSON export/import of workouts, activities, places, routines, your own exercises, body entries, goals and profile (merged by ID, so re-importing never duplicates; older backups still import) and a weekly export reminder.
 
 ## Design

@@ -12,6 +12,7 @@ import Settings from './components/Settings';
 import RestBar from './components/RestBar';
 import RoutineEditor from './components/RoutineEditor';
 import ActivityEditor from './components/ActivityEditor';
+import Suggest from './components/Suggest';
 import { BodyIcon, HistoryIcon, Logo, ProgressIcon, SettingsIcon, WorkoutIcon } from './components/Icons';
 
 // The chart library is the heaviest dependency, so load it only when needed.
@@ -48,6 +49,7 @@ export default function App() {
   const [tab, setTab] = useState('workout');
   const [editId, setEditId] = useState(null);
   const [routineView, setRoutineView] = useState(null); // { doc, isNew } while the routine editor is open
+  const [suggestOpen, setSuggestOpen] = useState(false);
   const [activityView, setActivityView] = useState(null); // { doc, isNew } while the activity editor is open
   const [unitCache, setUnitCache] = useState(readUnit);
   const [dismissed, setDismissed] = useState(false);
@@ -88,6 +90,7 @@ export default function App() {
     setEditId(null);
     setRoutineView(null);
     setActivityView(null);
+    setSuggestOpen(false);
     setTab(id);
   };
 
@@ -155,6 +158,23 @@ export default function App() {
               openRoutine(doc, true);
             }}
           />
+        ) : suggestOpen ? (
+          <Suggest
+            unit={unit}
+            onClose={() => setSuggestOpen(false)}
+            onStarted={() => {
+              setSuggestOpen(false);
+              setTab('workout');
+            }}
+            onSaveRoutine={(doc) => {
+              setSuggestOpen(false);
+              openRoutine(doc, true);
+            }}
+            onLogActivity={(idea) => {
+              setSuggestOpen(false);
+              openActivity({ ...newActivity(), type: idea.type, duration_min: idea.minutes }, true);
+            }}
+          />
         ) : activityView ? (
           <ActivityEditor
             key={activityView.doc.id}
@@ -180,6 +200,7 @@ export default function App() {
                 weekStart={profile?.week_start ?? 1}
                 onOpenSession={setEditId}
                 onLogActivity={() => openActivity(newActivity(), true)}
+                onSuggest={() => setSuggestOpen(true)}
                 onOpenActivity={(a) => openActivity(a)}
                 onOpenRoutine={openRoutine}
                 onShowHistory={() => goTab('history')}
@@ -218,8 +239,8 @@ export default function App() {
           <button
             key={id}
             type="button"
-            className={tab === id && !editId && !routineView && !activityView ? 'tab active' : 'tab'}
-            aria-current={tab === id && !editId && !routineView && !activityView ? 'page' : undefined}
+            className={tab === id && !editId && !routineView && !activityView && !suggestOpen ? 'tab active' : 'tab'}
+            aria-current={tab === id && !editId && !routineView && !activityView && !suggestOpen ? 'page' : undefined}
             onClick={() => goTab(id)}
           >
             <span className="tab-icon">

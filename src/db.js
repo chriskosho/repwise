@@ -391,7 +391,20 @@ export async function listPlaces() {
 
 // ---- activities (runs, rides, sports...) ----
 export function newActivity(date = today()) {
-  return { id: newId(), date, type: 'run', title: '', duration_min: null, distance_km: null, effort: null, place_id: lastPlaceId(), notes: '', created_at: nowIso(), deleted_at: null };
+  return { id: newId(), date, type: 'run', title: '', duration_min: null, distance_km: null, effort: null, place_id: lastPlaceId(), stretches: [], notes: '', created_at: nowIso(), deleted_at: null };
+}
+
+export function cleanStretches(list) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of Array.isArray(list) ? list : []) {
+    const name = String(raw ?? '').trim().replace(/\s+/g, ' ').slice(0, 100);
+    if (name && !seen.has(key(name)) && out.length < 40) {
+      seen.add(key(name));
+      out.push(name);
+    }
+  }
+  return out;
 }
 
 // Returns a clean row or throws an Error with a message for the person.
@@ -412,6 +425,7 @@ export function cleanActivity(a) {
     distance_km: distance && distance > 0 ? distance : null,
     effort,
     place_id: a.place_id || null,
+    stretches: cleanStretches(a.stretches),
     notes: String(a.notes ?? '').slice(0, 2000),
     deleted_at: null,
   };

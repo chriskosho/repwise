@@ -183,7 +183,7 @@ describe('the screens', () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'Start workout' }));
-    await user.click(screen.getByText('Place and notes'));
+    await user.click(await screen.findByText('Place and notes'));
     await user.type(screen.getByLabelText('Workout notes'), 'Shoulder tight');
     await user.selectOptions(screen.getByLabelText('Place'), '__new__');
     await user.type(screen.getByLabelText('New place name'), 'Planet Fitness');

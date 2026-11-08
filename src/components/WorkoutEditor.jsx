@@ -6,6 +6,8 @@ import { startRest, stopRest } from '../rest';
 import { useNow } from '../useNow';
 import ExercisePicker from './ExercisePicker';
 import PlacePicker from './PlacePicker';
+import ExerciseInfo from './ExerciseInfo';
+import { InfoIcon } from './Icons';
 import { listPlaces } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 
@@ -36,6 +38,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
   const [openSet, setOpenSet] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
   const [hint, setHint] = useState('');
+  const [info, setInfo] = useState(null);
   const places = useLiveQuery(listPlaces, [], []);
 
   const latest = useRef(session);
@@ -314,6 +317,9 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
                 <h2>{ex.name}</h2>
                 {inChain && <span className="badge">Superset</span>}
               </div>
+              <button type="button" className="icon-btn" aria-label={`How to: ${ex.name}`} onClick={() => setInfo(ex.name)}>
+                <InfoIcon />
+              </button>
               <button
                 type="button"
                 className="btn btn-ghost btn-small"
@@ -487,6 +493,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
         </button>
       )}
 
+      {info && <ExerciseInfo name={info} onClose={() => setInfo(null)} />}
       {picker && <ExercisePicker sessions={sessions} onAdd={addExercises} onClose={() => setPicker(false)} />}
     </div>
   );

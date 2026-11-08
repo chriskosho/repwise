@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { deleteActivity, saveActivity } from '../db';
 import { ACTIVITY_TYPES, distUnit, distanceIn, distanceOut, paceText } from '../activities';
 import PlacePicker from './PlacePicker';
+import ExercisePicker from './ExercisePicker';
+import ExerciseInfo from './ExerciseInfo';
+import { InfoIcon } from './Icons';
 
 // Log or change a non-gym activity: a run, a ride, a game. Everything is typed in; no GPS.
 export default function ActivityEditor({ initial, isNew, places, unit, onClose }) {
@@ -12,6 +15,8 @@ export default function ActivityEditor({ initial, isNew, places, unit, onClose }
   const [dist, setDist] = useState(initial.distance_km != null ? String(distanceOut(initial.distance_km, unit)) : '');
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [info, setInfo] = useState(null);
   const set = (patch) => setA((x) => ({ ...x, ...patch }));
 
   const draft = () => ({
@@ -89,6 +94,29 @@ export default function ActivityEditor({ initial, isNew, places, unit, onClose }
             ))}
           </select>
         </label>
+        <div className="field">
+          <span>Stretches, optional</span>
+          {a.stretches?.length > 0 && (
+            <ul className="plain stretch-list">
+              {a.stretches.map((n) => (
+                <li key={n}>
+                  <span>{n}</span>
+                  <span className="actions">
+                    <button type="button" className="icon-btn" aria-label={`How to: ${n}`} onClick={() => setInfo(n)}>
+                      <InfoIcon />
+                    </button>
+                    <button type="button" className="btn btn-small btn-ghost" aria-label={`Remove ${n}`} onClick={() => set({ stretches: a.stretches.filter((x) => x !== n) })}>
+                      Remove
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button type="button" className="btn btn-ghost btn-small" onClick={() => setPicking(true)}>
+            + Add stretches
+          </button>
+        </div>
         <PlacePicker places={places} value={a.place_id} onChange={(id) => set({ place_id: id })} />
         <label className="field">
           <span>Notes</span>
@@ -129,6 +157,18 @@ export default function ActivityEditor({ initial, isNew, places, unit, onClose }
             Delete activity
           </button>
         ))}
+      {picking && (
+        <ExercisePicker
+          sessions={[]}
+          initialCategory="stretching"
+          onClose={() => setPicking(false)}
+          onAdd={(names) => {
+            setA((x) => ({ ...x, stretches: [...(x.stretches ?? []), ...names.filter((n) => !(x.stretches ?? []).includes(n))] }));
+            setPicking(false);
+          }}
+        />
+      )}
+      {info && <ExerciseInfo name={info} onClose={() => setInfo(null)} />}
     </form>
   );
 }

@@ -358,3 +358,8 @@ revoke all on public.activities from anon;
 -- A workout can say where it happened; a goal can carry a note.
 alter table public.sessions add column if not exists place_id uuid;
 alter table public.goals add column if not exists notes text not null default '' check (char_length(notes) <= 2000);
+
+-- Stretches done during an activity (a list of exercise names).
+alter table public.activities add column if not exists stretches jsonb not null default '[]'::jsonb;
+alter table public.activities drop constraint if exists activities_stretches_is_array;
+alter table public.activities add constraint activities_stretches_is_array check (jsonb_typeof(stretches) = 'array' and jsonb_array_length(stretches) <= 40);

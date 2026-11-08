@@ -1596,3 +1596,107 @@ button:focus-visible,
   gap: 10px;
   flex-wrap: wrap;
 }
+
+/* ---- exercise help ---- */
+.pick-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.pick-row .pick {
+  border-bottom: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.icon-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  min-height: 40px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.icon-btn:hover {
+  color: var(--accent);
+}
+.exercise-head > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.sheet-title {
+  flex: 1;
+  margin: 0;
+  align-self: center;
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+}
+.sheet-filters {
+  flex-wrap: wrap;
+}
+.ex-pics {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+.ex-pics img {
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+.ex-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0 4px;
+}
+.ex-links .btn {
+  text-decoration: none;
+}
+.small {
+  font-size: 0.8rem;
+}
+.ex-steps {
+  padding-left: 22px;
+}
+.ex-steps li {
+  margin-bottom: 8px;
+}
+.stretch-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ---- suggestions ---- */
+.plan-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+.plan-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.plan-list li > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.why {
+  margin: 8px 0;
+}

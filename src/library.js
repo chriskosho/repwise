@@ -48,7 +48,7 @@ let cache = null;
 export function loadLibrary() {
   if (!cache) {
     cache = import('./data/library.json')
-      .then((m) => m.default.map(([name, muscle, equipment, category]) => ({ name, muscle, equipment, category })))
+      .then((m) => m.default.map(([name, muscle, equipment, category, id, level, mech]) => ({ name, muscle, equipment, category, id, level, compound: mech === 'c' })))
       .catch((e) => {
         cache = null; // allow a retry, for example after coming back online
         throw e;
@@ -89,12 +89,50 @@ export function historyNames(sessions) {
   return names;
 }
 
+// ---- exercise help: steps, pictures and video searches ----
+export const CATEGORIES = [
+  ['', 'All types'],
+  ['strength', 'Strength'],
+  ['stretching', 'Stretching'],
+  ['cardio', 'Cardio'],
+  ['plyometrics', 'Plyometrics'],
+];
+// Powerlifting, Olympic lifts and strongman count as strength in the filter.
+export const categoryGroup = (c) => (['powerlifting', 'olympic weightlifting', 'strongman'].includes(c) ? 'strength' : c || '');
+
+const IMAGE_BASE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
+export const imageUrls = (id) => (id ? [`${IMAGE_BASE}${id}/0.jpg`, `${IMAGE_BASE}${id}/1.jpg`] : []);
+
+// A YouTube search built from the exercise's name. "#shorts" steers results toward Shorts
+// (YouTube has no URL switch for them); the second form finds longer how-to videos.
+export function youtubeUrl(name, { shorts = true, stretch = false } = {}) {
+  const q = `${name} ${stretch ? 'stretch' : 'exercise form'}${shorts ? ' #shorts' : ' tutorial'}`;
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+}
+
+let howtoCache = null;
+export function loadHowTo() {
+  if (!howtoCache) {
+    howtoCache = import('./data/howto.json').then((m) => m.default).catch((e) => {
+      howtoCache = null;
+      throw e;
+    });
+  }
+  return howtoCache;
+}
+
+// Library entry for a name (null for your own exercises).
+export function findExercise(library, name) {
+  const k = key(name);
+  return (library ?? []).find((l) => key(l.name) === k) ?? null;
+}
+
 const CATEGORY_RANK = { stretching: 2, cardio: 2 };
 
 // Combine your own exercises, exercises you've logged, and the library into one
 // searchable, filterable list. Yours come first. A logged exercise that matches
 // a library or custom name borrows its muscle and equipment so filters work.
-export function searchExercises({ library = [], custom = [], history = [], query = '', muscle = '', equipment = '' }) {
+export function searchExercises({ library = [], custom = [], history = [], query = '', muscle = '', equipment = '', category = '' }) {
   const meta = new Map();
   for (const l of library) meta.set(key(l.name), { muscle: l.muscle, equipment: l.equipment, category: l.category });
   for (const c of custom) meta.set(key(c.name), { muscle: c.muscle, equipment: c.equipment, category: '' });
@@ -128,6 +166,7 @@ export function searchExercises({ library = [], custom = [], history = [], query
   for (const e of all) {
     if (muscle && e.muscle !== muscle) continue;
     if (equipment && e.equipment !== equipment) continue;
+    if (category && categoryGroup(e.category) !== category) continue;
     let t = 0;
     if (terms.length) {
       const hay = `${e.key} ${key(equipmentLabel(e.equipment))} ${key(muscleLabel(e.muscle))}`;

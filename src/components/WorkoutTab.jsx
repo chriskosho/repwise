@@ -125,7 +125,7 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onOpenActivity }) {
+export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onOpenActivity, onSuggest }) {
   const active = useLiveQuery(getActiveSession, [], undefined);
   const { sessions, activities, places, workouts } = useWorkouts();
   const routines = useLiveQuery(listRoutines, [], undefined);
@@ -180,6 +180,9 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
         </p>
         <button type="button" className="btn btn-big btn-block" disabled={busy} onClick={() => start(null)}>
           Start workout
+        </button>
+        <button type="button" className="btn btn-ghost btn-block" onClick={onSuggest}>
+          Not sure what to do? Suggest a workout
         </button>
         <button type="button" className="btn btn-link" onClick={logPast}>
           Log a past workout
