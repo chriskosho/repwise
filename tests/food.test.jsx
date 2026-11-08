@@ -109,7 +109,7 @@ describe('Food tab', () => {
     expect((await listFoods())[0]).toMatchObject({ name: 'grandma stew', calories: 320 });
 
     // typing it again now finds your own food
-    await user.type(screen.getByRole('combobox'), 'grand');
+    await user.type(await screen.findByRole('combobox'), 'grand');
     expect(await screen.findByText('Mine')).toBeTruthy();
     await user.clear(screen.getByRole('combobox'));
 
