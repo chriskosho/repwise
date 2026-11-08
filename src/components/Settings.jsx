@@ -6,6 +6,7 @@ import { heightIn, heightOut, lengthUnit } from '../units';
 import { EQUIPMENT, MUSCLES, equipmentLabel, muscleLabel } from '../library';
 import { MODES } from '../measure';
 import { setPrefs, usePrefs } from '../prefs';
+import { PLATE_DEFAULTS, parsePlates } from '../plates';
 import { setTheme, useTheme } from '../theme';
 
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300];
@@ -510,6 +511,33 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
             <input type="checkbox" checked={prefs.keepAwake} onChange={(e) => setPrefs({ keepAwake: e.target.checked })} />
             <span>Keep the screen on during a workout</span>
           </label>
+          <label className="check-row">
+            <input type="checkbox" checked={prefs.showPlates} onChange={(e) => setPrefs({ showPlates: e.target.checked })} />
+            <span>Show which plates to load for barbell lifts</span>
+          </label>
+          {prefs.showPlates && (
+            <div className="row">
+              <label className="field">
+                <span>Bar weight ({unit})</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="any"
+                  value={prefs[`bar_${unit}`] ?? PLATE_DEFAULTS[unit].bar}
+                  onChange={(e) => setPrefs({ [`bar_${unit}`]: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Plates you have, per side ({unit})</span>
+                <input
+                  value={prefs[`plates_${unit}`] ?? PLATE_DEFAULTS[unit].plates}
+                  onChange={(e) => setPrefs({ [`plates_${unit}`]: e.target.value })}
+                  onBlur={(e) => setPrefs({ [`plates_${unit}`]: parsePlates(e.target.value).join(', ') || PLATE_DEFAULTS[unit].plates })}
+                />
+              </label>
+            </div>
+          )}
           <p className="muted">
             Alerts only work while Repwise is open and the screen is on. Browsers don't allow web apps to sound alarms from the
             background, which is why the screen stays on during a workout.

@@ -1719,3 +1719,4 @@ button:focus-visible,
 .notice p { margin: 0 0 0.5rem; }
 .target-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end; margin-top: 0.4rem; }
 .target-row .field { flex: 1 1 6rem; margin: 0; }
+.plates-line { margin: -0.2rem 0 0.4rem 2.2rem; font-size: 0.8rem; }

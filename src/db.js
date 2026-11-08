@@ -231,6 +231,10 @@ export function cleanTarget(t) {
   if (w) out.weight = w;
   if (r) out.reps = Math.round(r);
   if (sec) out.time = Math.round(sec);
+  if (Array.isArray(t.warmups)) {
+    const ws = t.warmups.map((v) => num(v, 2000)).filter(Boolean).slice(0, 4);
+    if (ws.length) out.warmups = ws;
+  }
   return Object.keys(out).length ? out : null;
 }
 const withTarget = (t) => {
@@ -238,9 +242,16 @@ const withTarget = (t) => {
   return c ? { target: c } : {};
 };
 // Pre-fill a fresh set from a routine target.
-const targetSet = (type, target) => {
+const targetSet = (type, target, warmIdx = 0) => {
   const st = blankSet(type, false);
-  if (target?.weight && type !== 'warmup') st.weight = target.weight;
+  if (type === 'warmup') {
+    if (target?.warmups?.[warmIdx]) {
+      st.weight = target.warmups[warmIdx];
+      st.reps = [5, 3, 2, 1][warmIdx] ?? 3;
+    }
+    return st;
+  }
+  if (target?.weight) st.weight = target.weight;
   if (target?.reps) st.reps = target.reps;
   if (target?.time) st.time = target.time;
   return st;
@@ -276,7 +287,7 @@ export function sessionFromRoutine(routine) {
       link: !!e.link,
       notes: e.notes || '',
       ...withTarget(e.target),
-      sets: (e.sets.length ? e.sets : [{ type: 'normal' }]).map((s) => targetSet(s.type || 'normal', cleanTarget(e.target))),
+      sets: (e.sets.length ? e.sets : [{ type: 'normal' }]).map((s, i, all) => targetSet(s.type || 'normal', cleanTarget(e.target), all.slice(0, i).filter((x) => x.type === 'warmup').length)),
     })),
   };
 }
@@ -430,7 +441,7 @@ export async function convertLiftWeights(from, to) {
   const convEx = (e) => ({
     ...e,
     sets: convSets(e.sets),
-    ...(e.target && Number(e.target.weight) > 0 ? { target: { ...e.target, weight: conv(e.target.weight) } } : {}),
+    ...(e.target && Number(e.target.weight) > 0 ? { target: { ...e.target, weight: conv(e.target.weight), ...(e.target.warmups ? { warmups: e.target.warmups.map(conv) } : {}) } } : {}),
   });
   let changed = 0;
   for (const table of [db.sessions, db.routines]) {

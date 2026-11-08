@@ -138,6 +138,7 @@ export default function Suggest({ unit, onClose, onStarted, onLogActivity, onSav
                       {e.weight ? ` @ ${e.weight} ${unit}` : ''}
                       {e.note ? ` · ${e.note}` : ''}
                     </span>
+                    {e.warmups?.length > 0 && <span className="muted why-line">Warm up: {e.warmups.join(', ')} {unit}</span>}
                     {e.why && <span className="muted why-line">{e.why}</span>}
                   </div>
                   <button type="button" className="icon-btn" aria-label={`How to: ${e.name}`} onClick={() => setInfo(e.name)}>

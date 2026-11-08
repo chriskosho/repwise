@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 
 // Workout preferences, stored per device in localStorage.
 const KEY = 'repwise.prefs';
-const defaults = { restEnabled: true, restSeconds: 90, alerts: true, keepAwake: true };
+const defaults = { restEnabled: true, restSeconds: 90, alerts: true, keepAwake: true, showPlates: true };
 
 let cache = null;
 const listeners = new Set();

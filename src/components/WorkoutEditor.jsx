@@ -5,6 +5,7 @@ import { MODES, describeSet, fmtCardioTime, hasIncline, isLogged, kmToLong, kmTo
 import { useLibrary } from '../library';
 import { computePRs, fmtClock, fmtNum, fmtVolume, previousSets, plural, sessionStats } from '../stats';
 import { usePrefs } from '../prefs';
+import { plateSetup, plateText } from '../plates';
 import { startRest, stopRest } from '../rest';
 import { useNow } from '../useNow';
 import ExercisePicker from './ExercisePicker';
@@ -36,6 +37,12 @@ const round2 = (n) => Math.round(n * 100) / 100;
 
 // A number box that shows one unit but stores another (minutes <-> seconds, miles <-> km).
 // It keeps what you typed while you type, and follows outside changes (copying the last set).
+// Plates are shown for barbell lifts, using the library's equipment when it is known.
+const isBarbell = (name, library) => {
+  const hit = (library ?? []).find((l) => l.name.toLowerCase() === String(name).toLowerCase());
+  return hit ? hit.equipment === 'barbell' : /barbell/i.test(name);
+};
+
 function UnitInput({ value, toDisplay, fromDisplay, onValue, ...props }) {
   const show = (v) => (v === '' || v == null || Number(v) === 0 ? '' : String(toDisplay(Number(v))));
   const [text, setText] = useState(() => show(value));
@@ -570,6 +577,9 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
                         {flags.distance && <span className="pr">Distance PR</span>}
                         {flags.pace && <span className="pr">Pace PR</span>}
                       </div>
+                    )}
+                    {prefs.showPlates && mode === 'weight' && st.type !== 'warmup' && Number(st.weight) > 0 && isBarbell(ex.name, library) && (
+                      <p className="muted plates-line">{plateText(st.weight, plateSetup(prefs, unit), unit)}</p>
                     )}
                     {openSet === st.id && (
                       <div className="set-options" role="group" aria-label={`Set ${label} type`}>

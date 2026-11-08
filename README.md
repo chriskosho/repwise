@@ -115,3 +115,6 @@ node scripts/build-library.mjs path/to/free-exercise-db/dist/exercises.json
 - **Unit change**: switching lb/kg asks whether to convert logged lifts, routine targets and lift goals, or only change labels.
 - **Routine targets**: optional target weight, reps or seconds per exercise; starting the routine pre-fills them.
 - **Suggested workouts** now include weights (progressing from your last session or toward a lift goal), a "How are you feeling?" picker, rest-day advice after 3 days in a row, and automatic lighter deload sessions after about 5 hard weeks.
+- **Warm-up ramps**: heavy opening lifts in a suggested workout get warm-up sets (for example 50% and 75%), filled in when you start it.
+- **Plate calculator**: for barbell lifts the workout screen shows which plates go on each side. Set your bar weight and plates in Settings.
+- **Stall and best notes**: suggestions mention a new best from last time, or a stall (no progress in 3 sessions) with a few things to try.

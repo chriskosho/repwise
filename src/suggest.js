@@ -101,6 +101,20 @@ function shiftDay(dateStr, delta) {
   return d.toLocaleDateString('en-CA');
 }
 
+// Warm-up ramp toward a working weight: lighter sets first, rounded to plates.
+export function warmupRamp(weight, unit = 'lb') {
+  const bar = unit === 'kg' ? 20 : 45;
+  const step = unit === 'kg' ? 2.5 : 5;
+  const heavy = weight >= (unit === 'kg' ? 100 : 225);
+  const fractions = heavy ? [0.4, 0.6, 0.8] : [0.5, 0.75];
+  const out = [];
+  for (const f of fractions) {
+    const w = Math.max(bar, Math.round((weight * f) / step) * step);
+    if (w < weight && !out.includes(w)) out.push(w);
+  }
+  return out;
+}
+
 // ---- weights: progress from what you did last time ----
 const repRange = (text) => {
   const m = String(text).match(/(\d+)\D+(\d+)/);
@@ -128,6 +142,15 @@ export function suggestWeight(name, sessions, { unit = 'lb', reps = '8–12', eq
     }
   }
   if (!last) return null;
+  // Progress check: best estimated 1RM per session, newest first.
+  const bests = [];
+  for (const s of done) {
+    const ex = s.exercises.find((e) => key(e.name) === k && (e.mode === undefined || e.mode === 'weight' || e.mode === ''));
+    const sets = (ex?.sets ?? []).filter((x) => x.done && (x.type || 'normal') !== 'warmup' && Number(x.weight) > 0 && Number(x.reps) > 0);
+    if (sets.length) bests.push(Math.max(...sets.map((x) => e1rm(Number(x.reps), Number(x.weight)))));
+  }
+  const justPR = bests.length >= 2 && bests[0] > Math.max(...bests.slice(1)) + 0.01;
+  const stalled = bests.length >= 3 && bests[0] <= Math.max(...bests.slice(1, 3)) + 0.01 && bests[1] <= bests[2] + 0.01;
   const top = Math.max(...last.map((x) => Number(x.weight)));
   const atTop = last.filter((x) => Number(x.weight) === top);
   const [lo, hi] = repRange(reps);
@@ -151,7 +174,7 @@ export function suggestWeight(name, sessions, { unit = 'lb', reps = '8–12', eq
     weight = Math.max(step, roundTo(weight * 0.9, step));
     why += ' (lighter today)';
   }
-  return { weight: clean(weight), note: why };
+  return { weight: clean(weight), note: why, justPR, stalled };
 }
 
 export function suggestWorkout({
@@ -302,8 +325,24 @@ export function suggestWorkout({
     if (w) {
       p.weight = w.weight;
       p.why = w.note;
+      if (w.justPR) p.why = `New best last time, nice. ${w.note}`;
+      if (w.stalled) p.why = `${w.note}. No progress in 3 sessions: try a new rep range (5–6 or 12–15), add a lighter back-off set, or take a rest day first.`;
     } else {
       p.why = 'No history yet: pick a weight where the last rep is hard but clean.';
+    }
+  }
+
+  // Heavy opening lifts get a short ramp of warm-up sets.
+  const heavyMin = unit === 'kg' ? 40 : 95;
+  let ramps = 0;
+  for (const p of picked) {
+    if (ramps >= 2) break;
+    if (p.mode !== 'weight' || !p.weight) continue;
+    if (!(equipOf(p.name) === 'barbell' || p.weight >= heavyMin)) continue;
+    const ramp = warmupRamp(p.weight, unit);
+    if (ramp.length) {
+      p.warmups = ramp;
+      ramps++;
     }
   }
 
@@ -370,8 +409,8 @@ export function suggestionAsRoutine(s) {
       mode: e.mode,
       link: false,
       notes: [`${e.sets} × ${e.reps}`, e.note, e.why].filter(Boolean).join('. '),
-      ...(e.weight ? { target: { weight: e.weight, reps: Number(String(e.reps).match(/\d+/)?.[0]) || undefined } } : {}),
-      sets: Array.from({ length: e.sets }, () => ({ type: 'normal' })),
+      ...(e.weight ? { target: { weight: e.weight, reps: Number(String(e.reps).match(/\d+/)?.[0]) || undefined, ...(e.warmups?.length ? { warmups: e.warmups } : {}) } } : {}),
+      sets: [...(e.warmups ?? []).map(() => ({ type: 'warmup' })), ...Array.from({ length: e.sets }, () => ({ type: 'normal' }))],
     })),
   };
 }

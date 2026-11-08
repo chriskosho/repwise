@@ -61,3 +61,41 @@ describe('recovery', () => {
     expect(normal.exercises.find((e) => e.mode === 'weight' && !e.weight)?.why).toMatch(/No history/);
   });
 });
+
+import { warmupRamp } from '../src/suggest';
+import { sessionFromRoutine } from '../src/db';
+describe('warm-up ramps', () => {
+  it('ramps up to the working weight in plate steps', () => {
+    expect(warmupRamp(135, 'lb')).toEqual([70, 100]);
+    expect(warmupRamp(315, 'lb')).toEqual([125, 190, 250]);
+    expect(warmupRamp(60, 'kg')).toEqual([30, 45]);
+    expect(warmupRamp(50, 'lb')).toEqual([45]);
+  });
+  it('puts warm-up sets in the routine and fills them when you start it', () => {
+    const history = [sess(day(5), 'Barbell Squat', [10, 10, 10], 200)];
+    let seed = 0;
+    const mk = () => suggestWorkout({ library, sessions: history, todayStr: TODAY, options: { focus: 'legs', seed } });
+    while (seed < 40 && !mk().exercises.find((e) => e.name === 'Barbell Squat')) seed++;
+    const plan = mk();
+    const ex = plan.exercises.find((e) => e.name === 'Barbell Squat');
+    expect(ex.warmups).toEqual([100, 150]);
+    const r = suggestionAsRoutine(plan).exercises.find((e) => e.name === 'Barbell Squat');
+    expect(r.sets.filter((x) => x.type === 'warmup')).toHaveLength(2);
+    const started = sessionFromRoutine({ name: 'x', exercises: [r] }).exercises[0].sets;
+    expect(started.map((x) => x.weight).slice(0, 3)).toEqual([100, 150, 200]);
+  });
+});
+
+describe('stalls and personal bests', () => {
+  const mkS = (n, reps, weight) => sess(day(n), 'Bench', reps, weight);
+  it('flags three sessions without progress', () => {
+    const w = suggestWeight('Bench', [mkS(2, [8, 8], 100), mkS(5, [8, 8], 100), mkS(9, [8, 8], 100)], { reps: '8–12' });
+    expect(w.stalled).toBe(true);
+    expect(w.justPR).toBe(false);
+  });
+  it('notices a new best, and is quiet when progress is steady', () => {
+    const pr = suggestWeight('Bench', [mkS(2, [8, 8], 110), mkS(5, [8, 8], 100), mkS(9, [8, 8], 95)], { reps: '8–12' });
+    expect(pr).toMatchObject({ justPR: true, stalled: false });
+    expect(suggestWeight('Bench', [mkS(2, [8], 100)], {})).toMatchObject({ justPR: false, stalled: false });
+  });
+});
