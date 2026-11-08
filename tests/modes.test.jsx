@@ -224,9 +224,9 @@ describe('cardio goals', () => {
     const { saveGoal, listGoals, cleanGoal } = await import('../src/db');
     await saveGoal({ type: 'weekly_distance', exercise: 'run', target: 16.09 });
     await saveGoal({ type: 'weekly_minutes', target: 150, exercise: 'run' });
-    const [a, b] = await listGoals();
-    expect(a).toMatchObject({ type: 'weekly_distance', exercise: 'run' });
-    expect(b.exercise).toBe('');
+    const list = await listGoals();
+    expect(list.find((g) => g.type === 'weekly_distance')).toMatchObject({ exercise: 'run' });
+    expect(list.find((g) => g.type === 'weekly_minutes').exercise).toBe('');
     expect(cleanGoal({ type: 'weekly_distance', exercise: 'bogus', target: 5 }).exercise).toBe('');
   });
   it('adds a cardio goal from the Body tab', async () => {
