@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { deleteActivity, saveActivity } from '../db';
-import { ACTIVITY_TYPES, distIn, distLabel, distOut, elevationIn, elevationLabel, elevationOut, hasElevation, hasIncline, paceText } from '../activities';
+import { ACTIVITY_TYPES, typeLabel, distIn, distLabel, distOut, elevationIn, elevationLabel, elevationOut, hasElevation, hasIncline, paceText } from '../activities';
 import PlacePicker from './PlacePicker';
 import ExercisePicker from './ExercisePicker';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
 
 // Log or change a non-gym activity: a run, a ride, a game. Everything is typed in; no GPS.
-export default function ActivityEditor({ initial, isNew, places, unit, onClose }) {
+export default function ActivityEditor({ initial, isNew, places, unit, favorites = [], onClose }) {
   const [a, setA] = useState(initial);
   const total = initial.duration_min ?? 0;
   const [hours, setHours] = useState(total ? String(Math.floor(total / 60)) : '');
@@ -56,8 +56,20 @@ export default function ActivityEditor({ initial, isNew, places, unit, onClose }
       </div>
 
       <div className="card form">
+        {favorites.length > 0 && (
+          <div className="field">
+            <span id="fav-act">Your activities</span>
+            <div className="pills" role="group" aria-labelledby="fav-act">
+              {favorites.map((t) => (
+                <button key={t} type="button" className={`pill${a.type === t ? ' on' : ''}`} aria-pressed={a.type === t} onClick={() => set({ type: t })}>
+                  {typeLabel(t)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <label className="field">
-          <span>Activity</span>
+          <span>{favorites.length > 0 ? 'All activities' : 'Activity'}</span>
           <select value={a.type} onChange={(e) => set({ type: e.target.value })}>
             {ACTIVITY_TYPES.map(([k, label]) => (
               <option key={k} value={k}>

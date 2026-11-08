@@ -73,6 +73,7 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
         <>
           <h3>Today: {t.mv ? 'Rest day' : dayLine(t)}</h3>
           {t.adj && <p className="muted">{t.adj}.</p>}
+          {plan.time && isWorkoutDay(t) && !t.mv && <p className="muted">Planned for the {plan.time}.</p>}
           {(t.k === 'r' || t.mv) && <p className="muted">Recovery is when your body adapts. Take it easy, or go for a walk.</p>}
           {t.k === 's' && t.ease && <p className="muted">An easy session: fewer sets and lighter weights.</p>}
         </>

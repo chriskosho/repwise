@@ -34,8 +34,16 @@ describe('welcome flow', () => {
     await user.click(screen.getByRole('button', { name: '4' }));
     await user.click(screen.getByRole('button', { name: '30' }));
     await next(user);
-    await user.click(screen.getByRole('button', { name: /Dumbbells and bands/ }));
+    expect(screen.getByRole('button', { name: 'Next' }).disabled).toBe(true); // pick a time of day first
+    await user.click(screen.getByRole('button', { name: 'Evening' }));
+    await user.click(screen.getByRole('button', { name: 'Sat' }));
+    await user.click(screen.getByRole('button', { name: 'Sun' }));
+    await user.click(screen.getByRole('button', { name: 'Wed' }));
+    await next(user);
     await user.click(screen.getByRole('button', { name: 'Swim' }));
+    await user.click(screen.getByRole('button', { name: 'Pickleball' }));
+    await next(user);
+    await user.click(screen.getByRole('button', { name: /Dumbbells and bands/ }));
     await next(user);
     await user.type(screen.getByLabelText(/Current weight/), '80');
     await user.type(screen.getByLabelText(/Goal weight/), '72');
@@ -56,7 +64,10 @@ describe('welcome flow', () => {
 
     const profile = await getProfile();
     expect(profile).toMatchObject({ display_name: 'Sam', units: 'kg' });
-    expect(profile.onboarding).toMatchObject({ goal: 'lose', level: 'new', per_week: 4, minutes: 30, gear: 'dumbbells', cardio: ['swim'] });
+    expect(profile.onboarding).toMatchObject({ goal: 'lose', level: 'new', per_week: 4, minutes: 30, gear: 'dumbbells', cardio: ['swim'], interests: ['swim', 'pickleball'], time: 'evening', days: [1, 2, 4, 5] });
+    expect(profile.plan).toMatchObject({ time: 'evening', available: [1, 2, 4, 5] });
+    // Every training day lands on a day you said you were free (Mon, Tue, Thu, Fri)
+    expect(profile.plan.days.every((d, i) => d.k === 'r' || [1, 2, 4, 5].includes(new Date(`${addDays(profile.plan.start, i)}T12:00:00`).getDay()))).toBe(true);
     expect(profile.plan).toMatchObject({ length: 60, start: addDays(today(), 1), goal: 'lose' });
     expect(profile.plan.days.some((d) => d.k === 'c' && d.t === 'swim')).toBe(true);
     expect(profile.height_cm).toBe(178);
@@ -175,6 +186,9 @@ describe('height boxes', () => {
     await user.click(screen.getByRole('button', { name: /Some experience/ }));
     await next(user);
     await next(user);
+    await user.click(screen.getByRole('button', { name: 'Morning' }));
+    await next(user);
+    await next(user);
     await next(user);
     expect(screen.getByLabelText('Feet')).toBeTruthy();
     expect(screen.getByLabelText('Inches')).toBeTruthy();
@@ -200,5 +214,24 @@ describe('plan card after adapting', () => {
     render(<PlanView plan={adapted} workouts={[{ date: start }]} todayStr={fri} onClose={() => {}} onNewPlan={() => {}} onEndPlan={() => {}} />);
     expect(screen.getByText('Moved')).toBeTruthy();
     expect(screen.getByText(/Moved from Wed/)).toBeTruthy();
+  });
+});
+
+import ActivityEditor from '../src/components/ActivityEditor';
+import { newActivity } from '../src/db';
+describe('activity picker favorites', () => {
+  it('puts your activities first and keeps the full list', async () => {
+    const user = userEvent.setup();
+    render(<ActivityEditor initial={newActivity()} isNew places={[]} unit="lb" favorites={['pickleball', 'swim']} onClose={() => {}} />);
+    expect(screen.getByText('Your activities')).toBeTruthy();
+    const sw = screen.getByRole('button', { name: 'Swim' });
+    await user.click(sw);
+    expect(sw.getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByLabelText('All activities').value).toBe('swim');
+  });
+  it('shows the plain list when there are no favorites yet', () => {
+    render(<ActivityEditor initial={newActivity()} isNew places={[]} unit="lb" onClose={() => {}} />);
+    expect(screen.queryByText('Your activities')).toBeNull();
+    expect(screen.getByLabelText('Activity')).toBeTruthy();
   });
 });

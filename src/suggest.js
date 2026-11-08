@@ -190,7 +190,7 @@ export function suggestWorkout({
   todayStr = new Date().toLocaleDateString('en-CA'),
   weekStart = 1,
 }) {
-  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0, feeling = 'auto', style = '', ease = false } = options;
+  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0, feeling = 'auto', style = '', ease = false, interests = [] } = options;
   const rand = rng(seed + 1);
   const meta = new Map();
   for (const l of library) meta.set(key(l.name), l);
@@ -383,6 +383,10 @@ export function suggestWorkout({
       const list = mins.get(type).sort((a, b) => a - b);
       return { type, minutes: Math.round(list[Math.floor(list.length / 2)] / 5) * 5 || 30, label: `${typeLabel(type)} (your usual)` };
     });
+  for (const type of interests) {
+    if (ideas.length >= 3) break;
+    if (!ideas.some((i) => i.type === type)) ideas.push({ type, minutes: ['stretching', 'yoga'].includes(type) ? 20 : ['basketball', 'soccer', 'tennis', 'pickleball', 'baseball', 'softball', 'volleyball', 'golf', 'climb', 'martial'].includes(type) ? 45 : 30, label: `${typeLabel(type)} (you enjoy it)` });
+  }
   const defaults = intent === 'lose' ? [['walk', 40], ['cycle', 30], ['run', 25]] : [['walk', 30], ['cycle', 30], ['stretching', 20]];
   for (const [type, m] of defaults) {
     if (ideas.length >= 3) break;

@@ -38,9 +38,9 @@ export default function Suggest({ unit, preset = null, onClose, onStarted, onLog
       latestKg,
       unit,
       weekStart: profile?.week_start ?? 1,
-      options: { minutes, gear, focus, seed, feeling, style: preset?.style ?? '', ease: !!preset?.ease },
+      options: { minutes, gear, focus, seed, feeling, style: preset?.style ?? '', ease: !!preset?.ease, interests: profile?.onboarding?.interests ?? [] },
     });
-  }, [library, custom, sessions, activities, workouts, goals, latestKg, unit, profile?.week_start, minutes, gear, focus, seed, feeling, preset]);
+  }, [library, custom, sessions, activities, workouts, goals, latestKg, unit, profile?.week_start, minutes, gear, focus, seed, feeling, preset, profile?.onboarding]);
 
   async function start() {
     setBusy(true);

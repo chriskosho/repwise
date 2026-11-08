@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { getProfile, listGoals, saveBodyEntry, saveGoal, saveProfile, today } from '../db';
-import { CARDIO_CHOICES, DAYS_PER_WEEK, GOALS, LENGTHS, LEVELS, addDays, buildPlan, dayTitle } from '../plan';
+import { CARDIO_CHOICES, DAYS_PER_WEEK, GOALS, LENGTHS, LEVELS, TIMES_OF_DAY, WEEKDAYS as DOW, addDays, buildPlan, dayTitle } from '../plan';
 import { GEAR, TIMES } from '../suggest';
-import { typeLabel } from '../activities';
+import { ACTIVITY_TYPES, typeLabel } from '../activities';
 import { weightIn } from '../units';
 import Tour from './Tour';
 
-const STEPS = ['welcome', 'goal', 'level', 'schedule', 'gear', 'body', 'length', 'review', 'tour'];
-const PLAN_STEPS = ['goal', 'level', 'schedule', 'gear', 'length', 'review'];
+const STEPS = ['welcome', 'goal', 'level', 'schedule', 'when', 'interests', 'gear', 'body', 'length', 'review', 'tour'];
+const PLAN_STEPS = ['goal', 'level', 'schedule', 'when', 'interests', 'gear', 'length', 'review'];
+const INTEREST_TYPES = ACTIVITY_TYPES.filter(([k]) => k !== 'other');
 const RECOMMENDED = { new: 21, some: 30, pro: 60 };
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -47,7 +48,10 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
   const [perWeek, setPerWeek] = useState(saved?.per_week ?? 3);
   const [minutes, setMinutes] = useState(saved?.minutes ?? 45);
   const [gear, setGear] = useState(saved?.gear ?? 'gym');
-  const [cardio, setCardio] = useState(saved?.cardio ?? []);
+  const [interests, setInterests] = useState(saved?.interests ?? saved?.cardio ?? []);
+  const [time, setTime] = useState(saved?.time ?? '');
+  const [days, setDays] = useState(saved?.days ?? [0, 1, 2, 3, 4, 5, 6]);
+  const cardio = interests.filter((t) => CARDIO_CHOICES.includes(t));
   const [weight, setWeight] = useState('');
   const [h1, setH1] = useState(''); // feet, or meters
   const [h2, setH2] = useState(''); // inches, or centimeters
@@ -60,13 +64,13 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
   const start = startOn === 'today' ? today() : startOn === 'tomorrow' ? addDays(today(), 1) : nextMonday(today());
   const chosenLength = length || RECOMMENDED[level] || 21;
   const plan = useMemo(
-    () => (goal && level ? buildPlan({ length: chosenLength, start, goal, level, per_week: perWeek, minutes, gear, cardio }) : null),
-    [chosenLength, start, goal, level, perWeek, minutes, gear, cardio],
+    () => (goal && level ? buildPlan({ length: chosenLength, start, goal, level, per_week: perWeek, minutes, gear, cardio, available: days, time }) : null),
+    [chosenLength, start, goal, level, perWeek, minutes, gear, interests, days, time],
   );
 
   const steps = mode === 'first' ? STEPS : PLAN_STEPS;
   const idx = steps.indexOf(step);
-  const canNext = step === 'goal' ? !!goal : step === 'level' ? !!level : true;
+  const canNext = step === 'goal' ? !!goal : step === 'level' ? !!level : step === 'when' ? days.length > 0 && !!time : true;
   const go = (d) => setStep(steps[Math.max(0, Math.min(steps.length - 1, idx + d))]);
 
   async function skip() {
@@ -94,7 +98,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
       const goals = await listGoals();
       if (!goals.some((g) => g.type === 'weekly_workouts')) await saveGoal({ type: 'weekly_workouts', target: perWeek });
       await saveProfile({
-        onboarding: { done_at: new Date().toISOString(), goal, level, per_week: perWeek, minutes, gear, cardio },
+        onboarding: { done_at: new Date().toISOString(), goal, level, per_week: perWeek, minutes, gear, cardio, interests, time, days },
         plan,
       });
       if (mode === 'first') setStep('tour');
@@ -203,6 +207,65 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
           </>
         )}
 
+        {step === 'when' && (
+          <>
+            <h2>When do you like to work out?</h2>
+            <div className="field">
+              <span id="tod">Best time of day</span>
+              <div className="pills" role="group" aria-labelledby="tod">
+                {TIMES_OF_DAY.map(([k, label]) => (
+                  <button key={k} type="button" className={`pill${time === k ? ' on' : ''}`} aria-pressed={time === k} onClick={() => setTime(k)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="field">
+              <span id="avail">Days you can work out</span>
+              <div className="pills" role="group" aria-labelledby="avail">
+                {DOW.map(([n, label]) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`pill${days.includes(n) ? ' on' : ''}`}
+                    aria-pressed={days.includes(n)}
+                    onClick={() => setDays(days.includes(n) ? days.filter((x) => x !== n) : [...days, n].sort())}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {days.length === 0 && <span className="error">Pick at least one day.</span>}
+              {days.length > 0 && days.length < perWeek && (
+                <span className="muted">
+                  You picked {days.length} {days.length === 1 ? 'day' : 'days'}, so your plan will have {days.length} {days.length === 1 ? 'workout' : 'workouts'} a week.
+                </span>
+              )}
+            </div>
+          </>
+        )}
+
+        {step === 'interests' && (
+          <>
+            <h2>What do you enjoy doing?</h2>
+            <p className="muted">Pick any. These go first when you log an activity, show up in workout ideas, and set the cardio days in your plan.</p>
+            <div className="pills" role="group" aria-label="Activities you enjoy">
+              {INTEREST_TYPES.map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={`pill${interests.includes(k) ? ' on' : ''}`}
+                  aria-pressed={interests.includes(k)}
+                  onClick={() => setInterests(interests.includes(k) ? interests.filter((x) => x !== k) : [...interests, k])}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="muted">Not sure? Skip it. We'll learn from what you log.</p>
+          </>
+        )}
+
         {step === 'gear' && (
           <>
             <h2>What do you have to train with?</h2>
@@ -210,23 +273,6 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
               {GEAR.map(([k, label]) => (
                 <Choice key={k} selected={gear === k} title={label} onClick={() => setGear(k)} />
               ))}
-            </div>
-            <div className="field">
-              <span id="cardio-like">Cardio you enjoy (pick any)</span>
-              <div className="pills" role="group" aria-labelledby="cardio-like">
-                {CARDIO_CHOICES.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`pill${cardio.includes(t) ? ' on' : ''}`}
-                    aria-pressed={cardio.includes(t)}
-                    onClick={() => setCardio(cardio.includes(t) ? cardio.filter((x) => x !== t) : [...cardio, t])}
-                  >
-                    {typeLabel(t)}
-                  </button>
-                ))}
-              </div>
-              <span className="muted">Used for cardio days. If you skip this we choose something gentle for your level.</span>
             </div>
           </>
         )}
@@ -290,7 +336,8 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
           <>
             <h2>Your plan</h2>
             <p>
-              {chosenLength} days, {perWeek} workouts a week, about {minutes} minutes each. Here is your first week:
+              {chosenLength} days, {Math.min(perWeek, days.length || 7)} workouts a week, about {minutes} minutes each
+              {time && time !== 'any' ? `, planned for the ${time}` : ''}. Here is your first week:
             </p>
             <ul className="plain plan-week">
               {week1.map((d, i) => {

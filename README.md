@@ -139,3 +139,10 @@ Each time you open the app, the days still to come are adjusted (and the change 
 - Two full weeks in a row get a pat on the back.
 Each adjustment is recorded once, so reopening the app never repeats it. Plans and notes sync like the rest of your profile.
 Onboarding asks for height in feet and inches (pounds) or meters and centimeters (kilograms).
+
+### Lifestyle questions
+
+Onboarding also asks for your best time of day (morning, afternoon, evening, varies), the weekdays you can work out, and the activities you enjoy.
+- **Days:** plan workouts only land on the weekdays you pick. If you pick fewer days than workouts per week, the plan has that many workouts. Missed workouts only move to days you are free.
+- **Time of day:** shown on today's plan card ("Planned for the evening").
+- **Activities:** your picks (plus what you actually log) appear first as "Your activities" in the activity picker, are used for non-gym workout ideas, and set the cardio days in your plan.

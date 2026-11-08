@@ -188,3 +188,14 @@ export function weeklyMinutes(list, weekStartOf, weekStart, weeks, todayStr) {
   }
   return starts.map((s) => ({ week: s, minutes: Math.round(sums.get(s)) }));
 }
+
+// The activities to show first in the picker: what you said you enjoy plus what you actually log.
+export function topActivityTypes(interests = [], activities = [], n = 6) {
+  const score = new Map();
+  interests.forEach((t, i) => score.set(t, 3 + (interests.length - i) / 100));
+  for (const a of activities) if (!a.deleted_at && a.type) score.set(a.type, (score.get(a.type) ?? 0) + 1);
+  const ranked = [...score.entries()].filter(([t]) => BY_KEY.has(t) && t !== 'other').sort((a, b) => b[1] - a[1]).map(([t]) => t);
+  if (!ranked.length) return [];
+  for (const t of ['walk', 'run', 'cycle', 'stretching', 'swim', 'hike']) if (ranked.length < Math.min(n, 4) && !ranked.includes(t)) ranked.push(t);
+  return ranked.slice(0, n);
+}

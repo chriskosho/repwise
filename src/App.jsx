@@ -17,6 +17,7 @@ import Suggest from './components/Suggest';
 import Onboarding from './components/Onboarding';
 import Tour from './components/Tour';
 import { PlanView } from './components/PlanCard';
+import { topActivityTypes } from './activities';
 import { STYLE_FOR_GOAL, adaptPlan, shouldOnboard } from './plan';
 import { BodyIcon, HistoryIcon, Logo, ProgressIcon, SettingsIcon, WorkoutIcon } from './components/Icons';
 
@@ -117,7 +118,8 @@ export default function App() {
   const places = useLiveQuery(listPlaces, [], []);
   const openActivity = (doc, isNew = false) => setActivityView({ doc, isNew });
 
-  const workoutsList = useWorkouts().workouts;
+  const { workouts: workoutsList, activities: activityRows } = useWorkouts();
+  const favorites = topActivityTypes(profile?.onboarding?.interests ?? [], activityRows ?? []);
   const planDone = (day) => {
     const plan = profile?.plan;
     if (day.k === 's') {
@@ -253,6 +255,7 @@ export default function App() {
             isNew={activityView.isNew}
             places={places}
             unit={unit}
+            favorites={favorites}
             onClose={() => setActivityView(null)}
           />
         ) : routineView ? (

@@ -22,6 +22,21 @@ export const LEVELS = [
   ['pro', 'Experienced', 'You train regularly and know the lifts.'],
 ];
 export const DAYS_PER_WEEK = [2, 3, 4, 5, 6];
+export const TIMES_OF_DAY = [
+  ['morning', 'Morning'],
+  ['afternoon', 'Afternoon'],
+  ['evening', 'Evening'],
+  ['any', 'It varies'],
+];
+export const WEEKDAYS = [
+  [0, 'Sun'],
+  [1, 'Mon'],
+  [2, 'Tue'],
+  [3, 'Wed'],
+  [4, 'Thu'],
+  [5, 'Fri'],
+  [6, 'Sat'],
+];
 export const CARDIO_CHOICES = ['walk', 'run', 'cycle', 'swim', 'row', 'hike', 'elliptical'];
 export const STYLE_FOR_GOAL = { muscle: 'muscle', strength: 'strength', lose: 'lean', endurance: 'lean', health: 'general' };
 const FOCI = new Set(['push', 'pull', 'legs', 'core', 'full']);
@@ -40,6 +55,17 @@ export const diffDays = (a, b) => Math.round((parse(a) - parse(b)) / 86400000);
 
 // Where the training days fall in a 7-day week.
 const SLOTS = { 1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5] };
+
+// Which of the 7 days in a week block to train on, given the weekdays you are free.
+function slotsFor(d, startDow, available) {
+  const free = [];
+  for (let p = 0; p < 7; p++) if (!available || available.includes((startDow + p) % 7)) free.push(p);
+  if (!available || free.length === 0 || free.length === 7) return SLOTS[d];
+  const n = Math.min(d, free.length);
+  if (n === free.length) return free;
+  if (n === 1) return [free[0]];
+  return [...new Set(Array.from({ length: n }, (_, i) => free[Math.round((i * (free.length - 1)) / (n - 1))]))];
+}
 
 function strengthFoci(s, level) {
   if (s <= 0) return [];
@@ -60,10 +86,10 @@ function cardioCount(goal, d) {
 }
 
 // One week's pattern: an array of 7 days of { k, f?, m, t?, ease? }.
-function weekPattern({ goal, level, per_week, minutes, cardio }, d, ease, cardioStart) {
+function weekPattern({ goal, level, per_week, minutes, cardio }, slots, ease, cardioStart, free) {
+  const d = slots.length;
   const c = Math.min(cardioCount(goal, d), d - 1);
   const s = d - c;
-  const slots = SLOTS[d];
   const cardioAt = new Set();
   for (let i = 1; i <= c; i++) cardioAt.add(Math.min(d - 1, Math.floor((i * d) / (c + 1))));
   const foci = strengthFoci(s, level);
@@ -77,7 +103,10 @@ function weekPattern({ goal, level, per_week, minutes, cardio }, d, ease, cardio
       week[slot] = { k: 's', f: foci[si++] ?? 'full', m: minutes, ...(ease ? { ease: true } : {}) };
     }
   });
-  if (week[6].k === 'r' && ['lose', 'health', 'endurance'].includes(goal)) week[6] = { k: 'a', m: 20, t: 'walk' };
+  if (['lose', 'health', 'endurance'].includes(goal)) {
+    const easy = [6, 5, 4, 3, 2, 1, 0].find((pos) => week[pos].k === 'r' && free(pos));
+    if (easy !== undefined) week[easy] = { k: 'a', m: 20, t: 'walk' };
+  }
   return { week, cardioUsed: ci - cardioStart };
 }
 
@@ -85,11 +114,15 @@ export function defaultCardio(level) {
   return level === 'new' ? ['walk'] : level === 'some' ? ['walk', 'cycle'] : ['run', 'cycle'];
 }
 
-export function buildPlan({ length, start, goal, level, per_week, minutes, gear = 'gym', cardio }) {
+export function buildPlan({ length, start, goal, level, per_week, minutes, gear = 'gym', cardio, available, time }) {
   const L = LENGTHS.find(([n]) => n === length) ? length : 21;
   const pw = Math.min(6, Math.max(2, Number(per_week) || 3));
   const mins = Math.min(120, Math.max(10, Number(minutes) || 45));
   const types = (cardio ?? []).filter((t) => CARDIO_TYPES.has(t));
+  const avail = Array.isArray(available) ? [...new Set(available.filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort() : null;
+  const limited = avail && avail.length > 0 && avail.length < 7 ? avail : null;
+  const startDow = parse(start).getDay();
+  const free = (pos) => !limited || limited.includes((startDow + pos) % 7);
   const opts = { goal, level, per_week: pw, minutes: mins, cardio: types.length ? types : defaultCardio(level) };
   const days = [];
   let cardioIndex = 0;
@@ -98,11 +131,24 @@ export function buildPlan({ length, start, goal, level, per_week, minutes, gear 
     const deload = (L >= 28 && w === 3) || (L >= 56 && w === 7);
     const ease = (level === 'new' && w === 0) || deload;
     const d = level === 'new' && w === 0 ? Math.min(pw, 3) : pw;
-    const { week, cardioUsed } = weekPattern(opts, d, ease, cardioIndex);
+    const { week, cardioUsed } = weekPattern(opts, slotsFor(d, startDow, limited), ease, cardioIndex, free);
     cardioIndex += cardioUsed;
     for (const day of week) if (days.length < L) days.push(day);
   }
-  return { v: 1, length: L, start, goal, level, per_week: pw, minutes: mins, gear: GEARS.has(gear) ? gear : 'gym', cardio: opts.cardio, days };
+  return {
+    v: 1,
+    length: L,
+    start,
+    goal,
+    level,
+    per_week: pw,
+    minutes: mins,
+    gear: GEARS.has(gear) ? gear : 'gym',
+    cardio: opts.cardio,
+    ...(limited ? { available: limited } : {}),
+    ...(TIMES_OF_DAY.some(([k]) => k === time) && time !== 'any' ? { time } : {}),
+    days,
+  };
 }
 
 export const planDate = (plan, n) => addDays(plan.start, n - 1);
@@ -156,6 +202,16 @@ export function planProgress(plan, workouts, todayStr) {
 }
 
 // ---- validation, for the profile, the server and backups ----
+function cleanWhen(p) {
+  const out = {};
+  if (Array.isArray(p.available)) {
+    const a = [...new Set(p.available.filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort();
+    if (a.length > 0 && a.length < 7) out.available = a;
+  }
+  if (['morning', 'afternoon', 'evening'].includes(p.time)) out.time = p.time;
+  return out;
+}
+
 export function cleanPlan(p) {
   if (!p || typeof p !== 'object') return null;
   const length = Number(p.length);
@@ -184,6 +240,7 @@ export function cleanPlan(p) {
     minutes: Math.min(240, Math.max(10, Math.round(Number(p.minutes)) || 45)),
     gear: GEARS.has(p.gear) ? p.gear : 'gym',
     cardio: (Array.isArray(p.cardio) ? p.cardio : []).filter((t) => CARDIO_TYPES.has(t)).slice(0, 8),
+    ...cleanWhen(p),
     days,
     ...(typeof p.ended_at === 'string' ? { ended_at: p.ended_at.slice(0, 30) } : {}),
     ...(Array.isArray(p.log) && p.log.length
@@ -210,6 +267,12 @@ export function cleanOnboarding(o) {
   if (m >= 5 && m <= 240) out.minutes = m;
   if (GEARS.has(o.gear)) out.gear = o.gear;
   if (Array.isArray(o.cardio)) out.cardio = o.cardio.filter((t) => CARDIO_TYPES.has(t)).slice(0, 8);
+  if (Array.isArray(o.interests)) out.interests = [...new Set(o.interests.filter((t) => CARDIO_TYPES.has(t) && t !== 'other'))].slice(0, 12);
+  if (['morning', 'afternoon', 'evening', 'any'].includes(o.time)) out.time = o.time;
+  if (Array.isArray(o.days)) {
+    const dd = [...new Set(o.days.filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))].sort();
+    if (dd.length) out.days = dd;
+  }
   return Object.keys(out).length ? out : null;
 }
 
@@ -228,11 +291,12 @@ const weekday = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-US
 const training = (d, dates) => (d.k === 's' || d.k === 'c') && !d.mv ? true : dates.has(d.date);
 
 // Move a workout to the first free rest day soon after `fromIdx`, without making a long run of training days.
-function moveWorkout(days, fromIdx, todayIdx, dates) {
+function moveWorkout(days, fromIdx, todayIdx, dates, available) {
   const src = days[fromIdx];
   days[fromIdx] = { ...src, mv: true }; // so the run count below ignores the day being moved
   for (let j = todayIdx + 1; j <= Math.min(days.length - 1, todayIdx + 4); j++) {
     if (j === fromIdx || !(days[j].k === 'r' || days[j].k === 'a') || dates.has(days[j].date)) continue;
+    if (available && !available.includes(parse(days[j].date).getDay())) continue;
     // Count the training run this day would create.
     let run = 1;
     for (let i = j - 1; i >= 0 && training(days[i], dates); i--) run++;
@@ -271,7 +335,7 @@ export function adaptPlan(plan, workouts, todayStr) {
     if (seen.has(key) || !isWorkoutDay(d) || d.mv || dates.has(d.date)) continue;
     const todayBusy = isWorkoutDay(today) && !today.mv && !dates.has(todayStr);
     if (!todayBusy && ti - i < 2) continue;
-    const moved = moveWorkout(days, i, ti, dates);
+    const moved = moveWorkout(days, i, ti, dates, plan.available);
     if (moved) note(key, `You missed ${weekday(d.date)}'s ${d.k === 's' ? dayTitle(d).toLowerCase() : 'cardio'} workout, so it moved to ${weekday(moved.date)}.`);
     else note(key, `You missed ${weekday(d.date)}'s workout. There was no good day to move it to, so we've left it.`);
     changed = true;
@@ -282,7 +346,7 @@ export function adaptPlan(plan, workouts, todayStr) {
   for (let i = dates.has(todayStr) ? ti : ti - 1; i >= 0 && dates.has(days[i].date); i--) run++;
   const tomorrow = days[ti + 1];
   if (run >= 4 && tomorrow && isWorkoutDay(tomorrow) && !tomorrow.mv && !seen.has(`rest:${tomorrow.date}`)) {
-    const moved = moveWorkout(days, ti + 1, ti + 1, dates);
+    const moved = moveWorkout(days, ti + 1, ti + 1, dates, plan.available);
     if (moved) {
       note(`rest:${tomorrow.date}`, `You've trained ${run} days in a row, so ${weekday(tomorrow.date)} is now a rest day and that workout moved to ${weekday(moved.date)}.`);
     } else {

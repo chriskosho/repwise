@@ -162,3 +162,47 @@ describe('adapting to what you do', () => {
     expect(recentNotes(r.plan, D(14))[0].t).toMatch(/Two full weeks/);
   });
 });
+
+import { topActivityTypes } from '../src/activities';
+import { suggestWorkout } from '../src/suggest';
+describe('days you are free and what you enjoy', () => {
+  const dow = (plan, i) => new Date(`${addDays(plan.start, i)}T12:00:00`).getDay();
+  it('only trains on the weekdays you picked and caps workouts at those days', () => {
+    const p = mk({ per_week: 4, length: 30, available: [2, 4, 6], time: 'morning' }); // Tue, Thu, Sat
+    expect(p).toMatchObject({ available: [2, 4, 6], time: 'morning' });
+    const train = p.days.map((d, i) => ({ d, i })).filter(({ d }) => d.k !== 'r');
+    expect(train.every(({ i }) => [2, 4, 6].includes(dow(p, i)))).toBe(true);
+    expect(train.length).toBeGreaterThanOrEqual(12); // 3 a week for 4 weeks
+    expect(cleanPlan(p)).toEqual(p);
+  });
+  it('spreads fewer workouts evenly across your free days', () => {
+    const p = mk({ per_week: 2, length: 14, available: [1, 2, 3, 4, 5] }); // Mon–Fri free, start Monday
+    const train = p.days.slice(0, 7).map((d, i) => (d.k !== 'r' ? dow(p, i) : null)).filter((x) => x !== null);
+    expect(train).toEqual([1, 5]);
+  });
+  it('starts mid-week and keeps the pattern on your days', () => {
+    const p = mk({ start: '2026-11-11', per_week: 3, available: [1, 3, 5] }); // starts on a Wednesday
+    p.days.forEach((d, i) => { if (d.k !== 'r') expect([1, 3, 5]).toContain(dow(p, i)); });
+  });
+  it('never moves a missed workout onto a day you are not free', () => {
+    const p = mk({ per_week: 2, length: 21, available: [1, 3, 5, 6] }); // Mon and Sat planned; Thu is not free
+    expect(dow(p, 0)).toBe(1);
+    const r = adaptPlan(p, [], addDays(START, 2)); // missed Monday, now Wednesday
+    const moved = r.plan.days.findIndex((d) => d.adj);
+    expect(dow(p, moved)).toBe(5); // Friday, skipping Thursday
+    expect(r.plan.available).toEqual([1, 3, 5, 6]);
+  });
+  it('ranks activities by what you like and what you log', () => {
+    expect(topActivityTypes([], [])).toEqual([]);
+    const log = [{ type: 'tennis' }, { type: 'tennis' }, { type: 'run' }];
+    expect(topActivityTypes(['swim', 'pickleball'], log).slice(0, 4)).toEqual(['swim', 'pickleball', 'tennis', 'run']);
+    expect(topActivityTypes(['yoga'], []).length).toBe(4); // padded with common choices
+    expect(topActivityTypes(['other', 'nonsense'], [])).toEqual([]);
+  });
+  it('uses your interests for non-gym ideas', () => {
+    const lib = [{ name: 'Barbell Squat', muscle: 'quadriceps', equipment: 'barbell', category: 'strength', id: 'x', level: 'beginner', compound: true }];
+    const s = suggestWorkout({ library: lib, todayStr: '2026-11-07', options: { interests: ['pickleball', 'swim'] } });
+    expect(s.ideas.map((i) => i.type)).toEqual(expect.arrayContaining(['pickleball', 'swim']));
+    expect(s.ideas.find((i) => i.type === 'pickleball').minutes).toBe(45);
+  });
+});
