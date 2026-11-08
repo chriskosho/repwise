@@ -224,7 +224,7 @@ function Places() {
   );
 }
 
-export default function Settings({ sync, unit, setUnit, onExported }) {
+export default function Settings({ sync, unit, setUnit, onExported, plan = null, onboarded = false, onGuide = () => {} }) {
   const [pendingUnit, setPendingUnit] = useState(null);
   const [email, setEmail] = useState('');
   const [linkSent, setLinkSent] = useState(false);
@@ -542,6 +542,26 @@ export default function Settings({ sync, unit, setUnit, onExported }) {
             Alerts only work while Repwise is open and the screen is on. Browsers don't allow web apps to sound alarms from the
             background, which is why the screen stays on during a workout.
           </p>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Plan and tour</h2>
+        <p className="muted">
+          {plan ? `Active plan: ${plan.length} days starting ${plan.start}.` : 'No active plan.'} Plans are built from a few questions about your goal and schedule.
+        </p>
+        <div className="actions">
+          <button type="button" className="btn btn-small" onClick={() => onGuide(onboarded ? 'plan' : 'first')}>
+            {plan ? 'Build a new plan' : 'Set up my plan'}
+          </button>
+          {plan && (
+            <button type="button" className="btn btn-small btn-ghost" onClick={() => onGuide('plan-view')}>
+              View plan
+            </button>
+          )}
+          <button type="button" className="btn btn-small btn-ghost" onClick={() => onGuide('tour')}>
+            Take the tour
+          </button>
         </div>
       </section>
 

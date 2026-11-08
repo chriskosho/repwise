@@ -118,3 +118,13 @@ node scripts/build-library.mjs path/to/free-exercise-db/dist/exercises.json
 - **Warm-up ramps**: heavy opening lifts in a suggested workout get warm-up sets (for example 50% and 75%), filled in when you start it.
 - **Plate calculator**: for barbell lifts the workout screen shows which plates go on each side. Set your bar weight and plates in Settings.
 - **Stall and best notes**: suggestions mention a new best from last time, or a stall (no progress in 3 sessions) with a few things to try.
+
+## Getting started: onboarding and plans
+
+- New users get a short welcome flow: name and units, goal, experience, workouts per week and minutes, equipment, cardio they enjoy, and (optionally) weight, height and goal weight. It can be skipped.
+- Repwise builds a **7, 21, 30 or 60 day plan**: strength days (push/pull/legs or full body), cardio days, easy days and rest days. New lifters get an easy first week; longer plans include lighter recovery weeks.
+- The Workout tab shows **today's card**: start the planned workout (a suggested workout preset to that day's focus, with weights and warm-ups) or log the planned cardio. Skipped a day? It offers to catch up. **View plan** shows every day with check-offs.
+- Finishing the questions also sets a weekly workout goal (and a body-weight goal if you gave a goal weight).
+- A six-card tour explains the app. Reopen it, or build a new plan, from Settings → Plan and tour.
+- The plan and your answers live on your profile, so they sync between devices and are included in backups. Supabase: `profiles.onboarding` and `profiles.plan` (jsonb), see `supabase/schema.sql`.
+- The welcome flow only appears for accounts with no workouts and no saved answers; signed-in users wait for the first sync so it doesn't show on a second device.

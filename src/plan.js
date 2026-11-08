@@ -1,0 +1,213 @@
+// Starter plans: a day-by-day schedule built from a few questions. Pure functions.
+// A plan is stored on your profile as { v, length, start, goal, level, per_week, minutes,
+// gear, cardio, days: [{ k, f, m, t, ease }] }. Dates come from `start` + day number.
+import { ACTIVITY_TYPES } from './activities';
+
+export const LENGTHS = [
+  [7, 'Kick-start week', 'A first week to find your rhythm and try the app.'],
+  [21, 'Habit builder', 'Three weeks, long enough for training to start feeling normal.'],
+  [30, 'Month challenge', 'A month of steady progress with a lighter week to recover.'],
+  [60, 'Two-month build', 'Real change: gradual progress with two lighter weeks built in.'],
+];
+export const GOALS = [
+  ['muscle', 'Build muscle', 'Add size and shape with moderate weights.'],
+  ['strength', 'Get stronger', 'Lift heavier over time with lower reps.'],
+  ['lose', 'Lose weight', 'Lifting plus cardio, with a steady pace.'],
+  ['endurance', 'Build endurance', 'More cardio, with strength to support it.'],
+  ['health', 'Feel healthier', 'A balanced mix to move more and feel good.'],
+];
+export const LEVELS = [
+  ['new', 'New to this', 'Little or no training. We start easy.'],
+  ['some', 'Some experience', 'You have trained on and off.'],
+  ['pro', 'Experienced', 'You train regularly and know the lifts.'],
+];
+export const DAYS_PER_WEEK = [2, 3, 4, 5, 6];
+export const CARDIO_CHOICES = ['walk', 'run', 'cycle', 'swim', 'row', 'hike', 'elliptical'];
+export const STYLE_FOR_GOAL = { muscle: 'muscle', strength: 'strength', lose: 'lean', endurance: 'lean', health: 'general' };
+const FOCI = new Set(['push', 'pull', 'legs', 'core', 'full']);
+const KINDS = new Set(['s', 'c', 'a', 'r']);
+const GEARS = new Set(['gym', 'dumbbells', 'bodyweight']);
+const CARDIO_TYPES = new Set(ACTIVITY_TYPES.map(([k]) => k));
+
+const parse = (d) => new Date(`${d}T12:00:00`);
+const fmt = (d) => d.toLocaleDateString('en-CA');
+export const addDays = (date, n) => {
+  const d = parse(date);
+  d.setDate(d.getDate() + n);
+  return fmt(d);
+};
+export const diffDays = (a, b) => Math.round((parse(a) - parse(b)) / 86400000);
+
+// Where the training days fall in a 7-day week.
+const SLOTS = { 1: [0], 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4], 5: [0, 1, 2, 4, 5], 6: [0, 1, 2, 3, 4, 5] };
+
+function strengthFoci(s, level) {
+  if (s <= 0) return [];
+  if (s === 1) return ['full'];
+  if (s === 2) return ['full', 'full'];
+  if (s === 3) return level === 'pro' ? ['push', 'pull', 'legs'] : ['full', 'full', 'full'];
+  if (s === 4) return ['push', 'legs', 'pull', 'full'];
+  if (s === 5) return ['push', 'pull', 'legs', 'full', 'core'];
+  return ['push', 'pull', 'legs', 'push', 'pull', 'legs'];
+}
+
+function cardioCount(goal, d) {
+  if (d <= 1) return 0;
+  if (goal === 'lose') return Math.max(1, Math.round(d * 0.4));
+  if (goal === 'endurance') return Math.max(1, Math.round(d * 0.6));
+  if (goal === 'health') return d >= 4 ? 2 : 1;
+  return d >= 5 ? 1 : 0; // muscle, strength
+}
+
+// One week's pattern: an array of 7 days of { k, f?, m, t?, ease? }.
+function weekPattern({ goal, level, per_week, minutes, cardio }, d, ease, cardioStart) {
+  const c = Math.min(cardioCount(goal, d), d - 1);
+  const s = d - c;
+  const slots = SLOTS[d];
+  const cardioAt = new Set();
+  for (let i = 1; i <= c; i++) cardioAt.add(Math.min(d - 1, Math.floor((i * d) / (c + 1))));
+  const foci = strengthFoci(s, level);
+  const week = Array.from({ length: 7 }, () => ({ k: 'r' }));
+  let si = 0;
+  let ci = cardioStart;
+  slots.forEach((slot, i) => {
+    if (cardioAt.has(i) && c > 0) {
+      week[slot] = { k: 'c', m: Math.max(15, Math.min(minutes, level === 'new' ? 30 : 60)), t: cardio[ci++ % cardio.length] };
+    } else {
+      week[slot] = { k: 's', f: foci[si++] ?? 'full', m: minutes, ...(ease ? { ease: true } : {}) };
+    }
+  });
+  if (week[6].k === 'r' && ['lose', 'health', 'endurance'].includes(goal)) week[6] = { k: 'a', m: 20, t: 'walk' };
+  return { week, cardioUsed: ci - cardioStart };
+}
+
+export function defaultCardio(level) {
+  return level === 'new' ? ['walk'] : level === 'some' ? ['walk', 'cycle'] : ['run', 'cycle'];
+}
+
+export function buildPlan({ length, start, goal, level, per_week, minutes, gear = 'gym', cardio }) {
+  const L = LENGTHS.find(([n]) => n === length) ? length : 21;
+  const pw = Math.min(6, Math.max(2, Number(per_week) || 3));
+  const mins = Math.min(120, Math.max(10, Number(minutes) || 45));
+  const types = (cardio ?? []).filter((t) => CARDIO_TYPES.has(t));
+  const opts = { goal, level, per_week: pw, minutes: mins, cardio: types.length ? types : defaultCardio(level) };
+  const days = [];
+  let cardioIndex = 0;
+  for (let w = 0; days.length < L; w++) {
+    // New lifters ease in: at most 3 days and lighter sets in week 1. Longer plans get lighter weeks.
+    const deload = (L >= 28 && w === 3) || (L >= 56 && w === 7);
+    const ease = (level === 'new' && w === 0) || deload;
+    const d = level === 'new' && w === 0 ? Math.min(pw, 3) : pw;
+    const { week, cardioUsed } = weekPattern(opts, d, ease, cardioIndex);
+    cardioIndex += cardioUsed;
+    for (const day of week) if (days.length < L) days.push(day);
+  }
+  return { v: 1, length: L, start, goal, level, per_week: pw, minutes: mins, gear: GEARS.has(gear) ? gear : 'gym', cardio: opts.cardio, days };
+}
+
+export const planDate = (plan, n) => addDays(plan.start, n - 1);
+export const planWeek = (n) => Math.floor((n - 1) / 7) + 1;
+export function phaseOf(plan, week) {
+  const days = plan.days.slice((week - 1) * 7, week * 7);
+  const lighter = days.some((d) => d.k === 's' && d.ease);
+  if (lighter && plan.level !== 'new') return 'Lighter week to recover';
+  if (week === 1) return plan.level === 'new' ? 'Learn the moves' : 'Settle into the routine';
+  if (week === 2) return plan.level === 'new' ? 'Find your weights' : 'Build the habit';
+  if (week === 3) return 'Build momentum';
+  return 'Keep progressing';
+}
+export const isWorkoutDay = (d) => d.k === 's' || d.k === 'c';
+export const dayTitle = (d) => {
+  if (d.k === 'r') return 'Rest day';
+  if (d.k === 'a') return 'Easy day';
+  if (d.k === 'c') return 'Cardio';
+  return { push: 'Push', pull: 'Pull', legs: 'Legs', core: 'Core', full: 'Full body' }[d.f] ?? 'Strength';
+};
+
+// Where you are in the plan. `workouts` only needs a `date` on each item.
+export function planProgress(plan, workouts, todayStr) {
+  const days = plan.days.map((d, i) => ({ ...d, n: i + 1, date: planDate(plan, i + 1), week: planWeek(i + 1) }));
+  const dates = new Set(workouts.filter((w) => !w.deleted_at).map((w) => w.date));
+  for (const d of days) d.done = dates.has(d.date);
+  const dayNumber = diffDays(todayStr, plan.start) + 1;
+  const status = dayNumber < 1 ? 'upcoming' : dayNumber > plan.length ? 'finished' : 'active';
+  const work = days.filter(isWorkoutDay);
+  const doneCount = work.filter((d) => d.done).length;
+  const toDate = work.filter((d) => d.date <= todayStr);
+  const today = status === 'active' ? days[dayNumber - 1] : null;
+  const missed = work.filter((d) => d.date < todayStr && !d.done && d.date >= addDays(todayStr, -3));
+  const catchUp = status === 'active' && !(today && isWorkoutDay(today) && !today.done) ? missed[missed.length - 1] ?? null : null;
+  const next = work.find((d) => d.date > todayStr) ?? null;
+  const offPlan = [...dates].filter((dt) => dt >= plan.start && dt <= addDays(plan.start, plan.length - 1) && dt <= todayStr).length;
+  return {
+    status,
+    dayNumber: Math.min(Math.max(dayNumber, 0), plan.length),
+    week: today ? today.week : status === 'finished' ? planWeek(plan.length) : 1,
+    days,
+    today,
+    catchUp,
+    next,
+    planned: work.length,
+    plannedToDate: toDate.length,
+    done: doneCount,
+    activeDays: offPlan,
+    percent: work.length ? Math.round((doneCount / work.length) * 100) : 0,
+  };
+}
+
+// ---- validation, for the profile, the server and backups ----
+export function cleanPlan(p) {
+  if (!p || typeof p !== 'object') return null;
+  const length = Number(p.length);
+  if (!LENGTHS.some(([n]) => n === length) || !Array.isArray(p.days) || p.days.length !== length) return null;
+  if (typeof p.start !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(p.start)) return null;
+  const days = p.days.map((d) => {
+    const k = KINDS.has(d?.k) ? d.k : 'r';
+    const out = { k };
+    if (k === 's') {
+      out.f = FOCI.has(d.f) ? d.f : 'full';
+      if (d.ease) out.ease = true;
+    }
+    if (k === 's' || k === 'c' || k === 'a') out.m = Math.min(240, Math.max(5, Math.round(Number(d.m)) || 30));
+    if (k === 'c' || k === 'a') out.t = CARDIO_TYPES.has(d.t) ? d.t : 'walk';
+    return out;
+  });
+  return {
+    v: 1,
+    length,
+    start: p.start,
+    goal: GOALS.some(([k]) => k === p.goal) ? p.goal : 'health',
+    level: LEVELS.some(([k]) => k === p.level) ? p.level : 'some',
+    per_week: Math.min(6, Math.max(1, Math.round(Number(p.per_week)) || 3)),
+    minutes: Math.min(240, Math.max(10, Math.round(Number(p.minutes)) || 45)),
+    gear: GEARS.has(p.gear) ? p.gear : 'gym',
+    cardio: (Array.isArray(p.cardio) ? p.cardio : []).filter((t) => CARDIO_TYPES.has(t)).slice(0, 8),
+    days,
+    ...(typeof p.ended_at === 'string' ? { ended_at: p.ended_at.slice(0, 30) } : {}),
+  };
+}
+
+export function cleanOnboarding(o) {
+  if (!o || typeof o !== 'object') return null;
+  const out = {};
+  if (typeof o.done_at === 'string') out.done_at = o.done_at.slice(0, 30);
+  if (o.skipped) out.skipped = true;
+  if (GOALS.some(([k]) => k === o.goal)) out.goal = o.goal;
+  if (LEVELS.some(([k]) => k === o.level)) out.level = o.level;
+  const pw = Math.round(Number(o.per_week));
+  if (pw >= 1 && pw <= 7) out.per_week = pw;
+  const m = Math.round(Number(o.minutes));
+  if (m >= 5 && m <= 240) out.minutes = m;
+  if (GEARS.has(o.gear)) out.gear = o.gear;
+  if (Array.isArray(o.cardio)) out.cardio = o.cardio.filter((t) => CARDIO_TYPES.has(t)).slice(0, 8);
+  return Object.keys(out).length ? out : null;
+}
+
+// Show the welcome flow only to people who are new: no workouts, no profile choices yet.
+export function shouldOnboard({ profile, workoutCount, signedIn, synced }) {
+  if (profile === undefined || workoutCount === undefined) return false; // still loading
+  if (profile?.onboarding) return false;
+  if (workoutCount > 0) return false;
+  if (signedIn && !synced) return false; // wait: your profile may be on the server already
+  return true;
+}

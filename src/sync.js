@@ -34,6 +34,8 @@ export const TABLES = [
       units: p.units === 'kg' ? 'kg' : 'lb',
       height_cm: p.height_cm ?? null,
       week_start: p.week_start === 0 ? 0 : 1,
+      onboarding: p.onboarding ?? null,
+      plan: p.plan ?? null,
       created_at: p.created_at,
       deleted_at: p.deleted_at ?? null,
     }),

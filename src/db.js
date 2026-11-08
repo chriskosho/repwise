@@ -2,6 +2,7 @@ import Dexie from 'dexie';
 import { key } from './stats';
 import { isActivityType } from './activities';
 import { isMode } from './measure';
+import { cleanOnboarding, cleanPlan } from './plan';
 import { findExercise, loadLibrary } from './library';
 
 export const newId = () => crypto.randomUUID();
@@ -350,7 +351,7 @@ export async function listCustomExercises() {
 
 // ---- profile (a single row, id 'me'; on the server its id is your account id) ----
 export const PROFILE_ID = 'me';
-export const PROFILE_DEFAULTS = { display_name: '', units: 'lb', height_cm: null, week_start: 1 };
+export const PROFILE_DEFAULTS = { display_name: '', units: 'lb', height_cm: null, week_start: 1, onboarding: null, plan: null };
 
 export async function getProfile() {
   const row = await db.profile.get(PROFILE_ID);
@@ -366,6 +367,8 @@ export async function saveProfile(patch) {
     const h = Number(patch.height_cm);
     clean.height_cm = patch.height_cm === null || patch.height_cm === '' || !(h > 0 && h < 300) ? null : h;
   }
+  if ('onboarding' in patch) clean.onboarding = cleanOnboarding(patch.onboarding);
+  if ('plan' in patch) clean.plan = cleanPlan(patch.plan);
   return putRow(db.profile, { ...PROFILE_DEFAULTS, ...(await db.profile.get(PROFILE_ID)), ...clean, id: PROFILE_ID, deleted_at: null });
 }
 

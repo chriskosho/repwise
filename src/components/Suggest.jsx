@@ -9,10 +9,10 @@ import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
 
 // "I don't know what to do today": a workout built from your goals and what you've trained lately.
-export default function Suggest({ unit, onClose, onStarted, onLogActivity, onSaveRoutine }) {
-  const [minutes, setMinutes] = useState(45);
-  const [gear, setGear] = useState('gym');
-  const [focus, setFocus] = useState('auto');
+export default function Suggest({ unit, preset = null, onClose, onStarted, onLogActivity, onSaveRoutine }) {
+  const [minutes, setMinutes] = useState(preset?.minutes ?? 45);
+  const [gear, setGear] = useState(preset?.gear ?? 'gym');
+  const [focus, setFocus] = useState(preset?.focus ?? 'auto');
   const [seed, setSeed] = useState(0);
   const [feeling, setFeeling] = useState('auto');
   const [info, setInfo] = useState(null);
@@ -38,9 +38,9 @@ export default function Suggest({ unit, onClose, onStarted, onLogActivity, onSav
       latestKg,
       unit,
       weekStart: profile?.week_start ?? 1,
-      options: { minutes, gear, focus, seed, feeling },
+      options: { minutes, gear, focus, seed, feeling, style: preset?.style ?? '', ease: !!preset?.ease },
     });
-  }, [library, custom, sessions, activities, workouts, goals, latestKg, unit, profile?.week_start, minutes, gear, focus, seed, feeling]);
+  }, [library, custom, sessions, activities, workouts, goals, latestKg, unit, profile?.week_start, minutes, gear, focus, seed, feeling, preset]);
 
   async function start() {
     setBusy(true);
@@ -60,7 +60,7 @@ export default function Suggest({ unit, onClose, onStarted, onLogActivity, onSav
           ← Back
         </button>
         <h2>Suggest a workout</h2>
-        <p className="muted">Built from your goals and what you've trained lately. Change anything, or shuffle for another option.</p>
+        <p className="muted">{preset ? 'Today\'s workout from your plan. Change anything, or shuffle for another option.' : 'Built from your goals and what you\'ve trained lately. Change anything, or shuffle for another option.'}</p>
       </div>
 
       <div className="card form">

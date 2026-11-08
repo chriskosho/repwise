@@ -1,3 +1,4 @@
+import { cleanOnboarding, cleanPlan } from './plan';
 import { cleanActivity, cleanTarget, cleanGoal, cleanMeasurements, db, newId, PROFILE_ID, sessionFromLegacy, setLastExport, today } from './db';
 import { key as nameKey } from './stats';
 import { EQUIPMENT, MUSCLES } from './library';
@@ -78,7 +79,7 @@ export async function buildExport() {
     })),
     profile:
       profile && !profile.deleted_at
-        ? { display_name: profile.display_name, units: profile.units, height_cm: profile.height_cm, week_start: profile.week_start }
+        ? { display_name: profile.display_name, units: profile.units, height_cm: profile.height_cm, week_start: profile.week_start, onboarding: profile.onboarding ?? null, plan: profile.plan ?? null }
         : null,
   };
 }
@@ -400,6 +401,8 @@ export async function importFile(file) {
         units: p.units === 'kg' ? 'kg' : 'lb',
         height_cm: h > 0 && h < 300 ? h : null,
         week_start: p.week_start === 0 ? 0 : 1,
+        onboarding: cleanOnboarding(p.onboarding),
+        plan: cleanPlan(p.plan),
         created_at: new Date().toISOString(),
         deleted_at: null,
         dirty: 1,

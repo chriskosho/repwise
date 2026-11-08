@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getProfile, listPlaces, listSessions, needsExportReminder, newActivity, saveProfile } from './db';
+import { db, getProfile, today, listPlaces, listSessions, needsExportReminder, newActivity, saveProfile } from './db';
 import { downloadExport } from './backup';
 import { loadLibrary } from './library';
 import { useRest } from './rest';
+import { useWorkouts } from './workouts';
 import { useSync } from './sync';
 import { useOnline } from './useOnline';
 import WorkoutTab, { EditSession } from './components/WorkoutTab';
@@ -13,6 +14,10 @@ import RestBar from './components/RestBar';
 import RoutineEditor from './components/RoutineEditor';
 import ActivityEditor from './components/ActivityEditor';
 import Suggest from './components/Suggest';
+import Onboarding from './components/Onboarding';
+import Tour from './components/Tour';
+import { PlanView } from './components/PlanCard';
+import { STYLE_FOR_GOAL, shouldOnboard } from './plan';
 import { BodyIcon, HistoryIcon, Logo, ProgressIcon, SettingsIcon, WorkoutIcon } from './components/Icons';
 
 // The chart library is the heaviest dependency, so load it only when needed.
@@ -50,6 +55,8 @@ export default function App() {
   const [editId, setEditId] = useState(null);
   const [routineView, setRoutineView] = useState(null); // { doc, isNew } while the routine editor is open
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestPreset, setSuggestPreset] = useState(null);
+  const [guide, setGuide] = useState(null); // 'first' | 'plan' | 'tour' | 'plan-view'
   const [activityView, setActivityView] = useState(null); // { doc, isNew } while the activity editor is open
   const [unitCache, setUnitCache] = useState(readUnit);
   const [dismissed, setDismissed] = useState(false);
@@ -66,7 +73,9 @@ export default function App() {
 
   // The unit lives in your profile (so it follows you between devices); a copy in
   // localStorage keeps it right before the profile has loaded.
-  const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], null);
+  const profileQ = useLiveQuery(async () => ({ p: (await getProfile()) ?? null }), [], undefined);
+  const profile = profileQ?.p ?? null;
+  const profileLoaded = profileQ !== undefined;
   const unit = profile?.units ?? unitCache;
   useEffect(() => {
     if (!profile?.units) return;
@@ -91,6 +100,7 @@ export default function App() {
     setRoutineView(null);
     setActivityView(null);
     setSuggestOpen(false);
+    setGuide(null);
     setTab(id);
   };
 
@@ -105,6 +115,29 @@ export default function App() {
   const sessions = useLiveQuery(listSessions, [], []);
   const places = useLiveQuery(listPlaces, [], []);
   const openActivity = (doc, isNew = false) => setActivityView({ doc, isNew });
+
+  const workoutsList = useWorkouts().workouts;
+  const planDone = (day) => {
+    const plan = profile?.plan;
+    if (day.k === 's') {
+      setSuggestPreset({ focus: day.f, minutes: day.m, gear: plan.gear, style: STYLE_FOR_GOAL[plan.goal], ease: !!day.ease });
+      setSuggestOpen(true);
+    } else {
+      openActivity({ ...newActivity(), type: day.t, duration_min: day.m }, true);
+    }
+  };
+  // New users get the welcome flow automatically (tests render it directly instead).
+  const autoOnboard =
+    import.meta.env.MODE !== 'test' &&
+    profileLoaded &&
+    shouldOnboard({ profile, workoutCount: count, signedIn: !!sync.session, synced: !!sync.lastSynced });
+  const closeGuide = () => setGuide(null);
+  const endPlan = () => saveProfile({ plan: null }).then(() => setGuide(null));
+  // Once the welcome flow starts it stays up until it finishes, even after answers are saved.
+  useEffect(() => {
+    if (autoOnboard && !guide) setGuide('first');
+  }, [autoOnboard, guide]);
+  const guideMode = autoOnboard && !guide ? 'first' : guide;
 
   const showReminder = count > 0 && !dismissed && needsExportReminder();
   const restVisible = rest.end != null || rest.over;
@@ -148,7 +181,31 @@ export default function App() {
           </div>
         )}
 
-        {editId ? (
+        {guideMode === 'first' || guideMode === 'plan' ? (
+          <Onboarding
+            key={guideMode}
+            mode={guideMode}
+            unit={unit}
+            setUnit={setUnit}
+            name={profile?.display_name ?? ''}
+            saved={profile?.onboarding ?? null}
+            onDone={() => {
+              closeGuide();
+              setTab('workout');
+            }}
+          />
+        ) : guideMode === 'tour' ? (
+          <Tour onDone={closeGuide} doneLabel="Done" />
+        ) : guideMode === 'plan-view' && profile?.plan ? (
+          <PlanView
+            plan={profile.plan}
+            workouts={workoutsList ?? []}
+            todayStr={today()}
+            onClose={closeGuide}
+            onNewPlan={() => setGuide('plan')}
+            onEndPlan={endPlan}
+          />
+        ) : editId ? (
           <EditSession
             id={editId}
             unit={unit}
@@ -161,6 +218,7 @@ export default function App() {
         ) : suggestOpen ? (
           <Suggest
             unit={unit}
+            preset={suggestPreset}
             onClose={() => setSuggestOpen(false)}
             onStarted={() => {
               setSuggestOpen(false);
@@ -201,7 +259,17 @@ export default function App() {
                 weekStart={profile?.week_start ?? 1}
                 onOpenSession={setEditId}
                 onLogActivity={() => openActivity(newActivity(), true)}
-                onSuggest={() => setSuggestOpen(true)}
+                onSuggest={() => {
+                  setSuggestPreset(null);
+                  setSuggestOpen(true);
+                }}
+                plan={profile?.plan ?? null}
+                hasOnboarding={!!profile?.onboarding}
+                onPlanDo={planDone}
+                onPlanView={() => setGuide('plan-view')}
+                onNewPlan={() => setGuide(profile?.onboarding?.goal ? 'plan' : 'first')}
+                onEndPlan={endPlan}
+                onDismissOffer={() => saveProfile({ onboarding: { skipped: true } })}
                 onOpenActivity={(a) => openActivity(a)}
                 onOpenRoutine={openRoutine}
                 onShowHistory={() => goTab('history')}
@@ -227,7 +295,7 @@ export default function App() {
               </Suspense>
             )}
             {tab === 'settings' && (
-              <Settings sync={sync} unit={unit} setUnit={setUnit} onExported={() => setTick((t) => t + 1)} />
+              <Settings sync={sync} unit={unit} setUnit={setUnit} onExported={() => setTick((t) => t + 1)} plan={profile?.plan ?? null} onboarded={!!profile?.onboarding?.goal} onGuide={setGuide} />
             )}
           </>
         )}
@@ -235,6 +303,7 @@ export default function App() {
 
       <RestBar />
 
+      {!(guideMode === 'first') && (
       <nav className="tabbar" aria-label="Main">
         {TABS.map(([id, label, Icon]) => (
           <button
@@ -251,6 +320,7 @@ export default function App() {
           </button>
         ))}
       </nav>
+      )}
     </div>
   );
 }

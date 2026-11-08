@@ -19,6 +19,7 @@ import SessionCard from './SessionCard';
 import ActivityCard from './ActivityCard';
 import { useWorkouts } from '../workouts';
 import WorkoutEditor from './WorkoutEditor';
+import PlanCard from './PlanCard';
 
 function Summary({ info, unit, onDone, onSaveRoutine }) {
   const { session, stats, prs } = info;
@@ -149,7 +150,7 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onOpenActivity, onSuggest }) {
+export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onOpenActivity, onSuggest, plan = null, hasOnboarding = false, onPlanDo, onPlanView, onNewPlan, onEndPlan, onDismissOffer }) {
   const active = useLiveQuery(getActiveSession, [], undefined);
   const { sessions, activities, places, workouts } = useWorkouts();
   const routines = useLiveQuery(listRoutines, [], undefined);
@@ -194,6 +195,23 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
 
   return (
     <div>
+      {plan && (
+        <PlanCard plan={plan} workouts={workouts} todayStr={today()} onDo={onPlanDo} onViewPlan={onPlanView} onNewPlan={onNewPlan} onEndPlan={onEndPlan} onSuggest={onSuggest} />
+      )}
+      {!plan && !hasOnboarding && workouts.length > 0 && (
+        <section className="card" aria-label="Starter plans">
+          <h3>New: starter plans</h3>
+          <p className="muted">Answer a few questions and get a 7, 21, 30 or 60 day plan with workouts, cardio and rest days.</p>
+          <div className="actions">
+            <button type="button" className="btn btn-small" onClick={onNewPlan}>
+              Build my plan
+            </button>
+            <button type="button" className="btn btn-small btn-ghost" onClick={onDismissOffer}>
+              Not now
+            </button>
+          </div>
+        </section>
+      )}
       <section className="hero">
         <h2 className="hero-title">
           {greeting()}

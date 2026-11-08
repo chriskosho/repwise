@@ -10,7 +10,7 @@
   --ok: #067647;
   --warn-bg: #fff6e0;
   --warn-line: #f1d48a;
-  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-soft: var(--accent-soft);
   --shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.04);
   --topbar-h: 56px;
   --tab-h: 62px;
@@ -645,7 +645,7 @@ button:focus-visible,
 }
 
 .set-row.is-done {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--accent-soft);
   border-radius: 10px;
 }
 
@@ -900,7 +900,7 @@ button:focus-visible,
 }
 
 .pick.on {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--accent-soft);
 }
 
 .pick-main {
@@ -1715,8 +1715,38 @@ button:focus-visible,
   margin: 0 0 4px;
 }
 
-.notice { border: 1px solid var(--border, #444); border-radius: 10px; padding: 0.7rem 0.8rem; margin: 0.6rem 0; }
+.notice { border: 1px solid var(--line); border-radius: 10px; padding: 0.7rem 0.8rem; margin: 0.6rem 0; }
 .notice p { margin: 0 0 0.5rem; }
 .target-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: end; margin-top: 0.4rem; }
 .target-row .field { flex: 1 1 6rem; margin: 0; }
 .plates-line { margin: -0.2rem 0 0.4rem 2.2rem; font-size: 0.8rem; }
+
+/* onboarding and plan */
+.onboarding { display: grid; gap: 0.8rem; }
+.progress-bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 0.4rem; }
+.progress-bar span { display: block; height: 100%; background: var(--accent); transition: width 0.25s; }
+.tour-step { margin: 0; font-size: 0.8rem; }
+.choices { display: grid; gap: 0.5rem; }
+.choice { text-align: left; display: grid; gap: 0.15rem; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1.5px solid var(--line); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.choice.on { border-color: var(--accent); background: var(--accent-soft); }
+.choice-tag { margin-left: 0.5rem; font-size: 0.7rem; font-weight: 600; padding: 0.1rem 0.45rem; border-radius: 999px; background: var(--accent); color: var(--accent-ink); }
+.pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.pill { min-width: 2.6rem; padding: 0.45rem 0.8rem; border-radius: 999px; border: 1.5px solid var(--line); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.pill.on { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.tour-lines { padding-left: 1.1rem; display: grid; gap: 0.5rem; }
+.tour-dots { display: flex; gap: 0.35rem; margin: 0.8rem 0; }
+.tour-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+.tour-dots span.on { background: var(--accent); }
+.plan-week { display: grid; gap: 0.3rem; }
+.plan-week li { display: grid; grid-template-columns: 3rem 1fr; gap: 0.5rem; padding: 0.3rem 0; border-bottom: 1px solid var(--line); }
+.plan-week li.is-rest { opacity: 0.6; }
+.plan-card h3 { margin: 0.5rem 0 0.3rem; }
+.plan-meta { margin: 0.2rem 0; font-size: 0.82rem; }
+.plan-catchup { margin: 0.6rem 0 0; }
+.plan-days li { display: grid; grid-template-columns: 6.5rem 1fr auto; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line); align-items: center; }
+.plan-days li.is-rest { opacity: 0.6; }
+.plan-days li.today { font-weight: 600; }
+.plan-days li.missed .plan-state { color: #d9822b; }
+.plan-days li.done .plan-state { color: #3aa76d; }
+.plan-state { font-size: 0.8rem; }
+.plan-card .actions { margin-top: 0.6rem; }

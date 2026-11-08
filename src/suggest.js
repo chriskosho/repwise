@@ -190,7 +190,7 @@ export function suggestWorkout({
   todayStr = new Date().toLocaleDateString('en-CA'),
   weekStart = 1,
 }) {
-  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0, feeling = 'auto' } = options;
+  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0, feeling = 'auto', style = '', ease = false } = options;
   const rand = rng(seed + 1);
   const meta = new Map();
   for (const l of library) meta.set(key(l.name), l);
@@ -201,9 +201,11 @@ export function suggestWorkout({
   const since = daysSinceTrained(sessions, muscleOf, todayStr);
   const reasons = [];
   const recovery = assessRecovery([...workouts, ...sessions.filter((x) => x.ended_at)], todayStr);
-  const light = feeling === 'beat' || (feeling === 'auto' && recovery.deload);
+  const easing = ease && feeling !== 'great';
+  const light = feeling === 'beat' || easing || (feeling === 'auto' && recovery.deload);
+  if (easing && feeling !== 'beat') reasons.push('Easy week in your plan: fewer sets and lighter weights while you learn the moves or recover. Pick Great to go full effort.');
   if (feeling === 'beat') reasons.push('You said you feel beat up, so this is a lighter session: fewer sets and about 10% less weight.');
-  else if (feeling === 'auto' && recovery.deload) reasons.push(`You've trained 3+ times a week for ${recovery.heavyWeeks} weeks. This is a lighter "deload" session so your body can catch up. Pick Great to go full effort.`);
+  else if (feeling === 'auto' && recovery.deload && !easing) reasons.push(`You've trained 3+ times a week for ${recovery.heavyWeeks} weeks. This is a lighter "deload" session so your body can catch up. Pick Great to go full effort.`);
   if (recovery.rest && feeling !== 'great') reasons.push(`You've worked out ${recovery.streak} days in a row. A rest day or an easy walk is a good idea.`);
 
   // ---- what are we working toward? ----
@@ -213,11 +215,18 @@ export function suggestWorkout({
   const weekly = live.find((g) => g.type === 'weekly_workouts');
   let intent = 'general';
   if (bw && latestKg != null) intent = bw.target < latestKg - 0.2 ? 'lose' : bw.target > latestKg + 0.2 ? 'gain' : 'general';
-  const scheme = {
+  const STYLES = {
+    strength: { reps: '5–8', sets: 4, why: 'Heavier, lower reps to build strength.' },
+    muscle: { reps: '8–12', sets: 3, why: 'Moderate reps to build muscle.' },
+    lean: { reps: '12–15', sets: 3, why: 'Higher reps and steady pace for conditioning and calorie burn.' },
+    general: { reps: '10–12', sets: 3, why: 'Comfortable reps for all-round fitness.' },
+  };
+  const scheme = STYLES[style] ?? {
     general: { reps: '8–12', sets: 3 },
     lose: { reps: '12–15', sets: 3 },
     gain: { reps: '8–12', sets: 4 },
   }[intent];
+  if (STYLES[style]) reasons.push(STYLES[style].why);
 
   // ---- which part of the body? ----
   let groups;

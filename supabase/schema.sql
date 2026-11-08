@@ -378,3 +378,7 @@ alter table public.goals add constraint goals_type_check check (type in ('weekly
 
 -- Legacy table from the first version of the app; no longer used.
 drop table if exists public.workouts;
+
+-- Onboarding answers and the active starter plan, kept on your profile.
+alter table public.profiles add column if not exists onboarding jsonb;
+alter table public.profiles add column if not exists plan jsonb;
