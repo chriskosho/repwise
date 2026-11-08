@@ -1,7 +1,7 @@
 // Suggested workouts for when you can't decide. Pure functions: give them your library,
 // history and goals and they return a plan. "Shuffle" just changes the seed.
 import { key } from './stats';
-import { weekStartOf } from './goals';
+import { cardioEvents, weekStartOf, weeklyTotalProgress } from './goals';
 import { typeLabel } from './activities';
 import { deriveMode, isMode } from './measure';
 
@@ -231,6 +231,22 @@ export function suggestWorkout({
     if (ideas.length >= 3) break;
     if (!ideas.some((i) => i.type === type)) ideas.push({ type, minutes: m, label: typeLabel(type) });
   }
+
+  // Cardio goals: if you're behind this week, put a matching activity first.
+  const events = cardioEvents(activities, sessions);
+  for (const g of live.filter((x) => x.type === 'weekly_minutes' || x.type === 'weekly_distance')) {
+    const isMin = g.type === 'weekly_minutes';
+    const p = weeklyTotalProgress(events, isMin ? 'minutes' : 'km', g.target, { type: isMin ? '' : g.exercise, weekStart, todayStr });
+    if (p.reached) continue;
+    const type = (!isMin && g.exercise) || ideas[0]?.type || 'walk';
+    const left = isMin ? g.target - p.done : (g.target - p.done) / (events.filter((e) => e.type === type && e.km > 0 && e.minutes > 0).reduce((a, e) => a + e.km / e.minutes, 0) / Math.max(1, events.filter((e) => e.type === type && e.km > 0 && e.minutes > 0).length) || 0.1);
+    const minutes = Math.max(20, Math.min(60, Math.round((isMin ? left : left) / 5) * 5 || 30));
+    reasons.push(isMin ? `Cardio goal: ${Math.round(p.done)} of ${g.target} active minutes so far this week.` : `Distance goal: ${Math.round((p.done / g.target) * 100)}% of this week's target so far.`);
+    const at = ideas.findIndex((i) => i.type === type);
+    if (at >= 0) ideas.splice(at, 1);
+    ideas.unshift({ type, minutes, label: `${typeLabel(type)} (for your goal)` });
+  }
+  ideas.length = Math.min(ideas.length, 3);
 
   const title = groups.length > 1 ? 'Full body' : `${GROUPS[groups[0]].label} day`;
   return { title, groups, intent, minutes, exercises: picked, stretches, ideas, reasons, empty: picked.length === 0 };

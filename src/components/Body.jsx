@@ -34,7 +34,7 @@ export default function Body({ unit }) {
   const entries = useLiveQuery(listBodyEntries, [], undefined);
   const goals = useLiveQuery(listGoals, [], []);
   const sessions = useLiveQuery(listSessions, [], []);
-  const { workouts } = useWorkouts();
+  const { workouts, activities } = useWorkouts();
   const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], null);
 
   const [date, setDate] = useState(today());
@@ -45,13 +45,18 @@ export default function Body({ unit }) {
   const [msg, setMsg] = useState('');
   const [range, setRange] = useState('90');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editingId, setEditingId] = useState(null); // an entry opened from the list; its date can be changed
+  const [isError, setIsError] = useState(false);
   const [limit, setLimit] = useState(PAGE);
 
   const lu = lengthUnit(unit);
 
   // Fill the form from whatever is already saved for the chosen date.
   const existing = useMemo(() => entries?.find((e) => e.date === date), [entries, date]);
+  const editingEntry = editingId ? entries?.find((e) => e.id === editingId) : null;
+  const moved = !!editingEntry && date !== editingEntry.date;
   useEffect(() => {
+    if (moved) return; // keep what's typed while the date is being changed
     setWeight(existing?.weight_kg != null ? String(weightOut(existing.weight_kg, unit)) : '');
     setFat(existing?.body_fat != null ? String(existing.body_fat) : '');
     setMeas(
@@ -59,7 +64,7 @@ export default function Body({ unit }) {
     );
     setNotes(existing?.notes ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existing?.id, existing?.updated_at, date, unit]);
+  }, [existing?.id, existing?.updated_at, date, unit, moved]);
 
   const trend = useMemo(() => (entries ? weightTrend(entries) : []), [entries]);
   const shown = useMemo(() => {
@@ -78,8 +83,15 @@ export default function Body({ unit }) {
     const f = fat === '' ? null : Number(fat);
     const m = Object.fromEntries(Object.entries(meas).filter(([, v]) => v !== '').map(([k, v]) => [k, lengthIn(v, unit)]));
     if (w == null && f == null && !Object.keys(m).length) return setMsg('Enter at least one number.');
-    await saveBodyEntry({ date, weight_kg: w, body_fat: f, measurements: m, notes });
-    setMsg(existing ? 'Updated.' : 'Saved.');
+    try {
+      await saveBodyEntry({ id: editingEntry?.id, date, weight_kg: w, body_fat: f, measurements: m, notes });
+    } catch (err) {
+      setIsError(true);
+      return setMsg(err.message);
+    }
+    setIsError(false);
+    setMsg(moved ? `Moved to ${fmtDayDate(date)}.` : existing || editingEntry ? 'Updated.' : 'Saved.');
+    setEditingId(null);
   }
 
   if (!entries) return <p className="muted">Loading…</p>;
@@ -103,10 +115,19 @@ export default function Body({ unit }) {
                 setDate(e.target.value);
                 setConfirmDelete(false);
                 setMsg('');
+                setIsError(false);
               }}
               required
             />
           </label>
+          {editingEntry && (
+            <p className="muted">
+              Editing the entry from {fmtDayDate(editingEntry.date)}. Change the date above to move it.{' '}
+              <button type="button" className="btn btn-link btn-small" onClick={() => { setEditingId(null); setDate(today()); setMsg(''); }}>
+                Stop editing
+              </button>
+            </p>
+          )}
           <div className="row">
             <label className="field">
               <span>Weight ({unit})</span>
@@ -143,14 +164,14 @@ export default function Body({ unit }) {
           </label>
           <div className="actions">
             <button type="submit" className="btn">
-              {existing ? 'Update entry' : 'Save entry'}
+              {moved ? `Move to ${fmtDayDate(date)}` : existing ? 'Update entry' : 'Save entry'}
             </button>
-            {existing && !confirmDelete && (
+            {existing && !moved && !confirmDelete && (
               <button type="button" className="btn btn-ghost btn-danger" onClick={() => setConfirmDelete(true)}>
                 Delete entry
               </button>
             )}
-            {existing && confirmDelete && (
+            {existing && !moved && confirmDelete && (
               <button
                 type="button"
                 className="btn btn-danger-solid"
@@ -164,7 +185,7 @@ export default function Body({ unit }) {
               </button>
             )}
             {msg && (
-              <span className={msg.startsWith('Enter') ? 'error' : 'success'} role="status">
+              <span className={isError || msg.startsWith('Enter') ? 'error' : 'success'} role="status">
                 {msg}
               </span>
             )}
@@ -212,7 +233,7 @@ export default function Body({ unit }) {
         </section>
       )}
 
-      <Goals goals={goals} sessions={sessions} workouts={workouts} entries={entries} profile={profile} unit={unit} latestKg={latest} />
+      <Goals goals={goals} sessions={sessions} workouts={workouts} activities={activities} entries={entries} profile={profile} unit={unit} latestKg={latest} />
 
       <section className="card">
         <h2>History</h2>
@@ -230,9 +251,11 @@ export default function Body({ unit }) {
                   className="list-row"
                   aria-label={`Edit entry ${e.date}`}
                   onClick={() => {
+                    setEditingId(e.id);
                     setDate(e.date);
                     setConfirmDelete(false);
                     setMsg('');
+                    setIsError(false);
                     window.scrollTo?.({ top: 0, behavior: 'smooth' });
                   }}
                 >

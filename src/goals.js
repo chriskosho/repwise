@@ -1,9 +1,12 @@
 import { workSets, e1rm, key } from './stats';
+import { modeOf } from './measure';
 
 export const GOAL_TYPES = [
   ['weekly_workouts', 'Workouts per week'],
   ['body_weight', 'Body weight'],
   ['lift', 'Lift target'],
+  ['weekly_minutes', 'Active minutes per week'],
+  ['weekly_distance', 'Distance per week'],
 ];
 
 const parse = (date) => new Date(`${date}T00:00:00`);
@@ -38,7 +41,10 @@ export function weeklyCounts(sessions, weekStart = 1) {
 // The current week counts if it is already met; if not, it is simply still in progress
 // and the streak is counted back from last week.
 export function weeklyGoalProgress(sessions, target, weekStart = 1, todayStr = fmt(new Date())) {
-  const counts = weeklyCounts(sessions, weekStart);
+  return progressFromCounts(weeklyCounts(sessions, weekStart), target, weekStart, todayStr);
+}
+
+function progressFromCounts(counts, target, weekStart, todayStr) {
   const thisWeek = weekStartOf(todayStr, weekStart);
   const done = counts.get(thisWeek) ?? 0;
   let streak = 0;
@@ -75,9 +81,61 @@ export function progressBetween(start, current, target) {
   return clamp01((current - start) / (target - start));
 }
 
+// ---- cardio goals ----
+// Which kind of activity a cardio machine in a workout counts as.
+const machineType = (name) =>
+  /bicycl|bike/i.test(name) ? 'cycle' : /rowing/i.test(name) ? 'row' : /walking|trail/i.test(name) ? 'walk' : /running|jogging|sprint/i.test(name) ? 'run' : /elliptical|stair|step ?mill/i.test(name) ? 'elliptical' : 'other';
+
+// Every bout of cardio: your logged activities plus cardio exercises inside gym workouts.
+// Each is { date, type, minutes, km }.
+export function cardioEvents(activities = [], sessions = []) {
+  const out = [];
+  for (const a of activities) {
+    if (a.deleted_at) continue;
+    out.push({ date: a.date, type: a.type, minutes: Number(a.duration_min) || 0, km: Number(a.distance_km) || 0 });
+  }
+  for (const s of sessions) {
+    if (s.deleted_at || !s.ended_at) continue;
+    for (const ex of s.exercises) {
+      if (modeOf(ex) !== 'cardio') continue;
+      for (const st of workSets(ex)) out.push({ date: s.date, type: machineType(ex.name), minutes: (Number(st.time) || 0) / 60, km: Number(st.distance) || 0 });
+    }
+  }
+  return out;
+}
+
+// Weekly total of `field` ('minutes' or 'km'), optionally for one activity type, with the current
+// week's progress and how many weeks in a row met the target.
+export function weeklyTotalProgress(events, field, target, { type = '', weekStart = 1, todayStr = fmt(new Date()) } = {}) {
+  const sums = new Map();
+  for (const e of events) {
+    if (type && e.type !== type) continue;
+    const w = weekStartOf(e.date, weekStart);
+    sums.set(w, (sums.get(w) ?? 0) + e[field]);
+  }
+  const thisWeek = weekStartOf(todayStr, weekStart);
+  const done = sums.get(thisWeek) ?? 0;
+  let streak = 0;
+  let w = done >= target ? thisWeek : addDays(thisWeek, -7);
+  while ((sums.get(w) ?? 0) >= target) {
+    streak++;
+    w = addDays(w, -7);
+  }
+  return { done, target, streak, pct: Math.min(1, done / target), reached: done >= target };
+}
+
 // Everything the goals list needs to display one goal. Weights in kg for body_weight;
 // lifts are in whatever unit you log.
-export function goalStatus(goal, { sessions, workouts, entries, weekStart, latestKg, todayStr }) {
+export function goalStatus(goal, { sessions, workouts, activities, entries, weekStart, latestKg, todayStr }) {
+  if (goal.type === 'weekly_minutes' || goal.type === 'weekly_distance') {
+    const events = cardioEvents(activities ?? [], sessions ?? []);
+    const p = weeklyTotalProgress(events, goal.type === 'weekly_minutes' ? 'minutes' : 'km', goal.target, {
+      type: goal.type === 'weekly_distance' ? goal.exercise : '',
+      weekStart,
+      todayStr,
+    });
+    return { ...p, current: p.done };
+  }
   if (goal.type === 'weekly_workouts') {
     // Activities (a run, a game of pickup) count as workouts for a weekly goal.
     const p = weeklyGoalProgress(workouts ?? sessions, goal.target, weekStart, todayStr);

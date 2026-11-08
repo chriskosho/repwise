@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../src/App';
 import lib from '../src/data/library.json';
@@ -198,5 +198,72 @@ describe('the workout screen', () => {
     await user.click(await screen.findByRole('button', { name: 'Plank' }));
     await user.click(screen.getByRole('button', { name: /^Add 1 exercise/ }));
     expect(await screen.findByLabelText('Set 1 seconds')).toBeTruthy();
+  });
+});
+
+describe('cardio goals', () => {
+  it('counts activity minutes and cardio sets toward a weekly minutes goal, with a streak', async () => {
+    const { goalStatus } = await import('../src/goals');
+    const activities = [
+      { date: '2026-11-02', type: 'run', duration_min: 40, distance_km: 6 },
+      { date: '2026-11-04', type: 'cycle', duration_min: 60, distance_km: 25 },
+      { date: '2026-10-27', type: 'walk', duration_min: 150, distance_km: 10 },
+    ];
+    const gym = [sess('2026-11-03', [ex('Running, Treadmill', 'cardio', [set({ time: 1200, distance: 3 })])])];
+    const ctx = { sessions: gym, activities, weekStart: 1, todayStr: '2026-11-05' };
+    const mins = goalStatus({ type: 'weekly_minutes', target: 150 }, ctx);
+    expect(mins.done).toBe(120);
+    expect(mins.reached).toBe(false);
+    expect(mins.pct).toBeCloseTo(0.8);
+    expect(goalStatus({ type: 'weekly_minutes', target: 100 }, ctx)).toMatchObject({ reached: true, streak: 2 });
+    const runKm = goalStatus({ type: 'weekly_distance', exercise: 'run', target: 10 }, ctx);
+    expect(runKm.done).toBeCloseTo(9);
+    expect(goalStatus({ type: 'weekly_distance', exercise: '', target: 30 }, ctx).done).toBeCloseTo(34);
+  });
+  it('saves, validates and lists the new goal types', async () => {
+    const { saveGoal, listGoals, cleanGoal } = await import('../src/db');
+    await saveGoal({ type: 'weekly_distance', exercise: 'run', target: 16.09 });
+    await saveGoal({ type: 'weekly_minutes', target: 150, exercise: 'run' });
+    const [a, b] = await listGoals();
+    expect(a).toMatchObject({ type: 'weekly_distance', exercise: 'run' });
+    expect(b.exercise).toBe('');
+    expect(cleanGoal({ type: 'weekly_distance', exercise: 'bogus', target: 5 }).exercise).toBe('');
+  });
+  it('adds a cardio goal from the Body tab', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Body' }));
+    await user.click(await screen.findByRole('button', { name: 'Add goal' }));
+    await user.selectOptions(screen.getByLabelText('Goal type'), 'weekly_minutes');
+    expect(screen.getByLabelText('Minutes per week').value).toBe('150');
+    await user.click(screen.getByRole('button', { name: 'Add goal' }));
+    expect(await screen.findByText(/2 h 30 min of cardio and activity a week/)).toBeTruthy();
+  });
+});
+
+describe('fixing the date of a body entry', () => {
+  it('moves an entry to another date, and refuses to land on an occupied one', async () => {
+    const { saveBodyEntry, listBodyEntries } = await import('../src/db');
+    const a = await saveBodyEntry({ date: '2026-11-01', weight_kg: 80 });
+    await saveBodyEntry({ date: '2026-11-03', weight_kg: 81 });
+    const moved = await saveBodyEntry({ id: a.id, date: '2026-11-02', weight_kg: 80 });
+    expect(moved.id).toBe(a.id);
+    expect((await listBodyEntries()).map((e) => e.date).sort()).toEqual(['2026-11-02', '2026-11-03']);
+    await expect(saveBodyEntry({ id: a.id, date: '2026-11-03', weight_kg: 80 })).rejects.toThrow(/already have an entry/);
+  });
+  it('lets you change the date from the form after tapping an entry', async () => {
+    const { saveBodyEntry, listBodyEntries } = await import('../src/db');
+    await saveBodyEntry({ date: '2026-10-20', weight_kg: 80 });
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(await screen.findByRole('button', { name: 'Body' }));
+    await user.click(await screen.findByRole('button', { name: 'Edit entry 2026-10-20' }));
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-10-18' } });
+    expect(screen.getByLabelText('Weight (lb)').value).toBe('176.4');
+    await user.click(screen.getByRole('button', { name: /^Move to/ }));
+    expect(await screen.findByText(/^Moved to/)).toBeTruthy();
+    const list = await listBodyEntries();
+    expect(list).toHaveLength(1);
+    expect(list[0].date).toBe('2026-10-18');
   });
 });

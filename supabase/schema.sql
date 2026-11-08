@@ -371,3 +371,7 @@ alter table public.custom_exercises add constraint custom_exercises_mode_check c
 alter table public.activities add column if not exists elevation_m numeric check (elevation_m is null or (elevation_m >= 0 and elevation_m <= 10000));
 alter table public.activities add column if not exists incline_pct numeric check (incline_pct is null or (incline_pct >= 0 and incline_pct <= 100));
 alter table public.activities add column if not exists avg_hr smallint check (avg_hr is null or (avg_hr between 30 and 250));
+
+-- Cardio goals: active minutes per week and distance per week.
+alter table public.goals drop constraint if exists goals_type_check;
+alter table public.goals add constraint goals_type_check check (type in ('weekly_workouts', 'body_weight', 'lift', 'weekly_minutes', 'weekly_distance'));

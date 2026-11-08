@@ -314,7 +314,7 @@ export async function listBodyEntries() {
   return [...byDate.values()].sort((a, b) => b.date.localeCompare(a.date));
 }
 
-export async function saveBodyEntry({ date = today(), weight_kg = null, body_fat = null, measurements = {}, notes = '' }) {
+export async function saveBodyEntry({ id, date = today(), weight_kg = null, body_fat = null, measurements = {}, notes = '' }) {
   const w = weight_kg === null || weight_kg === '' ? null : Number(weight_kg);
   const f = body_fat === null || body_fat === '' ? null : Number(body_fat);
   const entry = {
@@ -324,20 +324,27 @@ export async function saveBodyEntry({ date = today(), weight_kg = null, body_fat
     measurements: cleanMeasurements(measurements),
     notes: String(notes ?? '').slice(0, 500),
   };
-  const existing = (await db.bodyEntries.where('date').equals(date).toArray()).find((e) => !e.deleted_at);
-  return putRow(db.bodyEntries, { id: existing?.id ?? newId(), ...entry, deleted_at: null });
+  const onDate = (await db.bodyEntries.where('date').equals(date).toArray()).find((e) => !e.deleted_at);
+  if (id) {
+    // Editing a known entry, possibly moving it to another date.
+    const row = await db.bodyEntries.get(id);
+    if (!row || row.deleted_at) throw new Error('That entry no longer exists.');
+    if (onDate && onDate.id !== id) throw new Error('You already have an entry on that date. Open that one instead, or delete it first.');
+    return putRow(db.bodyEntries, { ...row, ...entry, id, deleted_at: null });
+  }
+  return putRow(db.bodyEntries, { id: onDate?.id ?? newId(), ...entry, deleted_at: null });
 }
 export const deleteBodyEntry = (id) => softDelete(db.bodyEntries, id);
 
 // ---- goals ----
 export function cleanGoal(g) {
   const target = Number(g.target);
-  if (!['weekly_workouts', 'body_weight', 'lift'].includes(g.type) || !(target > 0)) return null;
+  if (!['weekly_workouts', 'body_weight', 'lift', 'weekly_minutes', 'weekly_distance'].includes(g.type) || !(target > 0)) return null;
   const start = g.start_value === null || g.start_value === undefined || g.start_value === '' ? null : Number(g.start_value);
   return {
     id: g.id || newId(),
     type: g.type,
-    exercise: g.type === 'lift' ? String(g.exercise ?? '').trim().slice(0, 100) : '',
+    exercise: g.type === 'lift' ? String(g.exercise ?? '').trim().slice(0, 100) : g.type === 'weekly_distance' && isActivityType(g.exercise) ? g.exercise : '',
     metric: g.type === 'lift' ? (g.metric === 'e1rm' ? 'e1rm' : 'weight') : '',
     target,
     start_value: Number.isFinite(start) ? start : null,

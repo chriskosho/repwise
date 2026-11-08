@@ -3,11 +3,21 @@ import { deleteGoal, saveGoal } from '../db';
 import { GOAL_TYPES, bestForExercise, goalStatus } from '../goals';
 import { historyNames } from '../library';
 import { weightIn, weightOut } from '../units';
+import { ACTIVITY_TYPES, distUnit, distanceIn, distanceOut, fmtMinutes, typeLabel } from '../activities';
 
 function describe(goal, status, unit) {
   if (goal.type === 'weekly_workouts') {
     const streak = status.streak > 0 ? ` · ${status.streak}-week streak` : '';
     return `${goal.target} workout${goal.target === 1 ? '' : 's'} a week: ${status.done} so far this week${streak}`;
+  }
+  if (goal.type === 'weekly_minutes') {
+    const streak = status.streak > 0 ? ` · ${status.streak}-week streak` : '';
+    return `${fmtMinutes(goal.target)} of cardio and activity a week: ${fmtMinutes(status.done)} so far this week${streak}`;
+  }
+  if (goal.type === 'weekly_distance') {
+    const streak = status.streak > 0 ? ` · ${status.streak}-week streak` : '';
+    const what = goal.exercise ? ` of ${typeLabel(goal.exercise).toLowerCase()}` : '';
+    return `${distanceOut(goal.target, unit)} ${distUnit(unit)}${what} a week: ${distanceOut(status.done, unit)} so far this week${streak}`;
   }
   if (goal.type === 'body_weight') {
     const now = status.current != null ? `now ${weightOut(status.current, unit)}` : 'no weigh-in yet';
@@ -59,6 +69,7 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
   const [target, setTarget] = useState('3');
   const [exercise, setExercise] = useState('');
   const [metric, setMetric] = useState('weight');
+  const [sport, setSport] = useState('');
   const [error, setError] = useState('');
   const [notes, setNotes] = useState('');
   const names = historyNames(sessions);
@@ -72,6 +83,11 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
       if (type === 'weekly_workouts') {
         if (!Number.isInteger(n) || n > 14) return setError('Choose a whole number of workouts, up to 14.');
         await saveGoal({ type, target: n, notes });
+      } else if (type === 'weekly_minutes') {
+        if (n > 10080) return setError('That is more minutes than a week has.');
+        await saveGoal({ type, target: n, notes });
+      } else if (type === 'weekly_distance') {
+        await saveGoal({ type, target: distanceIn(n, unit), exercise: sport, notes });
       } else if (type === 'body_weight') {
         if (latestKg == null) return setError('Log your weight first, so there is a starting point.');
         await saveGoal({ type, target: weightIn(n, unit), start_value: latestKg, notes });
@@ -93,7 +109,7 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
           value={type}
           onChange={(e) => {
             setType(e.target.value);
-            setTarget(e.target.value === 'weekly_workouts' ? '3' : '');
+            setTarget(e.target.value === 'weekly_workouts' ? '3' : e.target.value === 'weekly_minutes' ? '150' : '');
             setError('');
           }}
         >
@@ -104,6 +120,20 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
           ))}
         </select>
       </label>
+
+      {type === 'weekly_distance' && (
+        <label className="field">
+          <span>Activity</span>
+          <select value={sport} onChange={(e) => setSport(e.target.value)}>
+            <option value="">Any activity</option>
+            {ACTIVITY_TYPES.filter(([, , m]) => m).map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {type === 'lift' && (
         <>
@@ -127,7 +157,7 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
       )}
 
       <label className="field">
-        <span>{type === 'weekly_workouts' ? 'Workouts per week' : type === 'body_weight' ? `Target weight (${unit})` : `Target (${unit})`}</span>
+        <span>{type === 'weekly_workouts' ? 'Workouts per week' : type === 'weekly_minutes' ? 'Minutes per week' : type === 'weekly_distance' ? `Distance per week (${distUnit(unit)})` : type === 'body_weight' ? `Target weight (${unit})` : `Target (${unit})`}</span>
         <input type="number" inputMode="decimal" step="any" min="0" value={target} onChange={(e) => setTarget(e.target.value)} required />
       </label>
       <label className="field">
@@ -151,9 +181,9 @@ function GoalForm({ unit, sessions, latestKg, onDone }) {
   );
 }
 
-export default function Goals({ goals, sessions, workouts, entries, profile, unit, latestKg }) {
+export default function Goals({ goals, sessions, workouts, activities, entries, profile, unit, latestKg }) {
   const [adding, setAdding] = useState(false);
-  const ctx = { sessions, workouts, entries, weekStart: profile?.week_start ?? 1, latestKg };
+  const ctx = { sessions, workouts, activities, entries, weekStart: profile?.week_start ?? 1, latestKg };
   return (
     <section className="card">
       <div className="section-head">
