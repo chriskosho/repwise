@@ -440,3 +440,74 @@ export function continuePlan(plan, prog, todayStr) {
   if (next.boost) lines.push('Your extra sets carry over.');
   return { plan: next, level, per_week, lines };
 }
+
+// ---- changes you make yourself, from a day's screen ----
+const carry = ({ k, f, m, t, ease }) => ({ k, ...(f ? { f } : {}), ...(m ? { m } : {}), ...(t ? { t } : {}), ...(ease ? { ease: true } : {}) });
+const withDays = (plan, fn) => {
+  const days = plan.days.map((d) => ({ ...d }));
+  fn(days);
+  return { ...plan, days };
+};
+
+// Two days trade places (a workout and a rest day, or two workouts). Days already done stay put.
+export function swapDays(plan, a, b) {
+  if (a === b || !plan.days[a - 1] || !plan.days[b - 1]) return plan;
+  return withDays(plan, (days) => {
+    const x = carry(days[a - 1]);
+    const y = carry(days[b - 1]);
+    days[a - 1] = { ...y, adj: `Swapped with ${weekday(planDate(plan, b))}` };
+    days[b - 1] = { ...x, adj: `Swapped with ${weekday(planDate(plan, a))}` };
+  });
+}
+
+// Takes a workout off the plan and leaves a rest day.
+export function skipDay(plan, n) {
+  if (!plan.days[n - 1]) return plan;
+  return withDays(plan, (days) => {
+    days[n - 1] = { k: 'r', adj: 'Skipped' };
+  });
+}
+
+// Turns a rest or easy day into a strength day.
+export function addWorkout(plan, n, focus = 'full') {
+  if (!plan.days[n - 1]) return plan;
+  return withDays(plan, (days) => {
+    days[n - 1] = { k: 's', f: focus, m: plan.minutes ?? 45, adj: 'Added by you' };
+  });
+}
+
+// Change the focus, length or activity of a day.
+export function updateDay(plan, n, patch) {
+  if (!plan.days[n - 1]) return plan;
+  return withDays(plan, (days) => {
+    const d = days[n - 1];
+    if (patch.m != null) d.m = Math.min(240, Math.max(5, Math.round(Number(patch.m)) || d.m));
+    if (patch.t) d.t = patch.t;
+    if (patch.f) d.f = patch.f;
+  });
+}
+
+// How many training days in a row a day would sit in (itself included).
+export function trainingRun(plan, n, workouts = []) {
+  const dates = new Set(workouts.filter((w) => !w.deleted_at).map((w) => w.date));
+  const on = (i) => {
+    const d = plan.days[i];
+    return d && (d.k === 's' || d.k === 'c') && !d.mv ? true : d ? dates.has(planDate(plan, i + 1)) : false;
+  };
+  let run = 1;
+  for (let i = n - 2; i >= 0 && on(i); i--) run++;
+  for (let i = n; i < plan.days.length && on(i); i++) run++;
+  return run;
+}
+
+// A short, practical note for each kind of cardio.
+export const CARDIO_TIPS = {
+  walk: 'A brisk pace where you could talk but not sing. Swing your arms, and use hills if you have them.',
+  run: 'An easy, conversational pace. Walk breaks are fine. Finish feeling you could do more.',
+  cycle: 'Steady and comfortable. Keep your cadence light and spin rather than grinding.',
+  swim: 'Easy laps with rests as needed. Mix strokes if your shoulders get tired.',
+  row: 'Smooth, steady strokes. Push with your legs first, then lean back and pull.',
+  hike: 'Take it at a pace you can hold for the whole time. Bring water.',
+  elliptical: 'Keep a steady rhythm and stand tall. Add resistance in the middle, then ease off.',
+};
+export const cardioTip = (t) => CARDIO_TIPS[t] ?? 'Keep it easy to moderate. You should be able to talk the whole time.';

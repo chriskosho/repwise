@@ -163,3 +163,7 @@ Onboarding also asks for your best time of day (morning, afternoon, evening, var
 ## Guided tour
 
 `src/components/Coach.jsx` dims the screen and spotlights the real element for each step (found by a `data-tour` attribute), switching tabs as it goes. Steps whose target is missing are skipped when marked `optional` (the plan card) or shown centered. To add a step, add a `data-tour` hook to the element and an entry in `COACH_STEPS`. It starts at the end of the welcome flow and from Settings → Take the tour.
+
+## Plan days
+
+`src/components/PlanDay.jsx` is the screen for one plan day. It previews the workout with the same engine as Suggest (`src/useSuggestion.js`; the day number seeds it, so what you preview is what you start), and edits the plan through `swapDays`, `skipDay`, `addWorkout` and `updateDay` in `src/plan.js`. Starting a future day swaps it with today first so the plan stays truthful.

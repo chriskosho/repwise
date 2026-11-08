@@ -152,7 +152,7 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onOpenActivity, onSuggest, plan = null, hasOnboarding = false, onContinue, onOpenReview, onPlanDo, onPlanView, onNewPlan, onEndPlan, onDismissOffer }) {
+export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onOpenActivity, onSuggest, plan = null, hasOnboarding = false, onContinue, onOpenReview, onPlanDo, onPlanView, onPlanDay, onNewPlan, onEndPlan, onDismissOffer }) {
   const active = useLiveQuery(getActiveSession, [], undefined);
   const { sessions, activities, places, workouts } = useWorkouts();
   const routines = useLiveQuery(listRoutines, [], undefined);
@@ -222,7 +222,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
         />
       )}
       {plan && (
-        <PlanCard plan={plan} workouts={workouts} todayStr={today()} onDo={onPlanDo} onViewPlan={onPlanView} onNewPlan={onNewPlan} onEndPlan={onEndPlan} onSuggest={onSuggest} onContinue={onContinue} />
+        <PlanCard plan={plan} workouts={workouts} todayStr={today()} onDo={onPlanDo} onViewPlan={onPlanView} onViewDay={onPlanDay} onNewPlan={onNewPlan} onEndPlan={onEndPlan} onSuggest={onSuggest} onContinue={onContinue} />
       )}
       {!plan && !hasOnboarding && workouts.length > 0 && (
         <section className="card" aria-label="Starter plans">

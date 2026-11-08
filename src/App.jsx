@@ -18,6 +18,7 @@ import Onboarding from './components/Onboarding';
 import Coach from './components/Coach';
 import Review from './components/Review';
 import { PlanView } from './components/PlanCard';
+import PlanDay from './components/PlanDay';
 import WhatsNew from './components/WhatsNew';
 import { LATEST, readSeen, shouldShowWhatsNew, writeSeen } from './changelog';
 import { useUpdateReady } from './update';
@@ -62,7 +63,9 @@ export default function App() {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [suggestPreset, setSuggestPreset] = useState(null);
   const [welcomeDone, setWelcomeDone] = useState(false);
-  const [guide, setGuide] = useState(null); // 'first' | 'plan' | 'tour' | 'plan-view'
+  const [guide, setGuide] = useState(null); // 'first' | 'plan' | 'tour' | 'plan-view' | 'plan-day'
+  const [planDayN, setPlanDayN] = useState(1);
+  const [dayBack, setDayBack] = useState('plan-view');
   const [activityView, setActivityView] = useState(null); // { doc, isNew } while the activity editor is open
   const [unitCache, setUnitCache] = useState(readUnit);
   const [dismissed, setDismissed] = useState(false);
@@ -135,10 +138,16 @@ export default function App() {
 
   const { workouts: workoutsList, activities: activityRows, sessions: sessionRows } = useWorkouts();
   const favorites = topActivityTypes(profile?.onboarding?.interests ?? [], activityRows ?? []);
-  const planDone = (day) => {
+  const openPlanDay = (n, from = 'plan-view') => {
+    setPlanDayN(n);
+    setDayBack(from);
+    setGuide('plan-day');
+  };
+  const planDone = (day, seed = 0) => {
     const plan = profile?.plan;
+    setGuide(null);
     if (day.k === 's') {
-      setSuggestPreset({ focus: day.f, minutes: day.m, gear: plan.gear, style: STYLE_FOR_GOAL[plan.goal], ease: !!day.ease, boost: plan.boost ?? 0 });
+      setSuggestPreset({ focus: day.f, minutes: day.m, gear: plan.gear, style: STYLE_FOR_GOAL[plan.goal], ease: !!day.ease, boost: plan.boost ?? 0, seed });
       setSuggestOpen(true);
     } else {
       openActivity({ ...newActivity(), type: day.t, duration_min: day.m }, true);
@@ -268,6 +277,32 @@ export default function App() {
             onClose={closeGuide}
             onNewPlan={() => setGuide('plan')}
             onEndPlan={endPlan}
+            onViewDay={(n) => openPlanDay(n, 'plan-view')}
+          />
+        ) : guideMode === 'plan-day' && profile?.plan ? (
+          <PlanDay
+            plan={profile.plan}
+            workouts={workoutsList ?? []}
+            todayStr={today()}
+            n={planDayN}
+            unit={unit}
+            onBack={() => setGuide(dayBack === 'plan-view' ? 'plan-view' : null)}
+            onGoto={setPlanDayN}
+            onChangePlan={(next) => saveProfile({ plan: next })}
+            onStart={planDone}
+            onSaveRoutine={(doc) => {
+              setGuide(null);
+              openRoutine(doc, true);
+            }}
+            onLogActivity={(idea) => {
+              setGuide(null);
+              openActivity({ ...newActivity(), type: idea.type, duration_min: idea.minutes }, true);
+            }}
+            onOpenWorkout={(w) => {
+              setGuide(null);
+              if (w.isActivity) openActivity(w.activity);
+              else setEditId(w.id);
+            }}
           />
         ) : editId ? (
           <EditSession
@@ -332,6 +367,7 @@ export default function App() {
                 hasOnboarding={!!profile?.onboarding}
                 onPlanDo={planDone}
                 onPlanView={() => setGuide('plan-view')}
+                onPlanDay={(n) => openPlanDay(n, 'workout')}
                 onNewPlan={() => setGuide(profile?.onboarding?.goal ? 'plan' : 'first')}
                 onEndPlan={endPlan}
                 onContinue={continueWith}

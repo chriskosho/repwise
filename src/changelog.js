@@ -4,12 +4,16 @@ export const RELEASES = [
   {
     id: '2.1',
     date: '2026-11-08',
-    title: 'A guided tour and easier finishing',
+    title: 'Plans you can open, a guided tour, easier finishing',
     highlights: [
+      'Every day in your plan is now tappable: see the exact workout with suggested weights, swap it with another day, skip it, or start it early.',
+      'A week strip on the Workout tab shows your week at a glance.',
       'The tour now points at the real buttons and tabs, one step at a time, and switches screens for you.',
       'Reopen it any time from Settings → Plan and tour.',
     ],
     items: [
+      'Plan days: tap any day (week strip, plan view or the Next line) for a preview of its exercises, sets and weights, cardio tips, rest-day ideas, and options to swap, skip, add a workout or change the activity and minutes.',
+      'Fixed: the extra sets that plans add after strong weeks were not being applied to suggested workouts.',
       'Logging a workout: Add exercise, a big Done button, Save as routine and Delete workout now sit at the bottom in that order. You can save a routine mid-workout.',
       'Settings → Start over: restart the welcome setup, or clear everything Repwise stores on this device.',
       'Guided tour with a spotlight on each feature (replaces the text cards), offered at the end of the welcome questions.',

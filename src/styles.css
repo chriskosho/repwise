@@ -1743,7 +1743,8 @@ button:focus-visible,
 .plan-card h3 { margin: 0.5rem 0 0.3rem; }
 .plan-meta { margin: 0.2rem 0; font-size: 0.82rem; }
 .plan-catchup { margin: 0.6rem 0 0; }
-.plan-days li { display: grid; grid-template-columns: 6.5rem 1fr auto; gap: 0.5rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line); align-items: center; }
+.plan-days li { border-bottom: 1px solid var(--line); }
+.plan-row { display: grid; grid-template-columns: 6.5rem 1fr auto; gap: 0.5rem; padding: 0.55rem 0; align-items: center; width: 100%; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .plan-days li.is-rest { opacity: 0.6; }
 .plan-days li.today { font-weight: 600; }
 .plan-days li.missed .plan-state { color: #d9822b; }
@@ -1784,3 +1785,13 @@ button:focus-visible,
 .coach-tip h2 { margin: 0.1rem 0 0.4rem; font-size: 1.1rem; }
 .coach-tip p { margin: 0 0 0.4rem; }
 @media (prefers-reduced-motion: reduce) { .coach-spot { transition: none; } }
+
+.week-strip { list-style: none; display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.25rem; padding: 0; margin: 0.6rem 0; }
+.wk-day { width: 100%; display: grid; gap: 0.1rem; justify-items: center; padding: 0.35rem 0; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: inherit; font: inherit; font-size: 0.75rem; cursor: pointer; }
+.wk-day strong { font-size: 1rem; }
+.wk-day.today { border-color: var(--accent); background: var(--accent-soft); }
+.wk-day.done strong { color: #3aa76d; }
+.wk-day.rest { opacity: 0.55; }
+.day-nav { margin-top: 0.4rem; }
+.day-nav + * { margin-top: 0.6rem; }
+.card .btn-danger.btn-small { margin-top: 0.6rem; }

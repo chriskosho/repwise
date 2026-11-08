@@ -12,7 +12,7 @@ export function dayLine(d) {
   return `${dayTitle(d)} · ${d.m} min${d.ease ? ' · easy' : ''}`;
 }
 
-export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, onNewPlan, onEndPlan, onSuggest, onContinue }) {
+export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, onViewDay = () => {}, onNewPlan, onEndPlan, onSuggest, onContinue }) {
   const p = planProgress(plan, workouts, todayStr);
 
   if (p.status === 'upcoming') {
@@ -77,6 +77,28 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
         {p.done} of {p.planned} workouts done
       </p>
 
+      <ol className="week-strip" aria-label="This week">
+        {p.days
+          .filter((d) => d.week === p.week)
+          .map((d) => {
+            const rest = d.k === 'r' || d.mv;
+            const mark = d.done ? '✓' : rest ? '–' : d.k === 'c' ? '♥' : d.k === 'a' ? '○' : '●';
+            return (
+              <li key={d.n}>
+                <button
+                  type="button"
+                  className={`wk-day${d.date === todayStr ? ' today' : ''}${d.done ? ' done' : ''}${rest ? ' rest' : ''}`}
+                  aria-label={`${longDate(d.date)}: ${d.done ? 'done' : rest ? 'rest day' : dayLine(d)}`}
+                  onClick={() => onViewDay(d.n)}
+                >
+                  <span>{dowName(d.date).slice(0, 3)}</span>
+                  <strong>{mark}</strong>
+                </button>
+              </li>
+            );
+          })}
+      </ol>
+
       {recentNotes(plan, todayStr).map((n) => (
         <p key={n.k} className="plan-note" role="note">
           Plan update: {n.t}
@@ -123,17 +145,24 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
       )}
       {p.next && (t.k === 'r' || t.done) && (
         <p className="muted">
-          Next: {dowName(p.next.date)}, {dayLine(p.next)}
+          <button type="button" className="btn btn-link" onClick={() => onViewDay(p.next.n)}>
+            Next: {dowName(p.next.date)}, {dayLine(p.next)}
+          </button>
         </p>
       )}
-      <button type="button" className="btn btn-link" onClick={onViewPlan}>
-        View plan
-      </button>
+      <div className="actions">
+        <button type="button" className="btn btn-link" onClick={() => onViewDay(t.n)}>
+          See what’s planned today
+        </button>
+        <button type="button" className="btn btn-link" onClick={onViewPlan}>
+          View plan
+        </button>
+      </div>
     </section>
   );
 }
 
-export function PlanView({ plan, workouts, todayStr, onClose, onNewPlan, onEndPlan }) {
+export function PlanView({ plan, workouts, todayStr, onClose, onNewPlan, onEndPlan, onViewDay = () => {} }) {
   const p = planProgress(plan, workouts, todayStr);
   const weeks = [];
   for (let i = 0; i < p.days.length; i += 7) weeks.push(p.days.slice(i, i + 7));
@@ -145,7 +174,7 @@ export function PlanView({ plan, workouts, todayStr, onClose, onNewPlan, onEndPl
         </button>
         <h2>Your {plan.length}-day plan</h2>
         <p className="muted">
-          {p.done} of {p.planned} workouts done · starts {longDate(plan.start)}
+          {p.done} of {p.planned} workouts done · starts {longDate(plan.start)}. Tap a day to see the workout, change it or swap it.
         </p>
       </div>
       {weeks.map((days, w) => (
@@ -159,12 +188,17 @@ export function PlanView({ plan, workouts, todayStr, onClose, onNewPlan, onEndPl
               const state = d.date === todayStr ? 'today' : d.done ? 'done' : d.mv ? 'moved' : past && isWorkoutDay(d) ? 'missed' : '';
               return (
                 <li key={d.n} className={`${state} ${d.k === 'r' || d.mv ? 'is-rest' : ''}`}>
-                  <strong>{longDate(d.date)}</strong>
-                  <span>
-                    {d.mv ? `${dayLine(d)} (moved)` : dayLine(d)}
-                    {d.adj ? ` · ${d.adj}` : ''}
-                  </span>
-                  <span className="plan-state">{state === 'done' ? '✓' : state === 'today' ? 'Today' : state === 'missed' ? 'Missed' : state === 'moved' ? 'Moved' : ''}</span>
+                  <button type="button" className="plan-row" onClick={() => onViewDay(d.n)} aria-label={`${longDate(d.date)}: ${d.mv ? 'Rest day' : dayLine(d)}`}>
+                    <strong>{longDate(d.date)}</strong>
+                    <span>
+                      {d.mv ? `${dayLine(d)} (moved)` : dayLine(d)}
+                      {d.adj ? ` · ${d.adj}` : ''}
+                    </span>
+                    <span className="plan-state">
+                      {state === 'done' ? '✓' : state === 'today' ? 'Today' : state === 'missed' ? 'Missed' : state === 'moved' ? 'Moved' : ''}
+                      <span aria-hidden="true"> ›</span>
+                    </span>
+                  </button>
                 </li>
               );
             })}

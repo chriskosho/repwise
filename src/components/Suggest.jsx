@@ -1,9 +1,7 @@
-import { useMemo, useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import { listBodyEntries, listCustomExercises, listGoals, getProfile, routineFromSession, saveSession, sessionFromRoutine, newRoutine } from '../db';
-import { useLibrary } from '../library';
-import { useWorkouts } from '../workouts';
-import { FEELING, FOCUS, GEAR, TIMES, coolDownNote, suggestWorkout, suggestionAsRoutine } from '../suggest';
+import { useState } from 'react';
+import { routineFromSession, saveSession, sessionFromRoutine, newRoutine } from '../db';
+import { useSuggestion } from '../useSuggestion';
+import { FEELING, FOCUS, GEAR, TIMES, coolDownNote, suggestionAsRoutine } from '../suggest';
 import { typeLabel } from '../activities';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
@@ -13,34 +11,12 @@ export default function Suggest({ unit, preset = null, onClose, onStarted, onLog
   const [minutes, setMinutes] = useState(preset?.minutes ?? 45);
   const [gear, setGear] = useState(preset?.gear ?? 'gym');
   const [focus, setFocus] = useState(preset?.focus ?? 'auto');
-  const [seed, setSeed] = useState(0);
+  const [seed, setSeed] = useState(preset?.seed ?? 0);
   const [feeling, setFeeling] = useState('auto');
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const { list: library } = useLibrary();
-  const { sessions, activities, workouts } = useWorkouts();
-  const custom = useLiveQuery(listCustomExercises, [], []);
-  const goals = useLiveQuery(listGoals, [], []);
-  const entries = useLiveQuery(listBodyEntries, [], []);
-  const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], null);
-  const latestKg = entries?.find((e) => e.weight_kg != null)?.weight_kg ?? null; // entries are newest first
-
-  const plan = useMemo(() => {
-    if (!library || !sessions || !activities || !workouts) return null;
-    return suggestWorkout({
-      library,
-      custom,
-      sessions,
-      activities,
-      workouts,
-      goals,
-      latestKg,
-      unit,
-      weekStart: profile?.week_start ?? 1,
-      options: { minutes, gear, focus, seed, feeling, style: preset?.style ?? '', ease: !!preset?.ease, interests: profile?.onboarding?.interests ?? [] },
-    });
-  }, [library, custom, sessions, activities, workouts, goals, latestKg, unit, profile?.week_start, minutes, gear, focus, seed, feeling, preset, profile?.onboarding]);
+  const plan = useSuggestion(unit, { minutes, gear, focus, seed, feeling, style: preset?.style ?? '', ease: !!preset?.ease, boost: preset?.boost ?? 0 });
 
   async function start() {
     setBusy(true);
