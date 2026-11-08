@@ -365,9 +365,6 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
                   .join(' · ')}
               </span>
             </div>
-            <button type="button" className="btn" onClick={finish}>
-              Finish
-            </button>
           </div>
         ) : (
           <label className="field">
@@ -623,7 +620,11 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
         </p>
       )}
 
-      {!active && onSaveRoutine && (
+      <button type="button" className="btn btn-big btn-block" onClick={active ? finish : saveAndClose}>
+        Done
+      </button>
+
+      {onSaveRoutine && (
         <button
           type="button"
           className="btn btn-ghost btn-block"
@@ -635,16 +636,9 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
           Save as routine
         </button>
       )}
-      {!active && (
-        <button type="button" className="btn btn-ghost btn-danger btn-block" onClick={removeFinished}>
-          Delete workout
-        </button>
-      )}
-      {active && (
-        <button type="button" className="btn btn-ghost btn-danger btn-block" onClick={discard}>
-          Discard workout
-        </button>
-      )}
+      <button type="button" className="btn btn-ghost btn-danger btn-block" onClick={active ? discard : removeFinished}>
+        Delete workout
+      </button>
 
       {info && <ExerciseInfo name={info} onClose={() => setInfo(null)} />}
       {picker && <ExercisePicker sessions={sessions} onAdd={addExercises} onClose={() => setPicker(false)} />}

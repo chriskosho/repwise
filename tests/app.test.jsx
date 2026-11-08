@@ -38,7 +38,7 @@ it('walks through start, log, finish, history and editing', async () => {
   await user.click(screen.getByRole('button', { name: 'Mark set 1 done' }));
 
   // Finish: summary, then back to the start screen with the workout under Recent.
-  await user.click(screen.getByRole('button', { name: 'Finish' }));
+  await user.click(screen.getByRole('button', { name: 'Done' }));
   expect(await screen.findByText('Workout complete')).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Done' }));
   expect(await screen.findByRole('button', { name: 'Start workout' })).toBeTruthy();

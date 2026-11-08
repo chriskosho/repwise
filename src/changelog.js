@@ -4,12 +4,14 @@ export const RELEASES = [
   {
     id: '2.1',
     date: '2026-11-08',
-    title: 'A guided tour',
+    title: 'A guided tour and easier finishing',
     highlights: [
       'The tour now points at the real buttons and tabs, one step at a time, and switches screens for you.',
       'Reopen it any time from Settings → Plan and tour.',
     ],
     items: [
+      'Logging a workout: Add exercise, a big Done button, Save as routine and Delete workout now sit at the bottom in that order. You can save a routine mid-workout.',
+      'Settings → Start over: restart the welcome setup, or clear everything Repwise stores on this device.',
       'Guided tour with a spotlight on each feature (replaces the text cards), offered at the end of the welcome questions.',
     ],
   },

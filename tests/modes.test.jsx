@@ -155,7 +155,7 @@ describe('the workout screen', () => {
     expect(screen.queryByLabelText('Set 1 reps')).toBeNull();
     expect(screen.queryByLabelText('Set 1 weight')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Mark set 1 done' }));
-    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(await screen.findByText('Workout complete')).toBeTruthy();
     expect(screen.getByText('30 min')).toBeTruthy();
     const [saved] = await listSessions();
@@ -170,7 +170,7 @@ describe('the workout screen', () => {
     await user.type(await screen.findByLabelText('Set 1 seconds'), '45');
     await user.click(screen.getByRole('button', { name: 'Mark set 1 done' }));
     expect(screen.getByRole('button', { name: 'Set 1 done' })).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(await screen.findByText('Workout complete')).toBeTruthy();
     expect((await listSessions())[0].exercises[0].sets[0].time).toBe(45);
   });

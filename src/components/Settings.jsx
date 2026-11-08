@@ -10,6 +10,7 @@ import { PLATE_DEFAULTS, parsePlates } from '../plates';
 import { setTheme, useTheme } from '../theme';
 import { ChangeLog } from './WhatsNew';
 import { DONATE_URL, shareApp } from '../share';
+import { resetDevice } from '../reset';
 
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300];
 const restLabel = (s) => (s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
@@ -644,6 +645,40 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
           <li>Places are just names you type. Repwise never asks for or reads your device location, and there is no GPS tracking.</li>
           <li>You can export everything at any time, and delete your account and all its data below.</li>
         </ul>
+      </section>
+
+      <section className="card danger-zone">
+        <h2>Start over</h2>
+        <p className="muted">
+          <strong>Restart setup</strong> clears your answers and plan and walks you through the welcome questions again. Your workouts stay.
+        </p>
+        <div className="actions">
+          <button
+            type="button"
+            className="btn btn-small btn-ghost"
+            onClick={async () => {
+              if (!window.confirm('Restart the welcome setup? Your current plan and answers are replaced. Workouts are kept.')) return;
+              await saveProfile({ onboarding: null, plan: null });
+              onGuide('first');
+            }}
+          >
+            Restart setup
+          </button>
+        </div>
+        <p className="muted">
+          <strong>Clear this device</strong> deletes all Repwise data and settings stored in this browser, including progress photos, and the saved copy of the app. {sync.session ? 'You will be signed out. Anything already synced stays in your account.' : 'Export a backup first if you want to keep anything: nothing is stored anywhere else.'}
+        </p>
+        <button
+          type="button"
+          className="btn btn-small btn-danger"
+          onClick={async () => {
+            if (!window.confirm('Clear everything Repwise stores on this device? This can’t be undone.')) return;
+            await resetDevice(sync.session ? sync.signOut : null);
+            window.location.reload();
+          }}
+        >
+          Clear this device…
+        </button>
       </section>
 
       {sync.enabled && sync.session && (

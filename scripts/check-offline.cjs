@@ -74,7 +74,7 @@ const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 
   await page.getByLabel('Set 1 weight').fill('135');
   await page.getByLabel('Set 1 reps').fill('8');
   await page.getByRole('button', { name: 'Mark set 1 done' }).click();
-  await page.getByRole('button', { name: 'Finish' }).click();
+  await page.getByRole('button', { name: 'Done', exact: true }).click();
   await page.getByText('Workout complete').waitFor();
   await page.getByRole('button', { name: 'Done' }).click();
   check('workout logged and finished offline', true);

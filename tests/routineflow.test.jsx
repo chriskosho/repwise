@@ -193,7 +193,7 @@ describe('routines in the app', () => {
     }
     await user.clear(screen.getByLabelText('Workout name'));
     await user.type(screen.getByLabelText('Workout name'), 'Biceps');
-    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
 
     // Save it as a routine from the summary; the editor opens pre-filled.
     await user.click(await screen.findByRole('button', { name: 'Save as routine' }));

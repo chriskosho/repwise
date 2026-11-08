@@ -78,7 +78,7 @@ describe('active workout', () => {
     expect(getRestState().end).not.toBeNull();
     expect(getRestState().total).toBe(90);
 
-    await user.click(screen.getByRole('button', { name: 'Finish' }));
+    await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(onFinish).toHaveBeenCalledTimes(1);
     const info = onFinish.mock.calls[0][0];
     expect(info.stats).toMatchObject({ sets: 1, volume: 1125, exercises: 1 });

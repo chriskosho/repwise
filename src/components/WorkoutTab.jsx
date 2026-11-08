@@ -173,7 +173,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
   if (active === undefined || !workouts || routines === undefined) return <p className="muted">Loading…</p>;
 
   if (active) {
-    return <WorkoutEditor key={active.id} initial={active} mode="active" sessions={sessions} unit={unit} onFinish={setSummary} />;
+    return <WorkoutEditor key={active.id} initial={active} mode="active" sessions={sessions} unit={unit} onFinish={setSummary} onSaveRoutine={(doc) => onOpenRoutine(doc, true)} />;
   }
 
   async function start(routine) {

@@ -110,7 +110,7 @@ describe('the screens', () => {
     expect(await screen.findByText(/Barbell Squat leads/, {}, { timeout: 4000 })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /^How to:/ }).length).toBeGreaterThan(3);
     await user.click(screen.getByRole('button', { name: 'Start this workout' }));
-    expect(await screen.findByRole('button', { name: 'Finish' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Done' })).toBeTruthy();
     const [s] = await listSessions();
     expect(s.exercises.length).toBeGreaterThan(2);
     expect(s.notes).toMatch(/Cool-down/);
