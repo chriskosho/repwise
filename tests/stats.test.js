@@ -20,7 +20,7 @@ describe('sessionStats', () => {
     const s = sess('2026-11-01', [
       ex('Squat', [set(5, 100, { type: 'warmup' }), set(5, 200), set(3, 220), set(5, 200, { done: false })]),
     ]);
-    expect(sessionStats(s)).toEqual({ sets: 2, volume: 5 * 200 + 3 * 220, exercises: 1, minutes: 60 });
+    expect(sessionStats(s)).toMatchObject({ sets: 2, volume: 5 * 200 + 3 * 220, exercises: 1, minutes: 60 });
   });
 
   it('has no duration for an unfinished workout', () => {
@@ -33,7 +33,7 @@ describe('previousSets', () => {
   const newer = sess('2026-10-10', [ex('squat', [set(5, 160), set(3, 170, { done: false })])]);
 
   it('returns the completed sets from the most recent earlier session, ignoring case', () => {
-    expect(previousSets('SQUAT', [newer, older])).toEqual([{ type: 'normal', reps: 5, weight: 160 }]);
+    expect(previousSets('SQUAT', [newer, older])).toMatchObject([{ type: 'normal', reps: 5, weight: 160 }]);
   });
 
   it('is empty for an exercise never done', () => {

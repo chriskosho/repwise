@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { activeWeekStreaks, monthGrid } from '../analytics';
 import { today } from '../db';
 import { activitySummary } from '../activities';
+import { fmtCardioTime } from '../measure';
 import { sessionStats, fmtDayDate, fmtDuration, fmtVolume, plural } from '../stats';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -107,7 +108,9 @@ export default function CalendarView({ sessions, weekStart, unit }) {
             const st = sessionStats(s);
             return (
               <p key={s.id} className="muted">
-                {s.name}: {plural(st.exercises, 'exercise')}, {plural(st.sets, 'set')}
+                {s.name}: {plural(st.exercises, 'exercise')}
+                {st.sets > 0 ? `, ${plural(st.sets, 'set')}` : ''}
+                {st.cardioSec > 0 ? `, ${fmtCardioTime(st.cardioSec)} cardio` : ''}
                 {st.volume > 0 ? `, ${fmtVolume(st.volume)} ${unit}` : ''}
                 {st.minutes != null ? `, ${fmtDuration(st.minutes)}` : ''}
               </p>

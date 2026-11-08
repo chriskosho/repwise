@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { listCustomExercises, saveCustomExercise } from '../db';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
+import { MODES } from '../measure';
 import { CATEGORIES, EQUIPMENT, MUSCLES, equipmentLabel, historyNames, muscleLabel, searchExercises, useLibrary } from '../library';
 import { key } from '../stats';
 
@@ -22,6 +23,7 @@ export default function ExercisePicker({ sessions, onAdd, onClose, initialCatego
   const [creating, setCreating] = useState(false);
   const [newMuscle, setNewMuscle] = useState('');
   const [newEquipment, setNewEquipment] = useState('');
+  const [newMode, setNewMode] = useState('weight');
   const inputRef = useRef(null);
 
   const { list: library, failed } = useLibrary();
@@ -56,12 +58,13 @@ export default function ExercisePicker({ sessions, onAdd, onClose, initialCatego
   const toggle = (name) => setSelected((prev) => (isSelected(name) ? prev.filter((n) => key(n) !== key(name)) : [...prev, name]));
 
   async function create() {
-    const row = await saveCustomExercise({ name: typed, muscle: newMuscle, equipment: newEquipment });
+    const row = await saveCustomExercise({ name: typed, muscle: newMuscle, equipment: newEquipment, mode: newMode });
     setSelected((prev) => (prev.some((n) => key(n) === key(row.name)) ? prev : [...prev, row.name]));
     setQ('');
     setCreating(false);
     setNewMuscle('');
     setNewEquipment('');
+    setNewMode('weight');
     inputRef.current?.focus();
   }
 
@@ -169,6 +172,16 @@ export default function ExercisePicker({ sessions, onAdd, onClose, initialCatego
                 </select>
               </label>
             </div>
+            <label className="field">
+              <span>Tracked by</span>
+              <select value={newMode} onChange={(e) => setNewMode(e.target.value)}>
+                {MODES.map(([m, label]) => (
+                  <option key={m} value={m}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="actions">
               <button type="button" className="btn" onClick={create}>
                 Create and select

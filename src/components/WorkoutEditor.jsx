@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { byNewest, deleteSession, newId, routineFromSession, saveSession, sessionOrder, toDoc } from '../db';
+import { blankSet, byNewest, deleteSession, listCustomExercises, newId, routineFromSession, saveSession, sessionOrder, toDoc } from '../db';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { MODES, describeSet, fmtCardioTime, hasIncline, isLogged, kmToLong, kmToShort, longToKm, longUnit, modeOf, needsHint, resolveMode, shortToKm, shortUnit, usesRest } from '../measure';
+import { useLibrary } from '../library';
 import { computePRs, fmtClock, fmtNum, fmtVolume, previousSets, plural, sessionStats } from '../stats';
 import { usePrefs } from '../prefs';
 import { startRest, stopRest } from '../rest';
@@ -9,7 +12,6 @@ import PlacePicker from './PlacePicker';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
 import { listPlaces } from '../db';
-import { useLiveQuery } from 'dexie-react-hooks';
 
 const TYPES = [
   ['normal', 'Normal'],
@@ -21,7 +23,62 @@ const TYPE_LETTER = { warmup: 'W', drop: 'D', failure: 'F' };
 const MAX_PREFILL_SETS = 8;
 
 const nowIso = () => new Date().toISOString();
-const normalizeSet = (s) => ({ ...s, reps: Number(s.reps) || 0, weight: Number(s.weight) || 0, done: true });
+const normalizeSet = (s) => ({
+  ...s,
+  reps: Number(s.reps) || 0,
+  weight: Number(s.weight) || 0,
+  time: Number(s.time) || 0,
+  distance: Number(s.distance) || 0,
+  incline: Number(s.incline) || 0,
+  done: true,
+});
+const round2 = (n) => Math.round(n * 100) / 100;
+
+// A number box that shows one unit but stores another (minutes <-> seconds, miles <-> km).
+// It keeps what you typed while you type, and follows outside changes (copying the last set).
+function UnitInput({ value, toDisplay, fromDisplay, onValue, ...props }) {
+  const show = (v) => (v === '' || v == null || Number(v) === 0 ? '' : String(toDisplay(Number(v))));
+  const [text, setText] = useState(() => show(value));
+  useEffect(() => {
+    const mine = text === '' ? '' : fromDisplay(Number(text));
+    if (!(mine === value || (mine === '' && (value === '' || value == null || Number(value) === 0)) || Math.abs(Number(mine) - Number(value)) < 1e-9)) setText(show(value));
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <input
+      {...props}
+      className="num"
+      value={text}
+      onChange={(e) => {
+        const t = e.target.value.replace(/[^0-9.]/g, '');
+        setText(t);
+        onValue(t === '' || Number.isNaN(Number(t)) ? '' : fromDisplay(Number(t)));
+      }}
+    />
+  );
+}
+
+// How a set row is laid out for each way of measuring.
+function layoutOf(mode, name) {
+  if (mode === 'cardio') return hasIncline(name) ? 'cardio-incline' : 'cardio';
+  if (mode === 'time' || mode === 'stretch') return 'time';
+  if (mode === 'carry') return 'carry';
+  return 'weights';
+}
+function headers(mode, name, unit) {
+  switch (mode) {
+    case 'bodyweight':
+      return [`+${unit}`, 'Reps'];
+    case 'time':
+    case 'stretch':
+      return ['Seconds'];
+    case 'cardio':
+      return ['Min', longUnit(unit), ...(hasIncline(name) ? ['Incline %'] : [])];
+    case 'carry':
+      return [unit, shortUnit(unit)];
+    default:
+      return [unit, 'Reps'];
+  }
+}
 
 function Elapsed({ since }) {
   const now = useNow(1000);
@@ -39,6 +96,8 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
   const [openMenu, setOpenMenu] = useState(null);
   const [hint, setHint] = useState('');
   const [info, setInfo] = useState(null);
+  const { list: library } = useLibrary();
+  const custom = useLiveQuery(listCustomExercises, [], []);
   const places = useLiveQuery(listPlaces, [], []);
 
   const latest = useRef(session);
@@ -120,13 +179,23 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
   const prs = useMemo(() => computePRs(session.exercises, prior), [session.exercises, prior]);
   const stats = sessionStats(session);
 
+  // Exercises from older routines or workouts have no measurement type yet. Work it out once
+  // the library has loaded, unless sets were already logged (then what you entered decides).
+  useEffect(() => {
+    if (!library) return;
+    const missing = latest.current.exercises.filter((e) => !e.mode && !e.sets.some((x) => x.done));
+    if (!missing.length) return;
+    update((s) => ({
+      ...s,
+      exercises: s.exercises.map((e) => (!e.mode && !e.sets.some((x) => x.done) ? { ...e, mode: resolveMode(e.name, { library, custom, prior }) } : e)),
+    }));
+  }, [library, session.exercises.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- edits ----
   const updateEx = (exId, fn) =>
     update((s) => ({ ...s, exercises: s.exercises.map((e) => (e.id === exId ? fn(e) : e)) }));
   const updateSet = (exId, setId, patch) =>
     updateEx(exId, (e) => ({ ...e, sets: e.sets.map((st) => (st.id === setId ? { ...st, ...patch } : st)) }));
-
-  const blankSet = (type = 'normal') => ({ id: newId(), type, reps: '', weight: '', done: !active });
 
   function addExercises(names) {
     setPicker(false);
@@ -137,18 +206,21 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
       // Start with as many empty sets as last time, so the "previous" column lines up.
       const prev = previousSets(name, prior);
       const count = Math.min(Math.max(prev.length, 1), MAX_PREFILL_SETS);
-      const sets = Array.from({ length: count }, (_, i) => blankSet(prev[i]?.type ?? 'normal'));
-      fresh.push({ id: newId(), name, link: false, notes: '', sets });
+      const sets = Array.from({ length: count }, (_, i) => blankSet(prev[i]?.type ?? 'normal', !active));
+      fresh.push({ id: newId(), name, mode: resolveMode(name, { library: library ?? [], custom, prior }), link: false, notes: '', sets });
     }
     if (fresh.length) update((s) => ({ ...s, exercises: [...s.exercises, ...fresh] }));
   }
 
   function addSet(ex) {
     const last = ex.sets[ex.sets.length - 1];
-    const next = { ...blankSet(last?.type === 'warmup' ? 'normal' : last?.type ?? 'normal') };
+    const next = blankSet(last?.type === 'warmup' ? 'normal' : last?.type ?? 'normal', !active);
     if (last) {
       next.reps = last.reps;
       next.weight = last.weight;
+      next.time = last.time ?? '';
+      next.distance = last.distance ?? '';
+      next.incline = last.incline ?? '';
     }
     updateEx(ex.id, (e) => ({ ...e, sets: [...e.sets, next] }));
   }
@@ -159,7 +231,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
   }
 
   function removeExercise(ex) {
-    const hasDone = ex.sets.some((st) => st.done && Number(st.reps) > 0);
+    const hasDone = ex.sets.some((st) => st.done && isLogged(modeOf(ex), st));
     if (hasDone && !window.confirm(`Remove ${ex.name} and its sets?`)) return;
     setOpenMenu(null);
     update((s) => ({ ...s, exercises: s.exercises.filter((e) => e.id !== ex.id) }));
@@ -183,15 +255,22 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
     }
     if (st.done) return; // finished workouts keep their sets; edit the numbers or remove the set
     const prev = previous.get(ex.id)?.[index];
-    const reps = st.reps === '' ? prev?.reps ?? '' : st.reps;
-    const weight = st.weight === '' ? prev?.weight ?? '' : st.weight;
-    if (!(Number(reps) > 0)) {
-      setHint('Enter the reps first.');
+    const mode = modeOf(ex);
+    const pick = (cur, was) => (cur === '' || cur == null ? (was ? was : '') : cur);
+    const filled = {
+      reps: pick(st.reps, prev?.reps),
+      weight: pick(st.weight, prev?.weight),
+      time: pick(st.time, prev?.time),
+      distance: pick(st.distance, prev?.distance),
+      incline: pick(st.incline, prev?.incline),
+    };
+    if (!isLogged(mode, filled)) {
+      setHint(needsHint(mode));
       return;
     }
-    updateSet(ex.id, st.id, { reps: Number(reps), weight: weight === '' ? 0 : Number(weight), done: true });
+    updateSet(ex.id, st.id, { ...Object.fromEntries(Object.entries(filled).map(([k, v]) => [k, v === '' ? (k === 'weight' || k === 'reps' ? 0 : '') : Number(v)])), done: true });
     // Supersets rest after the last exercise of the group, not between them.
-    if (active && prefs.restEnabled && !ex.link) startRest(prefs.restSeconds);
+    if (active && prefs.restEnabled && !ex.link && usesRest(mode)) startRest(prefs.restSeconds);
   }
 
   // ---- finishing ----
@@ -200,7 +279,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
     const incomplete = current.exercises.some((e) => e.sets.some((s) => !s.done));
     if (incomplete && !window.confirm('Some sets are not marked done. Finish anyway? Unfinished sets are removed.')) return;
     const exercises = current.exercises
-      .map((e) => ({ ...e, sets: e.sets.filter((s) => s.done && Number(s.reps) > 0).map(normalizeSet) }))
+      .map((e) => ({ ...e, sets: e.sets.filter((s) => s.done && isLogged(modeOf(e), normalizeSet(s))).map(normalizeSet) }))
       .filter((e) => e.sets.length);
     if (!exercises.length) {
       if (window.confirm('Nothing was logged. Discard this workout?')) await remove();
@@ -237,7 +316,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
 
   async function saveAndClose() {
     const exercises = latest.current.exercises
-      .map((e) => ({ ...e, sets: e.sets.filter((s) => Number(s.reps) > 0).map(normalizeSet) }))
+      .map((e) => ({ ...e, sets: e.sets.filter((s) => isLogged(modeOf(e), normalizeSet(s))).map(normalizeSet) }))
       .filter((e) => e.sets.length);
     if (!exercises.length) {
       if (window.confirm('This workout has no sets. Delete it?')) await remove();
@@ -270,7 +349,13 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
             <div className="live-stats">
               <Elapsed since={session.started_at} />
               <span className="muted">
-                {plural(stats.sets, 'set')} · {fmtVolume(stats.volume)} {unit}
+                {[
+                  (stats.sets > 0 || stats.cardioSec === 0) && plural(stats.sets, 'set'),
+                  (stats.volume > 0 || stats.cardioSec === 0) && `${fmtVolume(stats.volume)} ${unit}`,
+                  stats.cardioSec > 0 && `${fmtCardioTime(stats.cardioSec)} cardio`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </span>
             </div>
             <button type="button" className="btn" onClick={finish}>
@@ -344,6 +429,22 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
                   <span>Superset with the next exercise</span>
                 </label>
                 <label className="field">
+                  <span>Track by</span>
+                  <select
+                    value={modeOf(ex)}
+                    onChange={(e) => {
+                      if (ex.sets.some((x) => x.done) && !window.confirm('Sets you already logged were measured differently and will stop counting. Change anyway?')) return;
+                      updateEx(ex.id, (x) => ({ ...x, mode: e.target.value }));
+                    }}
+                  >
+                    {MODES.map(([m, label]) => (
+                      <option key={m} value={m}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
                   <span>Notes</span>
                   <textarea
                     rows={2}
@@ -371,21 +472,33 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
               </div>
             )}
 
-            <div className="sets-grid">
-              <div className="set-row set-head">
+            <div className={`sets-grid mode-${modeOf(ex)}`}>
+              {modeOf(ex) === 'cardio' && prev[0] && (
+                <p className="muted small last-time">Last time: {describeSet('cardio', prev[0], unit, ex.name)}</p>
+              )}
+              <div className={`set-row set-head layout-${layoutOf(modeOf(ex), ex.name)}`}>
                 <span>Set</span>
-                <span>Previous</span>
-                <span>{unit}</span>
-                <span>Reps</span>
+                {layoutOf(modeOf(ex), ex.name) !== 'cardio' && layoutOf(modeOf(ex), ex.name) !== 'cardio-incline' && <span>Previous</span>}
+                {headers(modeOf(ex), ex.name, unit).map((h) => (
+                  <span key={h}>{h}</span>
+                ))}
                 <span>Done</span>
               </div>
               {ex.sets.map((st, idx) => {
+                const mode = modeOf(ex);
+                const layout = layoutOf(mode, ex.name);
                 const label = st.type === 'normal' ? String(++normalCount) : TYPE_LETTER[st.type];
                 const p = prev[idx];
                 const flags = st.done ? prs.bySet.get(st.id) : null;
+                const set = (patch) => updateSet(ex.id, st.id, patch);
+                const secs = { toDisplay: (v) => v, fromDisplay: (v) => v };
+                const mins = { toDisplay: (v) => round2(v / 60), fromDisplay: (v) => v * 60 };
+                const longD = { toDisplay: (v) => round2(kmToLong(v, unit)), fromDisplay: (v) => longToKm(v, unit) };
+                const shortD = { toDisplay: (v) => Math.round(kmToShort(v, unit)), fromDisplay: (v) => shortToKm(v, unit) };
+                const ph = (v, f = (x) => x) => (p && Number(v) ? String(f(v)) : '0');
                 return (
                   <div key={st.id}>
-                    <div className={`set-row${st.done ? ' is-done' : ''}`}>
+                    <div className={`set-row layout-${layout}${st.done ? ' is-done' : ''}`}>
                       <button
                         type="button"
                         className={`set-type type-${st.type}`}
@@ -395,23 +508,49 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
                       >
                         {label}
                       </button>
-                      <span className="prev">{p ? (p.weight ? `${fmtNum(p.weight)} × ${p.reps}` : `${p.reps} reps`) : '—'}</span>
-                      <input
-                        className="num"
-                        inputMode="decimal"
-                        value={st.weight}
-                        placeholder={p ? fmtNum(p.weight) : '0'}
-                        aria-label={`Set ${label} weight`}
-                        onChange={(e) => updateSet(ex.id, st.id, { weight: e.target.value.replace(/[^0-9.]/g, '') })}
-                      />
-                      <input
-                        className="num"
-                        inputMode="numeric"
-                        value={st.reps}
-                        placeholder={p ? String(p.reps) : '0'}
-                        aria-label={`Set ${label} reps`}
-                        onChange={(e) => updateSet(ex.id, st.id, { reps: e.target.value.replace(/[^0-9]/g, '') })}
-                      />
+                      {layout !== 'cardio' && layout !== 'cardio-incline' && <span className="prev">{p ? describeSet(mode, p, unit, ex.name) : '—'}</span>}
+                      {(layout === 'weights' || layout === 'carry') && (
+                        <input
+                          className="num"
+                          inputMode="decimal"
+                          value={st.weight}
+                          placeholder={p ? fmtNum(p.weight) : '0'}
+                          aria-label={`Set ${label} ${mode === 'bodyweight' ? 'added weight' : 'weight'}`}
+                          onChange={(e) => set({ weight: e.target.value.replace(/[^0-9.]/g, '') })}
+                        />
+                      )}
+                      {layout === 'weights' && (
+                        <input
+                          className="num"
+                          inputMode="numeric"
+                          value={st.reps}
+                          placeholder={p ? String(p.reps) : '0'}
+                          aria-label={`Set ${label} reps`}
+                          onChange={(e) => set({ reps: e.target.value.replace(/[^0-9]/g, '') })}
+                        />
+                      )}
+                      {layout === 'time' && (
+                        <UnitInput {...secs} inputMode="numeric" value={st.time} placeholder={ph(p?.time)} aria-label={`Set ${label} seconds`} onValue={(v) => set({ time: v })} />
+                      )}
+                      {(layout === 'cardio' || layout === 'cardio-incline') && (
+                        <>
+                          <UnitInput {...mins} inputMode="decimal" value={st.time} placeholder={ph(p?.time, (v) => round2(v / 60))} aria-label={`Set ${label} minutes`} onValue={(v) => set({ time: v })} />
+                          <UnitInput {...longD} inputMode="decimal" value={st.distance} placeholder={ph(p?.distance, (v) => round2(kmToLong(v, unit)))} aria-label={`Set ${label} distance`} onValue={(v) => set({ distance: v })} />
+                        </>
+                      )}
+                      {layout === 'cardio-incline' && (
+                        <input
+                          className="num"
+                          inputMode="decimal"
+                          value={st.incline}
+                          placeholder={p?.incline ? String(p.incline) : '0'}
+                          aria-label={`Set ${label} incline`}
+                          onChange={(e) => set({ incline: e.target.value.replace(/[^0-9.]/g, '') })}
+                        />
+                      )}
+                      {layout === 'carry' && (
+                        <UnitInput {...shortD} inputMode="numeric" value={st.distance} placeholder={ph(p?.distance, (v) => Math.round(kmToShort(v, unit)))} aria-label={`Set ${label} distance`} onValue={(v) => set({ distance: v })} />
+                      )}
                       <button
                         type="button"
                         className={`check${st.done ? ' on' : ''}`}
@@ -426,6 +565,10 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
                       <div className="pr-row">
                         {flags.weight && <span className="pr">Weight PR</span>}
                         {flags.orm && <span className="pr">1RM PR</span>}
+                        {flags.reps && <span className="pr">Reps PR</span>}
+                        {flags.time && <span className="pr">Hold PR</span>}
+                        {flags.distance && <span className="pr">Distance PR</span>}
+                        {flags.pace && <span className="pr">Pace PR</span>}
                       </div>
                     )}
                     {openSet === st.id && (

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { bestEfforts, byType, distUnit, distanceOut, fmtMinutes, totals, typeLabel, weeklyMinutes, activitySummary } from '../activities';
+import { bestEfforts, byType, distLabel, distOut, distUnit, distanceOut, fmtMinutes, paceFromMinPerKm, totals, typeLabel, weeklyMinutes, activitySummary } from '../activities';
 import { weekStartOf } from '../goals';
 import { today } from '../db';
 import { fmtShortDate } from '../stats';
@@ -9,17 +9,6 @@ const RANGES = [
   ['90', '90 days'],
   ['all', 'All time'],
 ];
-
-function paceLabel(minPerKm, type, unit) {
-  const kmPer = unit === 'kg' ? minPerKm : minPerKm * 1.609344;
-  const u = distUnit(unit);
-  if (type === 'cycle' || type === 'row') {
-    const speed = 60 / kmPer;
-    return `${Math.round(speed * 10) / 10} ${u === 'mi' ? 'mph' : 'km/h'}`;
-  }
-  const s = Math.round(kmPer * 60);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} /${u}`;
-}
 
 export default function ActivityStats({ activities, unit, weekStart }) {
   const [range, setRange] = useState('90');
@@ -73,7 +62,8 @@ export default function ActivityStats({ activities, unit, weekStart }) {
       </section>
 
       <section className="card">
-        <h3>Minutes per week</h3>
+        <h3>Activity minutes per week</h3>
+        <p className="muted small">Non-gym activities only.</p>
         <div className="bars" role="img" aria-label={`Active minutes per week, last 8 weeks. This week: ${weeks[weeks.length - 1].minutes} minutes.`}>
           {weeks.map((w) => (
             <div key={w.week} className="bar-col" title={`${fmtShortDate(w.week)}: ${w.minutes} min`}>
@@ -93,7 +83,7 @@ export default function ActivityStats({ activities, unit, weekStart }) {
               <strong>{typeLabel(t.type)}</strong>
               <span className="muted">
                 {t.count}× · {fmtMinutes(t.minutes)}
-                {t.km > 0 ? ` · ${distanceOut(t.km, unit)} ${u}` : ''}
+                {t.km > 0 ? ` · ${distOut(t.km, t.type, unit)} ${distLabel(t.type, unit)}` : ''}
               </span>
             </li>
           ))}
@@ -108,7 +98,7 @@ export default function ActivityStats({ activities, unit, weekStart }) {
               <li key={b.type}>
                 <strong>{typeLabel(b.type)}</strong>
                 <span className="muted">
-                  {paceLabel(b.minPerKm, b.type, unit)} · {fmtShortDate(b.activity.date)} · {activitySummary(b.activity, unit).split(' · ').slice(0, 2).join(' · ')}
+                  {paceFromMinPerKm(b.type, b.minPerKm, unit)} · {fmtShortDate(b.activity.date)} · {activitySummary(b.activity, unit).split(' · ').slice(0, 2).join(' · ')}
                 </span>
               </li>
             ))}

@@ -3,6 +3,7 @@
 import { key } from './stats';
 import { weekStartOf } from './goals';
 import { typeLabel } from './activities';
+import { deriveMode, isMode } from './measure';
 
 export const GROUPS = {
   push: { label: 'Push', muscles: ['chest', 'shoulders', 'triceps'] },
@@ -135,18 +136,21 @@ export function suggestWorkout({
   for (const l of library) {
     if (!STRENGTH.has(l.category) || l.level === 'expert' || !wanted.has(l.muscle)) continue;
     if (okGear && !okGear.has(l.equipment)) continue;
-    pool.push({ name: l.name, muscle: l.muscle, compound: l.compound, level: l.level, mine: false });
+    pool.push({ name: l.name, muscle: l.muscle, compound: l.compound, level: l.level, mine: false, mode: deriveMode(l) });
   }
   for (const c of custom) {
     if (c.deleted_at || !wanted.has(c.muscle)) continue;
     if (okGear && c.equipment && !okGear.has(c.equipment)) continue;
-    if (!pool.some((p) => key(p.name) === key(c.name))) pool.push({ name: c.name, muscle: c.muscle, compound: false, level: 'beginner', mine: true });
+    if (isMode(c.mode) && (c.mode === 'cardio' || c.mode === 'stretch')) continue;
+    if (!pool.some((p) => key(p.name) === key(c.name))) pool.push({ name: c.name, muscle: c.muscle, compound: false, level: 'beginner', mine: true, mode: isMode(c.mode) ? c.mode : 'weight' });
   }
 
   const picked = [];
   const take = (p, extra = {}) => {
     if (picked.some((x) => key(x.name) === key(p.name))) return;
-    picked.push({ name: p.name, muscle: p.muscle, compound: !!p.compound, sets: scheme.sets, reps: scheme.reps, ...extra });
+    const mode = p.mode ?? deriveMode({ name: p.name, ...(meta.get(key(p.name)) ?? {}) });
+    const base = mode === 'time' ? { reps: '30–45 s', sets: 3 } : mode === 'carry' ? { reps: '30–40 yd', sets: 3 } : { sets: scheme.sets, reps: scheme.reps };
+    picked.push({ name: p.name, muscle: p.muscle, compound: !!p.compound, mode, ...base, ...(mode === 'weight' || mode === 'bodyweight' ? extra : { note: extra.note }) });
   };
 
   // Lift goals first, so what you're working toward is always in the plan.
@@ -238,6 +242,7 @@ export function suggestionAsRoutine(s) {
     name: s.title,
     exercises: s.exercises.map((e) => ({
       name: e.name,
+      mode: e.mode,
       link: false,
       notes: [`${e.sets} × ${e.reps}`, e.note].filter(Boolean).join('. '),
       sets: Array.from({ length: e.sets }, () => ({ type: 'normal' })),

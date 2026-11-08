@@ -10,7 +10,7 @@ export const ACTIVITY_TYPES = [
   ['hike', 'Hike', 'pace'],
   ['cycle', 'Cycling', 'speed'],
   ['swim', 'Swim', 'pace'],
-  ['row', 'Rowing', 'speed'],
+  ['row', 'Rowing', 'pace'],
   ['elliptical', 'Elliptical', ''],
   ['basketball', 'Basketball', ''],
   ['soccer', 'Soccer', ''],
@@ -46,6 +46,23 @@ const round = (n, d = 2) => Math.round(n * 10 ** d) / 10 ** d;
 export const distanceOut = (km, unit) => (km == null ? null : round(unit === 'kg' ? km : kmToMi(km)));
 export const distanceIn = (v, unit) => (unit === 'kg' ? Number(v) : miToKm(Number(v)));
 
+// Swims are counted in yards or metres, rowing in metres; everything else in miles or km.
+const YD_PER_KM = 1093.6133;
+export const isShortDistance = (type) => type === 'swim' || type === 'row';
+export const distLabel = (type, unit) => (type === 'row' ? 'm' : isShortDistance(type) ? (unit === 'kg' ? 'm' : 'yd') : distUnit(unit));
+export function distOut(km, type, unit) {
+  if (km == null) return null;
+  if (type === 'row') return Math.round(km * 1000);
+  if (isShortDistance(type)) return Math.round(unit === 'kg' ? km * 1000 : km * YD_PER_KM);
+  return distanceOut(km, unit);
+}
+export function distIn(v, type, unit) {
+  const n = Number(v);
+  if (type === 'row') return n / 1000;
+  if (isShortDistance(type)) return unit === 'kg' ? n / 1000 : n / YD_PER_KM;
+  return distanceIn(n, unit);
+}
+
 // ---- formatting ----
 export function fmtMinutes(min) {
   const m = Math.round(Number(min) || 0);
@@ -55,30 +72,47 @@ export function fmtMinutes(min) {
   return r ? `${h} h ${r} min` : `${h} h`;
 }
 
+const clock = (minutes) => {
+  const total = Math.round(minutes * 60);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+};
+
+// Pace or speed from minutes per km: "8:30 /mi", "1:45 /100yd", "2:05 /500m", or "14.2 mph".
+export function paceFromMinPerKm(type, mpk, unit) {
+  if (!(mpk > 0)) return '';
+  if (typeMeasure(type) === 'speed') return `${round(kmToMi(60 / mpk) * (unit === 'kg' ? KM_PER_MI : 1), 1)} ${unit === 'kg' ? 'km/h' : 'mph'}`;
+  if (type === 'row') return `${clock(mpk * 0.5)} /500m`;
+  if (type === 'swim') return unit === 'kg' ? `${clock(mpk / 10)} /100m` : `${clock((mpk * 100) / YD_PER_KM)} /100yd`;
+  return `${clock(unit === 'kg' ? mpk : mpk * KM_PER_MI)} /${distUnit(unit)}`;
+}
+
 // "8:30 /mi" for runs, "14.2 mph" for rides; '' when there is no distance.
 export function paceText(a, unit) {
-  const d = distanceOut(a.distance_km, unit);
-  if (!(d > 0) || !(a.duration_min > 0)) return '';
-  const u = distUnit(unit);
-  if (typeMeasure(a.type) === 'speed') return `${round((d / a.duration_min) * 60, 1)} ${u === 'mi' ? 'mph' : 'km/h'}`;
-  if (typeMeasure(a.type) === 'pace') {
-    const total = Math.round((a.duration_min / d) * 60); // seconds per unit distance
-    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')} /${u}`;
-  }
-  return '';
+  if (!typeMeasure(a.type) || !(a.distance_km > 0) || !(a.duration_min > 0)) return '';
+  return paceFromMinPerKm(a.type, a.duration_min / a.distance_km, unit);
 }
+
+export const elevationOut = (m, unit) => (m == null ? null : Math.round(unit === 'kg' ? m : m * 3.28084));
+export const elevationIn = (v, unit) => (unit === 'kg' ? Number(v) : Number(v) / 3.28084);
+export const elevationLabel = (unit) => (unit === 'kg' ? 'm' : 'ft');
+// Which optional details make sense for each kind of activity.
+export const hasElevation = (type) => ['run', 'walk', 'hike', 'cycle'].includes(type);
+export const hasIncline = (type) => ['run', 'walk', 'hike', 'elliptical'].includes(type);
 
 export function activityTitle(a) {
   return a.title?.trim() || typeLabel(a.type);
 }
 
-// One line for a list: "45 min · 5.2 mi · 8:41 /mi".
+// One line for a list: "45 min · 5.2 mi · 8:41 /mi · 5% incline · ↑ 320 ft · 142 bpm".
 export function activitySummary(a, unit) {
   const parts = [fmtMinutes(a.duration_min)];
-  const d = distanceOut(a.distance_km, unit);
-  if (d > 0) parts.push(`${d} ${distUnit(unit)}`);
+  const d = distOut(a.distance_km, a.type, unit);
+  if (d > 0) parts.push(`${d} ${distLabel(a.type, unit)}`);
   const p = paceText(a, unit);
   if (p) parts.push(p);
+  if (a.incline_pct > 0) parts.push(`${a.incline_pct}% incline`);
+  if (a.elevation_m > 0) parts.push(`↑ ${elevationOut(a.elevation_m, unit)} ${elevationLabel(unit)}`);
+  if (a.avg_hr) parts.push(`${a.avg_hr} bpm`);
   if (a.effort) parts.push(`effort ${a.effort}/10`);
   if (a.stretches?.length) parts.push(`${a.stretches.length} stretch${a.stretches.length === 1 ? '' : 'es'}`);
   return parts.join(' · ');

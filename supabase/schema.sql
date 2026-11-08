@@ -363,3 +363,11 @@ alter table public.goals add column if not exists notes text not null default ''
 alter table public.activities add column if not exists stretches jsonb not null default '[]'::jsonb;
 alter table public.activities drop constraint if exists activities_stretches_is_array;
 alter table public.activities add constraint activities_stretches_is_array check (jsonb_typeof(stretches) = 'array' and jsonb_array_length(stretches) <= 40);
+
+-- How an exercise is measured (weight, bodyweight, time, stretch, cardio, carry) and extra activity details.
+alter table public.custom_exercises add column if not exists mode text not null default '';
+alter table public.custom_exercises drop constraint if exists custom_exercises_mode_check;
+alter table public.custom_exercises add constraint custom_exercises_mode_check check (mode in ('', 'weight', 'bodyweight', 'time', 'stretch', 'cardio', 'carry'));
+alter table public.activities add column if not exists elevation_m numeric check (elevation_m is null or (elevation_m >= 0 and elevation_m <= 10000));
+alter table public.activities add column if not exists incline_pct numeric check (incline_pct is null or (incline_pct >= 0 and incline_pct <= 100));
+alter table public.activities add column if not exists avg_hr smallint check (avg_hr is null or (avg_hr between 30 and 250));

@@ -2,17 +2,42 @@ import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { listSessions } from '../db';
+import { kmToLong, kmToShort, longUnit, shortUnit } from '../measure';
 import { entriesFromSessions, key } from '../stats';
 
-const METRICS = {
-  top: { label: 'Top weight', value: (sets) => Math.max(...sets.map((s) => s.weight)), weighted: true },
-  e1rm: {
-    label: 'Estimated 1RM',
-    value: (sets) => Math.max(...sets.map((s) => (s.reps === 1 ? s.weight : s.weight * (1 + s.reps / 30)))),
-    weighted: true,
+const sum = (sets, f) => sets.reduce((a, s) => a + f(s), 0);
+const max = (sets, f) => Math.max(0, ...sets.map(f));
+const eOf = (s) => (s.reps === 1 ? s.weight : s.weight * (1 + s.reps / 30));
+
+// Which numbers you can chart depends on how the exercise is measured.
+// value(sets, unit) -> number; label(unit) -> axis text.
+const M = {
+  top: { label: 'Top weight', value: (x) => max(x, (s) => s.weight), axis: (u) => u, weighted: true },
+  e1rm: { label: 'Estimated 1RM', value: (x) => max(x, eOf), axis: (u) => u, weighted: true },
+  volume: { label: 'Total volume', value: (x) => sum(x, (s) => s.reps * s.weight), axis: (u) => `${u}·reps`, weighted: true },
+  reps: { label: 'Total reps', value: (x) => sum(x, (s) => s.reps), axis: () => 'reps' },
+  bestReps: { label: 'Most reps in a set', value: (x) => max(x, (s) => s.reps), axis: () => 'reps' },
+  hold: { label: 'Longest hold', value: (x) => max(x, (s) => s.time), axis: () => 'sec' },
+  totalTime: { label: 'Total time', value: (x) => sum(x, (s) => s.time), axis: () => 'sec' },
+  distance: { label: 'Distance', value: (x, u) => kmToLong(sum(x, (s) => s.distance), u), axis: (u) => longUnit(u) },
+  minutes: { label: 'Time', value: (x) => sum(x, (s) => s.time) / 60, axis: () => 'min' },
+  speed: {
+    label: 'Average speed',
+    value: (x, u) => {
+      const km = sum(x, (s) => s.distance);
+      const hrs = sum(x, (s) => (s.distance > 0 ? s.time : 0)) / 3600;
+      return km > 0 && hrs > 0 ? kmToLong(km, u) / hrs : 0;
+    },
+    axis: (u) => (u === 'kg' ? 'km/h' : 'mph'),
   },
-  volume: { label: 'Total volume', value: (sets) => sets.reduce((a, s) => a + s.reps * s.weight, 0), weighted: true },
-  reps: { label: 'Total reps', value: (sets) => sets.reduce((a, s) => a + s.reps, 0), weighted: false },
+  carryDistance: { label: 'Longest carry', value: (x, u) => kmToShort(max(x, (s) => s.distance), u), axis: (u) => shortUnit(u) },
+};
+const BY_MODE = {
+  weight: ['top', 'e1rm', 'volume', 'reps'],
+  bodyweight: ['bestReps', 'reps', 'top'],
+  time: ['hold', 'totalTime'],
+  cardio: ['distance', 'minutes', 'speed'],
+  carry: ['top', 'carryDistance'],
 };
 
 const round = (n) => Math.round(n * 10) / 10;
@@ -25,7 +50,7 @@ export default function ProgressCharts({ unit }) {
   const sessions = useLiveQuery(listSessions, [], undefined);
   const all = useMemo(() => (sessions ? entriesFromSessions(sessions.filter((s) => s.ended_at)) : null), [sessions]);
   const [exercise, setExercise] = useState('');
-  const [metric, setMetric] = useState('top');
+  const [metricPick, setMetric] = useState('top');
 
   // Only finished workouts count: a set ticked off mid-workout (say a warm-up) is not a result yet.
   // One entry per exercise, ignoring capitalization ("squat" and "Squat" are the same).
@@ -37,6 +62,14 @@ export default function ProgressCharts({ unit }) {
   }, [all]);
   const selected = names.includes(exercise) ? exercise : names[0] || '';
 
+  // How the chosen exercise is measured (the latest way you logged it).
+  const mode = useMemo(() => {
+    const list = (all ?? []).filter((w) => key(w.exercise) === key(selected));
+    return list.length ? list[list.length - 1].mode : 'weight';
+  }, [all, selected]);
+  const ids = BY_MODE[mode] ?? BY_MODE.weight;
+  const metric = ids.includes(metricPick) ? metricPick : ids[0];
+
   const series = useMemo(() => {
     if (!all || !selected) return [];
     const byDate = new Map();
@@ -44,22 +77,22 @@ export default function ProgressCharts({ unit }) {
       if (key(w.exercise) !== key(selected)) continue;
       byDate.set(w.date, [...(byDate.get(w.date) ?? []), ...w.sets]);
     }
-    const fn = METRICS[metric].value;
+    const fn = (sets) => M[metric].value(sets, unit);
     return [...byDate.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, sets]) => ({ date, value: round(fn(sets)) }));
-  }, [all, selected, metric]);
+  }, [all, selected, metric, unit]);
 
   if (!all) return <p className="muted">Loading…</p>;
   if (!names.length) return <p className="muted empty">Log a few workouts and your progress will show up here.</p>;
 
-  const unitLabel = metric === 'reps' ? 'reps' : metric === 'volume' ? `${unit}·reps` : unit;
+  const unitLabel = M[metric].axis(unit);
   const best = series.length ? Math.max(...series.map((p) => p.value)) : 0;
   const latest = series.length ? series[series.length - 1].value : 0;
 
   return (
     <div className="card">
-      <h2>Lift charts</h2>
+      <h2>Exercise charts</h2>
       <div className="row">
         <label className="field">
           <span>Exercise</span>
@@ -74,9 +107,9 @@ export default function ProgressCharts({ unit }) {
         <label className="field">
           <span>Metric</span>
           <select value={metric} onChange={(e) => setMetric(e.target.value)}>
-            {Object.entries(METRICS).map(([id, m]) => (
+            {ids.map((id) => (
               <option key={id} value={id}>
-                {m.label}
+                {M[id].label}
               </option>
             ))}
           </select>
@@ -102,7 +135,7 @@ export default function ProgressCharts({ unit }) {
         </div>
       </div>
 
-      {METRICS[metric].weighted && best === 0 && (
+      {M[metric].weighted && best === 0 && (
         <p className="muted">No weight was logged for this exercise. Try “Total reps”.</p>
       )}
 
@@ -113,13 +146,13 @@ export default function ProgressCharts({ unit }) {
             <XAxis dataKey="date" tickFormatter={shortDate} tick={{ fill: 'var(--muted)', fontSize: 12 }} stroke="var(--line)" />
             <YAxis
               domain={[(min) => Math.max(0, Math.floor(min * 0.9)), (max) => Math.ceil(max * 1.05)]}
-              allowDecimals={false}
+              allowDecimals={mode === 'cardio'}
               tick={{ fill: 'var(--muted)', fontSize: 12 }}
               stroke="var(--line)"
               width={52}
             />
             <Tooltip
-              formatter={(v) => [`${v} ${unitLabel}`, METRICS[metric].label]}
+              formatter={(v) => [`${v} ${unitLabel}`, M[metric].label]}
               labelFormatter={(d) => d}
               contentStyle={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--text)' }}
             />

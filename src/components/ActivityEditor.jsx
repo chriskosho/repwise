@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { deleteActivity, saveActivity } from '../db';
-import { ACTIVITY_TYPES, distUnit, distanceIn, distanceOut, paceText } from '../activities';
+import { ACTIVITY_TYPES, distIn, distLabel, distOut, elevationIn, elevationLabel, elevationOut, hasElevation, hasIncline, paceText } from '../activities';
 import PlacePicker from './PlacePicker';
 import ExercisePicker from './ExercisePicker';
 import ExerciseInfo from './ExerciseInfo';
@@ -12,7 +12,10 @@ export default function ActivityEditor({ initial, isNew, places, unit, onClose }
   const total = initial.duration_min ?? 0;
   const [hours, setHours] = useState(total ? String(Math.floor(total / 60)) : '');
   const [mins, setMins] = useState(total ? String(Math.round(total % 60)) : '');
-  const [dist, setDist] = useState(initial.distance_km != null ? String(distanceOut(initial.distance_km, unit)) : '');
+  const [dist, setDist] = useState(initial.distance_km != null ? String(distOut(initial.distance_km, initial.type, unit)) : '');
+  const [elev, setElev] = useState(initial.elevation_m != null ? String(elevationOut(initial.elevation_m, unit)) : '');
+  const [incline, setIncline] = useState(initial.incline_pct != null ? String(initial.incline_pct) : '');
+  const [hr, setHr] = useState(initial.avg_hr != null ? String(initial.avg_hr) : '');
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -22,7 +25,10 @@ export default function ActivityEditor({ initial, isNew, places, unit, onClose }
   const draft = () => ({
     ...a,
     duration_min: (Number(hours) || 0) * 60 + (Number(mins) || 0),
-    distance_km: dist === '' ? null : distanceIn(dist, unit),
+    distance_km: dist === '' ? null : distIn(dist, a.type, unit),
+    elevation_m: elev === '' || !hasElevation(a.type) ? null : elevationIn(elev, unit),
+    incline_pct: incline === '' || !hasIncline(a.type) ? null : incline,
+    avg_hr: hr === '' ? null : hr,
   });
   const pace = (() => {
     const d = draft();
@@ -79,10 +85,26 @@ export default function ActivityEditor({ initial, isNew, places, unit, onClose }
           </label>
         </div>
         <label className="field">
-          <span>Distance, optional ({distUnit(unit)})</span>
+          <span>Distance, optional ({distLabel(a.type, unit)})</span>
           <input type="number" inputMode="decimal" step="any" min="0" value={dist} onChange={(e) => setDist(e.target.value)} />
         </label>
         {pace && <p className="muted">Average: {pace}</p>}
+        {hasIncline(a.type) && (
+          <label className="field">
+            <span>Incline, optional (%)</span>
+            <input type="number" inputMode="decimal" step="any" min="0" max="100" value={incline} onChange={(e) => setIncline(e.target.value)} />
+          </label>
+        )}
+        {hasElevation(a.type) && (
+          <label className="field">
+            <span>Elevation gain, optional ({elevationLabel(unit)})</span>
+            <input type="number" inputMode="numeric" min="0" value={elev} onChange={(e) => setElev(e.target.value)} />
+          </label>
+        )}
+        <label className="field">
+          <span>Average heart rate, optional (bpm)</span>
+          <input type="number" inputMode="numeric" min="30" max="250" value={hr} onChange={(e) => setHr(e.target.value)} />
+        </label>
         <label className="field">
           <span>Effort, optional (1 easy – 10 all out)</span>
           <select value={a.effort ?? ''} onChange={(e) => set({ effort: e.target.value ? Number(e.target.value) : null })}>

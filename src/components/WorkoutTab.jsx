@@ -13,6 +13,7 @@ import {
   today,
 } from '../db';
 import { fmtDuration, fmtVolume, plural } from '../stats';
+import { fmtCardioTime, fmtSeconds, kmToLong, longUnit, paceFromMinPerKm } from '../measure';
 import { weekStartOf } from '../goals';
 import SessionCard from './SessionCard';
 import ActivityCard from './ActivityCard';
@@ -40,6 +41,20 @@ function Summary({ info, unit, onDone, onSaveRoutine }) {
           <span className="stat-label">Sets</span>
           <strong>{stats.sets}</strong>
         </div>
+        {stats.cardioSec > 0 && (
+          <div>
+            <span className="stat-label">Cardio</span>
+            <strong>{fmtCardioTime(stats.cardioSec)}</strong>
+          </div>
+        )}
+        {stats.km > 0 && (
+          <div>
+            <span className="stat-label">Distance</span>
+            <strong>
+              {Math.round(kmToLong(stats.km, unit) * 100) / 100} {longUnit(unit)}
+            </strong>
+          </div>
+        )}
       </div>
       {prs.length > 0 && (
         <>
@@ -49,7 +64,16 @@ function Summary({ info, unit, onDone, onSaveRoutine }) {
               <li key={p.name}>
                 <strong>{p.name}</strong>
                 <span className="muted">
-                  {[p.weight && `Heaviest ${p.weight} ${unit}`, p.orm && `Est. 1RM ${p.orm} ${unit}`].filter(Boolean).join(' · ')}
+                  {[
+                    p.weight && `Heaviest ${p.weight} ${unit}`,
+                    p.orm && `Est. 1RM ${p.orm} ${unit}`,
+                    p.reps && `Most reps: ${p.reps}${p.repsWeight ? ` (+${p.repsWeight} ${unit})` : ''}`,
+                    p.time && `Longest hold: ${fmtSeconds(p.time)}`,
+                    p.distance && `Longest: ${Math.round(kmToLong(p.distance, unit) * 100) / 100} ${longUnit(unit)}`,
+                    p.pace && `Best ${/bicycl|bike|row|skat|ellip/i.test(p.name) ? 'speed' : 'pace'}: ${paceFromMinPerKm(p.name, p.pace, unit)}`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </span>
               </li>
             ))}

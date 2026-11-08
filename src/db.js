@@ -1,6 +1,7 @@
 import Dexie from 'dexie';
 import { key } from './stats';
 import { isActivityType } from './activities';
+import { isMode } from './measure';
 
 export const newId = () => crypto.randomUUID();
 export const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
@@ -222,6 +223,7 @@ export function routineFromSession(session) {
     .map((e) => ({
       id: newId(),
       name: e.name,
+      ...(isMode(e.mode) ? { mode: e.mode } : {}),
       link: !!e.link,
       notes: e.notes || '',
       sets: e.sets.slice(0, MAX_ROUTINE_SETS).map((s) => ({ id: newId(), type: s.type || 'normal' })),
@@ -238,18 +240,16 @@ export function sessionFromRoutine(routine) {
     exercises: routine.exercises.map((e) => ({
       id: newId(),
       name: e.name,
+      ...(isMode(e.mode) ? { mode: e.mode } : {}),
       link: !!e.link,
       notes: e.notes || '',
-      sets: (e.sets.length ? e.sets : [{ type: 'normal' }]).map((s) => ({
-        id: newId(),
-        type: s.type || 'normal',
-        reps: '',
-        weight: '',
-        done: false,
-      })),
+      sets: (e.sets.length ? e.sets : [{ type: 'normal' }]).map((s) => blankSet(s.type || 'normal', false)),
     })),
   };
 }
+
+// An empty set. Every measurement starts blank; which ones show depends on the exercise's mode.
+export const blankSet = (type = 'normal', done = false) => ({ id: newId(), type, reps: '', weight: '', time: '', distance: '', incline: '', done });
 
 export const saveRoutine = (doc) => putRow(db.routines, doc);
 export const deleteRoutine = (id) => softDelete(db.routines, id);
@@ -259,11 +259,11 @@ export async function listRoutines() {
 }
 
 // Your own exercises. Adding a name you already have returns the existing one.
-export async function saveCustomExercise({ name, muscle = '', equipment = '' }) {
+export async function saveCustomExercise({ name, muscle = '', equipment = '', mode = '' }) {
   const clean = String(name).trim().replace(/\s+/g, ' ').slice(0, 100);
   const existing = (await db.customExercises.toArray()).find((c) => !c.deleted_at && key(c.name) === key(clean));
   if (existing) return existing;
-  return putRow(db.customExercises, { id: newId(), name: clean, muscle, equipment, deleted_at: null });
+  return putRow(db.customExercises, { id: newId(), name: clean, muscle, equipment, mode: isMode(mode) ? mode : '', deleted_at: null });
 }
 export async function listCustomExercises() {
   const all = await db.customExercises.toArray();
@@ -391,7 +391,7 @@ export async function listPlaces() {
 
 // ---- activities (runs, rides, sports...) ----
 export function newActivity(date = today()) {
-  return { id: newId(), date, type: 'run', title: '', duration_min: null, distance_km: null, effort: null, place_id: lastPlaceId(), stretches: [], notes: '', created_at: nowIso(), deleted_at: null };
+  return { id: newId(), date, type: 'run', title: '', duration_min: null, distance_km: null, effort: null, elevation_m: null, incline_pct: null, avg_hr: null, place_id: lastPlaceId(), stretches: [], notes: '', created_at: nowIso(), deleted_at: null };
 }
 
 export function cleanStretches(list) {
@@ -415,6 +415,15 @@ export function cleanActivity(a) {
   if (distance !== null && !(distance >= 0 && distance <= 5000)) throw new Error('That distance does not look right.');
   const effort = a.effort === null || a.effort === undefined || a.effort === '' ? null : Math.round(Number(a.effort));
   if (effort !== null && !(effort >= 1 && effort <= 10)) throw new Error('Effort is a number from 1 to 10.');
+  const opt = (v, lo, hi, what) => {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    if (!(n >= lo && n <= hi)) throw new Error(`${what} does not look right.`);
+    return n > 0 ? n : null;
+  };
+  const elevation = opt(a.elevation_m, 0, 10000, 'That elevation');
+  const incline = opt(a.incline_pct, 0, 100, 'That incline');
+  const hr = opt(a.avg_hr, 30, 250, 'That heart rate');
   if (typeof a.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(a.date)) throw new Error('Pick a date.');
   return {
     id: a.id || newId(),
@@ -424,6 +433,9 @@ export function cleanActivity(a) {
     duration_min: duration,
     distance_km: distance && distance > 0 ? distance : null,
     effort,
+    elevation_m: elevation,
+    incline_pct: incline,
+    avg_hr: hr === null ? null : Math.round(hr),
     place_id: a.place_id || null,
     stretches: cleanStretches(a.stretches),
     notes: String(a.notes ?? '').slice(0, 2000),

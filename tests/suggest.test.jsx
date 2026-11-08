@@ -118,7 +118,7 @@ describe('the screens', () => {
 
   it('opens how-to with video links from a workout', async () => {
     const s = newSession();
-    s.exercises = [{ id: 'e', name: 'Cat Stretch', link: false, notes: '', sets: [{ id: 's', type: 'normal', reps: '', weight: '', done: false }] }];
+    s.exercises = [{ id: 'e', name: 'Cat Stretch', mode: 'stretch', link: false, notes: '', sets: [{ id: 's', type: 'normal', reps: '', weight: '', done: false }] }];
     await saveSession(s);
     const user = userEvent.setup();
     render(<App />);

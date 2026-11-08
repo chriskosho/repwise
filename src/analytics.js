@@ -1,4 +1,5 @@
 import { workSets, e1rm, key } from './stats';
+import { isStrength, modeOf } from './measure';
 import { weekStartOf, weeklyCounts } from './goals';
 
 const num = (v) => {
@@ -7,28 +8,49 @@ const num = (v) => {
 };
 const finished = (sessions) => sessions.filter((s) => !s.deleted_at && s.ended_at && s.exercises.length);
 
-// Best result per exercise across all finished workouts (warm-ups ignored):
-// heaviest weight, best estimated 1RM, and the best volume in one workout.
+// Best result per exercise across all finished workouts (warm-ups ignored). What counts as
+// "best" depends on how the exercise is measured:
+//   weight / bodyweight: heaviest weight, best estimated 1RM (weight only), most reps, best volume
+//   time: longest hold and best total per workout     cardio: longest distance, longest time, best pace
+//   carry: heaviest and longest distance              stretches are left out
 export function allRecords(sessions) {
   const map = new Map();
   for (const s of finished(sessions)) {
     for (const ex of s.exercises) {
+      const mode = modeOf(ex);
+      if (mode === 'stretch') continue;
       const sets = workSets(ex);
       if (!sets.length) continue;
       const k = key(ex.name);
-      const rec = map.get(k) ?? { name: ex.name, weight: null, e1rm: null, volume: null, count: 0, last: s.date };
+      const rec = map.get(k) ?? { name: ex.name, mode, weight: null, e1rm: null, volume: null, reps: null, time: null, totalTime: null, distance: null, duration: null, pace: null, count: 0, last: s.date };
       rec.count++;
-      if (s.date > rec.last) rec.last = s.date;
+      if (s.date >= rec.last) {
+        rec.last = s.date;
+        rec.mode = mode; // the latest way you measured it
+      }
       let vol = 0;
+      let total = 0;
       for (const st of sets) {
         const w = num(st.weight);
         const r = num(st.reps);
+        const t = num(st.time);
+        const d = num(st.distance);
         vol += w * r;
-        if (w > 0 && (!rec.weight || w > rec.weight.value)) rec.weight = { value: w, reps: r, date: s.date };
-        const e = w > 0 ? e1rm(r, w) : 0;
+        total += t;
+        if (w > 0 && (!rec.weight || w > rec.weight.value)) rec.weight = { value: w, reps: r, distance: d, date: s.date };
+        const e = mode === 'weight' && w > 0 ? e1rm(r, w) : 0;
         if (e > 0 && (!rec.e1rm || e > rec.e1rm.value)) rec.e1rm = { value: e, weight: w, reps: r, date: s.date };
+        if (r > 0 && (!rec.reps || r > rec.reps.value || (r === rec.reps.value && w > rec.reps.weight))) rec.reps = { value: r, weight: w, date: s.date };
+        if (t > 0 && (!rec.time || t > rec.time.value)) rec.time = { value: t, date: s.date };
+        if (d > 0 && (!rec.distance || d > rec.distance.value)) rec.distance = { value: d, weight: w, date: s.date };
+        if (mode === 'cardio' && t > 0 && (!rec.duration || t > rec.duration.value)) rec.duration = { value: t, date: s.date };
+        if (mode === 'cardio' && d > 0 && t > 0) {
+          const pace = t / 60 / d; // minutes per km
+          if (!rec.pace || pace < rec.pace.value) rec.pace = { value: pace, distance: d, time: t, date: s.date };
+        }
       }
       if (vol > 0 && (!rec.volume || vol > rec.volume.value)) rec.volume = { value: vol, date: s.date };
+      if (total > 0 && (!rec.totalTime || total > rec.totalTime.value)) rec.totalTime = { value: total, date: s.date };
       map.set(k, rec);
     }
   }
@@ -58,6 +80,7 @@ export function muscleWeek(sessions, muscleOf, { weekStart = 1, weeksAgo = 0, to
   for (const s of finished(sessions)) {
     if (s.date < start || s.date > end) continue;
     for (const ex of s.exercises) {
+      if (!isStrength(modeOf(ex))) continue; // cardio and stretches aren't muscle volume
       const sets = workSets(ex);
       if (!sets.length) continue;
       const m = muscleOf(ex.name);

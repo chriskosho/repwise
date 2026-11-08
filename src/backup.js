@@ -2,6 +2,7 @@ import { cleanActivity, cleanGoal, cleanMeasurements, db, newId, PROFILE_ID, ses
 import { key as nameKey } from './stats';
 import { EQUIPMENT, MUSCLES } from './library';
 import { MEASUREMENT_KEYS } from './body';
+import { isLogged, isMode, modeOf } from './measure';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -37,7 +38,7 @@ export async function buildExport() {
       created_at,
     })),
     routines: routines.map(({ id, name, notes, exercises, created_at }) => ({ id, name, notes, exercises, created_at })),
-    custom_exercises: custom.map(({ id, name, muscle, equipment, created_at }) => ({ id, name, muscle, equipment, created_at })),
+    custom_exercises: custom.map(({ id, name, muscle, equipment, mode, created_at }) => ({ id, name, muscle, equipment, mode: mode ?? '', created_at })),
     body_entries: body.map(({ id, date, weight_kg, body_fat, measurements, notes, created_at }) => ({
       id,
       date,
@@ -59,7 +60,7 @@ export async function buildExport() {
       created_at,
     })),
     places: places.map(({ id, name, created_at }) => ({ id, name, created_at })),
-    activities: activities.map(({ id, date, type, title, duration_min, distance_km, effort, place_id, stretches, notes, created_at }) => ({
+    activities: activities.map(({ id, date, type, title, duration_min, distance_km, effort, elevation_m, incline_pct, avg_hr, place_id, stretches, notes, created_at }) => ({
       id,
       date,
       type,
@@ -67,6 +68,9 @@ export async function buildExport() {
       duration_min,
       distance_km,
       effort,
+      elevation_m: elevation_m ?? null,
+      incline_pct: incline_pct ?? null,
+      avg_hr: avg_hr ?? null,
       place_id: place_id ?? null,
       stretches: stretches ?? [],
       notes,
@@ -96,11 +100,25 @@ export async function downloadExport() {
 
 const validIso = (s) => typeof s === 'string' && !Number.isNaN(Date.parse(s));
 
-function cleanSet(s) {
-  const reps = Number(s?.reps);
-  const weight = Number(s?.weight ?? 0);
-  if (!Number.isFinite(reps) || reps <= 0 || !Number.isFinite(weight) || weight < 0) return null;
-  return { id: newId(), type: SET_TYPES.has(s?.type) ? s.type : 'normal', reps, weight, done: true };
+const inRange = (v, max) => Number.isFinite(v) && v >= 0 && v <= max;
+const optional = (v, max) => {
+  const n = Number(v);
+  return v === '' || v == null ? 0 : inRange(n, max) ? n : NaN;
+};
+
+// One set. Which measurements are required depends on how the exercise is measured.
+function cleanSet(s, mode) {
+  const reps = optional(s?.reps, 100000);
+  const weight = optional(s?.weight, 100000);
+  const time = optional(s?.time, 86400);
+  const distance = optional(s?.distance, 5000);
+  const incline = optional(s?.incline, 100);
+  if ([reps, weight, time, distance, incline].some(Number.isNaN)) return null;
+  const set = { id: newId(), type: SET_TYPES.has(s?.type) ? s.type : 'normal', reps, weight, done: true };
+  if (time) set.time = time;
+  if (distance) set.distance = distance;
+  if (incline) set.incline = incline;
+  return isLogged(mode, set) ? set : null;
 }
 
 function normalizeSession(raw) {
@@ -111,11 +129,13 @@ function normalizeSession(raw) {
   const exercises = [];
   for (const ex of raw.exercises) {
     if (!ex || typeof ex.name !== 'string' || !ex.name.trim() || !Array.isArray(ex.sets)) continue;
-    const sets = ex.sets.map(cleanSet).filter(Boolean);
+    const mode = isMode(ex.mode) ? ex.mode : modeOf(ex);
+    const sets = ex.sets.map((s) => cleanSet(s, mode)).filter(Boolean);
     if (!sets.length) continue;
     exercises.push({
       id: newId(),
       name: ex.name.trim().slice(0, 100),
+      ...(isMode(ex.mode) ? { mode: ex.mode } : {}),
       link: !!ex.link,
       notes: typeof ex.notes === 'string' ? ex.notes.slice(0, 2000) : '',
       sets,
@@ -170,6 +190,7 @@ function normalizeRoutine(raw) {
     exercises.push({
       id: newId(),
       name: ex.name.trim().slice(0, 100),
+      ...(isMode(ex.mode) ? { mode: ex.mode } : {}),
       link: !!ex.link,
       notes: typeof ex.notes === 'string' ? ex.notes.slice(0, 2000) : '',
       sets: sets.length ? sets : [{ id: newId(), type: 'normal' }],
@@ -199,6 +220,7 @@ function normalizeCustom(raw) {
     name: raw.name.trim().replace(/\s+/g, ' ').slice(0, 100),
     muscle: MUSCLE_KEYS.has(raw.muscle) ? raw.muscle : '',
     equipment: EQUIPMENT_KEYS.has(raw.equipment) ? raw.equipment : '',
+    mode: isMode(raw.mode) ? raw.mode : '',
     created_at: validIso(raw.created_at) ? raw.created_at : new Date().toISOString(),
     deleted_at: null,
     dirty: 1,
