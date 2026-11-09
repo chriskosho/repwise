@@ -74,6 +74,8 @@ describe('stretch builder', () => {
     render(<StretchBuilder onClose={onClose} />);
     await screen.findByText(/stretch(es)? · about/);
     await user.click(screen.getByRole('button', { name: 'Lower body' }));
+    expect(screen.getByRole('button', { name: 'Lower body' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Total body' }).getAttribute('aria-pressed')).toBe('false');
     await waitFor(() => expect(screen.getAllByText(/Hips and glutes|Quads|Hamstrings|Calves/).length).toBeGreaterThan(0));
     expect(screen.getByRole('button', { name: 'Back' }).getAttribute('aria-pressed')).toBe('false');
     expect(screen.getByRole('button', { name: 'Calves' }).getAttribute('aria-pressed')).toBe('true');

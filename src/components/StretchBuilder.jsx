@@ -40,6 +40,7 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
   }, [regions, minutes, seed, library]);
 
   const all = regions.length === REGION_IDS.length;
+  const same = (rs) => rs.length === regions.length && rs.every((r) => regions.includes(r));
   const toggle = (id) => {
     edited.current = true;
     setRegions((r) => (r.includes(id) ? r.filter((x) => x !== id) : [...r, id]));
@@ -118,12 +119,12 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
           Total body
         </button>
         {PRESETS.map((p) => (
-          <button key={p.id} type="button" className="chip-toggle" onClick={() => choose(p.regions)}>
+          <button key={p.id} type="button" className={same(p.regions) ? 'chip-toggle on' : 'chip-toggle'} aria-pressed={same(p.regions)} onClick={() => choose(p.regions)}>
             {p.label}
           </button>
         ))}
         {recent.length > 0 && (
-          <button type="button" className="chip-toggle" onClick={() => choose(recent)}>
+          <button type="button" className={same(recent) ? 'chip-toggle on' : 'chip-toggle'} aria-pressed={same(recent)} onClick={() => choose(recent)}>
             What I trained recently
           </button>
         )}
