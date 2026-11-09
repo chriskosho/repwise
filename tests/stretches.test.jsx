@@ -67,6 +67,16 @@ describe('stretch engine', () => {
   });
 });
 
+describe('curated stretches borrow library pictures and steps', () => {
+  it('every mapped name exists in the library', async () => {
+    const { loadLibrary, findExercise } = await import('../src/library');
+    const lib = await loadLibrary();
+    const mapped = CURATED.filter((s) => s.lib);
+    expect(mapped.length).toBeGreaterThanOrEqual(18);
+    for (const s of mapped) expect(findExercise(lib, s.lib), s.lib).toBeTruthy();
+  });
+});
+
 describe('stretch builder', () => {
   it('builds a list, responds to areas, and logs a stretching activity', async () => {
     const user = userEvent.setup();

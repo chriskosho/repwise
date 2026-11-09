@@ -62,6 +62,32 @@ const RAW = [
   ['Downward dog', 'calves', 30, false, 'Hands and feet on the floor, hips high. Pedal your heels down one at a time.'],
 ].map(([name, region, hold, sides, cue]) => ({ name, region, hold, sides, cue, curated: true }));
 
+// Closest library entry for each curated stretch, so its pictures and steps can be shown.
+// Only confident matches are listed; the rest show the cue and video links.
+const LIB = {
+  'Neck side tilt': 'Side Neck Stretch',
+  'Cross-body shoulder stretch': 'Shoulder Stretch',
+  'Doorway chest stretch': 'Chest And Front Of Shoulder Stretch',
+  'Overhead triceps stretch': 'Overhead Triceps',
+  'Biceps wall stretch': 'Standing Biceps Stretch',
+  'Child’s pose': "Child's Pose",
+  'Cat-cow': 'Cat Stretch',
+  'Standing lat stretch': 'Overhead Lat',
+  'Knees-to-chest stretch': 'Hug Knees To Chest',
+  'Supine spinal twist': 'Knee Across The Body',
+  'Standing side bend': 'Standing Lateral Stretch',
+  'Figure-4 stretch': 'Lying Glute',
+  'Kneeling hip flexor stretch': 'Kneeling Hip Flexor',
+  'Standing quad stretch': 'Quad Stretch',
+  'Lying quad stretch': 'On Your Side Quad Stretch',
+  'Seated hamstring stretch': 'Seated Hamstring',
+  'Standing hamstring stretch': 'Standing Hamstring and Calf Stretch',
+  'Supine hamstring stretch': 'Lying Hamstring',
+  'Standing forward fold': 'Standing Toe Touches',
+  'Wall calf stretch': 'Calf Stretch Hands Against Wall',
+  'Bent-knee calf stretch': 'Standing Soleus And Achilles Stretch',
+};
+for (const s of RAW) if (LIB[s.name]) s.lib = LIB[s.name];
 export const CURATED = RAW;
 const BY_NAME = new Map(RAW.map((s) => [s.name.toLowerCase(), s]));
 export const curatedStretch = (name) => BY_NAME.get(String(name ?? '').toLowerCase()) ?? null;

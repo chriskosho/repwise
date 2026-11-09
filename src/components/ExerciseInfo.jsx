@@ -30,9 +30,9 @@ function Pictures({ id, name }) {
 // How-to sheet for one exercise: pictures, steps (when it's in the library) and video searches.
 export default function ExerciseInfo({ name, onClose }) {
   const { list } = useLibrary();
-  const entry = findExercise(list, name);
-  const [steps, setSteps] = useState(null);
   const cur = curatedStretch(name);
+  const entry = findExercise(list, cur?.lib ?? name);
+  const [steps, setSteps] = useState(null);
   const stretch = entry?.category === 'stretching' || !!cur;
 
   useEffect(() => {
