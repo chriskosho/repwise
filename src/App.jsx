@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, getProfile, today, listPlaces, listSessions, needsExportReminder, newActivity, saveProfile } from './db';
+import { db, getProfile, today, listFoodLog, listPlaces, listSessions, needsExportReminder, newActivity, saveProfile } from './db';
 import { downloadExport } from './backup';
 import { loadLibrary } from './library';
 import { useRest } from './rest';
@@ -16,6 +16,7 @@ import ActivityEditor from './components/ActivityEditor';
 import Suggest from './components/Suggest';
 import Onboarding from './components/Onboarding';
 import Coach from './components/Coach';
+import { foodMode } from './food';
 import Review from './components/Review';
 import { PlanView } from './components/PlanCard';
 import PlanDay from './components/PlanDay';
@@ -89,6 +90,8 @@ export default function App() {
   const profileQ = useLiveQuery(async () => ({ p: (await getProfile()) ?? null }), [], undefined);
   const profile = profileQ?.p ?? null;
   const profileLoaded = profileQ !== undefined;
+  const hasFood = useLiveQuery(async () => (await listFoodLog()).length > 0, [], false);
+  const foodLabel = foodMode(profile, hasFood ? [{}] : []) === 'journal' ? 'Journal' : 'Food';
   const unit = profile?.units ?? unitCache;
   useEffect(() => {
     if (!profile?.units) return;
@@ -440,7 +443,7 @@ export default function App() {
             <span className="tab-icon">
               <Icon />
             </span>
-            <span className="tab-label">{label}</span>
+            <span className="tab-label">{id === 'food' ? foodLabel : label}</span>
           </button>
         ))}
       </nav>

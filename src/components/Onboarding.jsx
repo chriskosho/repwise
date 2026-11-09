@@ -5,7 +5,7 @@ import { GEAR, TIMES } from '../suggest';
 import { ACTIVITY_TYPES, typeLabel } from '../activities';
 import { heightFromParts, weightIn } from '../units';
 
-const STEPS = ['welcome', 'goal', 'level', 'schedule', 'when', 'interests', 'gear', 'body', 'length', 'review', 'tour'];
+const STEPS = ['welcome', 'goal', 'level', 'schedule', 'when', 'interests', 'gear', 'food', 'body', 'length', 'review', 'tour'];
 const PLAN_STEPS = ['goal', 'level', 'schedule', 'when', 'interests', 'gear', 'length', 'review'];
 const INTEREST_TYPES = ACTIVITY_TYPES.filter(([k]) => k !== 'other');
 const RECOMMENDED = { new: 21, some: 30, pro: 60 };
@@ -41,6 +41,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
   const [perWeek, setPerWeek] = useState(saved?.per_week ?? 3);
   const [minutes, setMinutes] = useState(saved?.minutes ?? 45);
   const [gear, setGear] = useState(saved?.gear ?? 'gym');
+  const [foodMode, setFoodMode] = useState('journal');
   const [interests, setInterests] = useState(saved?.interests ?? saved?.cardio ?? []);
   const [time, setTime] = useState(saved?.time ?? '');
   const [days, setDays] = useState(saved?.days ?? [0, 1, 2, 3, 4, 5, 6]);
@@ -77,7 +78,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
     try {
       if (mode === 'first') {
         if (u !== unit) setUnit(u);
-        const patch = { display_name: name, units: u };
+        const patch = { display_name: name, units: u, food_mode: foodMode };
         const cm = heightCm(u, h1, h2);
         if (cm) patch.height_cm = cm;
         await saveProfile(patch);
@@ -274,6 +275,17 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
               {GEAR.map(([k, label]) => (
                 <Choice key={k} selected={gear === k} title={label} onClick={() => setGear(k)} />
               ))}
+            </div>
+          </>
+        )}
+
+        {step === 'food' && (
+          <>
+            <h2>How do you want to log food?</h2>
+            <p className="muted">You can change this any time in Settings. Nothing is lost when you switch.</p>
+            <div className="choices">
+              <Choice selected={foodMode === 'journal'} title="A simple journal" text="Write down what you ate each day. No numbers." onClick={() => setFoodMode('journal')} />
+              <Choice selected={foodMode === 'track'} title="Track calories and macros" text="Search foods, set servings, see daily totals." onClick={() => setFoodMode('track')} />
             </div>
           </>
         )}

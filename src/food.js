@@ -121,3 +121,15 @@ export const fmtServings = (n) => {
   if (frac === 0) return String(w);
   return names[frac] ? `${w || ''}${names[frac]}` : String(round(v, 2));
 };
+
+// Journal for new people; anyone who already logs foods keeps full tracking until they choose.
+export const foodMode = (profile, log = []) => profile?.food_mode ?? (log.some((e) => !e.deleted_at) ? 'track' : 'journal');
+
+export const FEELINGS = [
+  ['great', 'Great'],
+  ['okay', 'Okay'],
+  ['rough', 'Not great'],
+];
+
+// "8:15 AM" for the current time, in the person's own format.
+export const clockNow = () => new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });

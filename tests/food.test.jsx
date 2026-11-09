@@ -82,7 +82,8 @@ describe('food storage', () => {
   });
 });
 
-describe('Food tab', () => {
+describe('Food tab (tracking)', () => {
+  beforeEach(() => saveProfile({ food_mode: 'track' }));
   it('autofills, logs with a time, edits, deletes with undo, and adds a new food', async () => {
     const user = userEvent.setup();
     render(<Food />);

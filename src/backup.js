@@ -25,6 +25,7 @@ export async function buildExport() {
   const activities = (await db.activities.toArray()).filter((a) => !a.deleted_at);
   const foods = (await db.foods.toArray()).filter((f) => !f.deleted_at);
   const foodLog = (await db.foodLog.toArray()).filter((e) => !e.deleted_at);
+  const foodNotes = (await db.foodNotes.toArray()).filter((n) => !n.deleted_at);
   return {
     app: 'repwise',
     version: 5,
@@ -43,6 +44,7 @@ export async function buildExport() {
     routines: routines.map(({ id, name, notes, exercises, created_at }) => ({ id, name, notes, exercises, created_at })),
     foods: foods.map(({ id, name, serving, calories, protein, carbs, fat, created_at }) => ({ id, name, serving, calories, protein, carbs, fat, created_at })),
     food_log: foodLog.map(({ id, date, time, name, serving, servings, calories, protein, carbs, fat, food_id, notes, created_at }) => ({ id, date, time, name, serving, servings, calories, protein, carbs, fat, food_id, notes, created_at })),
+    food_notes: foodNotes.map(({ id, date, text, feeling, created_at }) => ({ id, date, text, feeling, created_at })),
     custom_exercises: custom.map(({ id, name, muscle, equipment, mode, created_at }) => ({ id, name, muscle, equipment, mode: mode ?? '', created_at })),
     body_entries: body.map(({ id, date, weight_kg, body_fat, measurements, notes, created_at }) => ({
       id,
@@ -83,7 +85,7 @@ export async function buildExport() {
     })),
     profile:
       profile && !profile.deleted_at
-        ? { display_name: profile.display_name, units: profile.units, height_cm: profile.height_cm, week_start: profile.week_start, onboarding: profile.onboarding ?? null, plan: profile.plan ?? null, calorie_target: profile.calorie_target ?? null, protein_target: profile.protein_target ?? null }
+        ? { display_name: profile.display_name, units: profile.units, height_cm: profile.height_cm, week_start: profile.week_start, onboarding: profile.onboarding ?? null, plan: profile.plan ?? null, calorie_target: profile.calorie_target ?? null, protein_target: profile.protein_target ?? null, food_mode: profile.food_mode ?? null }
         : null,
   };
 }
@@ -251,6 +253,13 @@ function normalizeFood(raw) {
     rev: 1,
   };
 }
+function normalizeFoodNote(raw) {
+  if (!raw || typeof raw.id !== 'string' || !UUID.test(raw.id) || typeof raw.date !== 'string' || !DATE.test(raw.date)) return null;
+  const text = typeof raw.text === 'string' ? raw.text.slice(0, 5000) : '';
+  const feeling = ['great', 'okay', 'rough'].includes(raw.feeling) ? raw.feeling : '';
+  if (!text.trim() && !feeling) return null;
+  return { id: raw.id, date: raw.date, text, feeling, created_at: validIso(raw.created_at) ? raw.created_at : new Date().toISOString(), deleted_at: null, dirty: 1, rev: 1 };
+}
 function normalizeFoodEntry(raw) {
   if (!raw || typeof raw.id !== 'string' || !UUID.test(raw.id) || typeof raw.name !== 'string' || !raw.name.trim()) return null;
   if (typeof raw.date !== 'string' || !DATE.test(raw.date)) return null;
@@ -351,11 +360,12 @@ export async function importFile(file) {
   const goalItems = Array.isArray(parsed.goals) ? parsed.goals : null;
   const foodItems = Array.isArray(parsed.foods) ? parsed.foods : null;
   const foodLogItems = Array.isArray(parsed.food_log) ? parsed.food_log : null;
-  if (!sessionItems && !routineItems && !customItems && !bodyItems && !goalItems && !placeItems && !activityItems && !foodItems && !foodLogItems) throw new Error('That file is not a Repwise backup.');
+  const foodNoteItems = Array.isArray(parsed.food_notes) ? parsed.food_notes : null;
+  if (!sessionItems && !routineItems && !customItems && !bodyItems && !goalItems && !placeItems && !activityItems && !foodItems && !foodLogItems && !foodNoteItems) throw new Error('That file is not a Repwise backup.');
   const normalizeSessionItem = Array.isArray(parsed.sessions) ? normalizeSession : normalizeLegacy;
 
   const out = { added: 0, skipped: 0, invalid: 0, routines: 0, exercises: 0, body: 0, goals: 0, places: 0, activities: 0, foods: 0, profile: false };
-  await db.transaction('rw', [db.sessions, db.routines, db.customExercises, db.bodyEntries, db.goals, db.profile, db.places, db.activities, db.foods, db.foodLog], async () => {
+  await db.transaction('rw', [db.sessions, db.routines, db.customExercises, db.bodyEntries, db.goals, db.profile, db.places, db.activities, db.foods, db.foodLog, db.foodNotes], async () => {
     // Places first. A place whose name you already have is merged into it, and anything in the
     // file that pointed at the imported copy is pointed at yours instead.
     const placeMap = new Map();
@@ -458,6 +468,15 @@ export async function importFile(file) {
         out.foods++;
       }
     }
+    for (const raw of foodNoteItems ?? []) {
+      const row = normalizeFoodNote(raw);
+      if (!row) out.invalid++;
+      else if ((await db.foodNotes.get(row.id)) || (await db.foodNotes.where('date').equals(row.date).filter((n) => !n.deleted_at).count())) out.skipped++;
+      else {
+        await db.foodNotes.put(row);
+        out.foods++;
+      }
+    }
     // A backup never overwrites a profile that already exists on this device.
     const p = parsed.profile;
     if (p && typeof p === 'object' && !(await db.profile.get(PROFILE_ID))) {
@@ -472,6 +491,7 @@ export async function importFile(file) {
         plan: cleanPlan(p.plan),
         calorie_target: bn(p.calorie_target, 10000),
         protein_target: bn(p.protein_target, 600),
+        food_mode: p.food_mode === 'journal' || p.food_mode === 'track' ? p.food_mode : null,
         created_at: new Date().toISOString(),
         deleted_at: null,
         dirty: 1,

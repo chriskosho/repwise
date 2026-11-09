@@ -171,3 +171,7 @@ Onboarding also asks for your best time of day (morning, afternoon, evening, var
 ## Food log
 
 The Food tab (`src/components/Food.jsx`, `FoodComposer.jsx`) is a simple running log: no meal categories. Typing searches your own foods and ~180 built-in common foods (`src/foodData.js`, rounded estimates) with word-prefix matching (`searchFoods` in `src/food.js`); anything not found can be added as a new food, or logged as a one-off by typing `name 450`. Entries store a snapshot of the per-serving nutrition so editing a saved food never rewrites history. Data: Dexie v7 tables `foods` and `foodLog`, Supabase tables `foods` and `food_log` (RLS, see `supabase/schema.sql`), optional `calorie_target` and `protein_target` on the profile. Included in backups.
+
+### Food journal
+
+`foodMode(profile, log)` in `src/food.js` picks the Food tab's mode: the profile's `food_mode` ('journal' | 'track') if set, otherwise full tracking for anyone who already has food entries and the journal for everyone else. The journal (`src/components/Journal.jsx`) is one note per day in the `foodNotes` table (Supabase `food_notes`): `saveFoodNote` updates the day's note, removes it if emptied, and `mergeDuplicateNotes` reconciles notes started on two devices. The tab is labelled Journal or Food to match.

@@ -38,6 +38,7 @@ export const TABLES = [
       plan: p.plan ?? null,
       calorie_target: p.calorie_target ?? null,
       protein_target: p.protein_target ?? null,
+      food_mode: p.food_mode ?? null,
       created_at: p.created_at,
       deleted_at: p.deleted_at ?? null,
     }),
@@ -105,6 +106,12 @@ export const TABLES = [
       created_at: f.created_at,
       deleted_at: f.deleted_at ?? null,
     }),
+  },
+  {
+    remote: 'food_notes',
+    local: () => db.foodNotes,
+    cursor: 'last_pull_food_notes',
+    toRemote: (n, userId) => ({ id: n.id, user_id: userId, date: n.date, text: n.text ?? '', feeling: n.feeling ?? '', created_at: n.created_at, deleted_at: n.deleted_at ?? null }),
   },
   {
     remote: 'food_log',

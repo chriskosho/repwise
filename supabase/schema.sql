@@ -448,3 +448,27 @@ create trigger food_log_set_updated_at before insert or update on public.food_lo
 
 alter table public.profiles add column if not exists calorie_target integer check (calorie_target is null or (calorie_target between 500 and 10000));
 alter table public.profiles add column if not exists protein_target integer check (protein_target is null or (protein_target between 10 and 600));
+
+-- ============================================================================
+-- Food journal: one free-text note per day, and the chosen food mode
+-- ============================================================================
+create table if not exists public.food_notes (
+  id          uuid primary key,
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  date        date not null,
+  text        text not null default '' check (char_length(text) <= 5000),
+  feeling     text not null default '' check (feeling in ('', 'great', 'okay', 'rough')),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  deleted_at  timestamptz
+);
+create index if not exists food_notes_user_date_idx on public.food_notes (user_id, date);
+alter table public.food_notes enable row level security;
+create policy "food_notes_select_own" on public.food_notes for select to authenticated using ((select auth.uid()) = user_id);
+create policy "food_notes_insert_own" on public.food_notes for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy "food_notes_update_own" on public.food_notes for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+create policy "food_notes_delete_own" on public.food_notes for delete to authenticated using ((select auth.uid()) = user_id);
+revoke all on public.food_notes from anon;
+create index if not exists food_notes_user_updated_idx on public.food_notes (user_id, updated_at);
+create trigger food_notes_set_updated_at before insert or update on public.food_notes for each row execute function public.set_updated_at();
+alter table public.profiles add column if not exists food_mode text check (food_mode is null or food_mode in ('journal', 'track'));

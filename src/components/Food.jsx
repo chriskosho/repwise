@@ -3,6 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { addFoodEntry, deleteFood, deleteFoodEntry, getProfile, listFoodLog, listFoods, restoreFoodEntry, saveFood, saveProfile, today, updateFoodEntry } from '../db';
 import { averageCalories, byTime, dayTotals, entryTotals, fmtServings, fmtTime, frequentFoods, nowTime, parseQuick, round, searchFoods, usageFrom } from '../food';
 import FoodComposer, { NutritionFields } from './FoodComposer';
+import Journal from './Journal';
+import { foodMode } from '../food';
 
 const shift = (date, n) => {
   const d = new Date(`${date}T12:00:00`);
@@ -68,7 +70,7 @@ function Goal({ profile, totals }) {
             <span style={{ width: `${Math.min(100, (totals.calories / target) * 100)}%` }} />
           </div>
           <p className="muted">
-            {totals.calories <= target ? `${Math.round(target - totals.calories)} cal left of ${target}` : `${Math.round(totals.calories - target)} cal over your ${target} goal`}
+            {totals.calories <= target ? `${Math.round(target - totals.calories)} cal left of ${target}` : `${Math.round(totals.calories).toLocaleString()} of ${target.toLocaleString()} cal`}
             {pt ? ` · protein ${Math.round(totals.protein)} of ${pt} g` : ''}
           </p>
         </>
@@ -168,7 +170,7 @@ function MyFoods({ foods, onClose }) {
   );
 }
 
-export default function Food() {
+function Tracker({ onSwitch }) {
   const todayStr = today();
   const [date, setDate] = useState(todayStr);
   const [query, setQuery] = useState('');
@@ -421,9 +423,23 @@ export default function Food() {
           <button type="button" className="btn btn-link" onClick={() => setView('foods')}>
             My foods{foods.length ? ` (${foods.length})` : ''}
           </button>
+          <button type="button" className="btn btn-link" onClick={onSwitch}>
+            Switch to journal
+          </button>
         </div>
         <p className="muted">Built-in foods are rounded estimates. Check a label for exact numbers and add your own food to save them. Your food log is saved with your other data and included in backups.</p>
       </div>
     </div>
   );
+}
+
+// The Food tab: a simple daily journal, or full calorie tracking. Same data underneath, so
+// switching never loses anything.
+export default function Food() {
+  const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], undefined);
+  const log = useLiveQuery(listFoodLog, [], undefined);
+  if (profile === undefined || log === undefined) return null;
+  const mode = foodMode(profile, log);
+  const set = (food_mode) => saveProfile({ food_mode });
+  return mode === 'journal' ? <Journal onSwitch={() => set('track')} /> : <Tracker onSwitch={() => set('journal')} />;
 }

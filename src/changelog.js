@@ -4,13 +4,14 @@ export const RELEASES = [
   {
     id: '2.2',
     date: '2026-11-08',
-    title: 'Food log',
+    title: 'Food journal and tracking',
     highlights: [
-      'A new Food tab: just type what you ate and pick it from the suggestions. No meals or categories.',
-      'Not in the list? Add your own food once and it autofills from then on. Or type “pasta 450” for a quick entry.',
-      'Set the time, adjust servings, copy yesterday’s foods, and see your day’s calories and protein with an optional goal.',
+      'A new Journal tab: one simple note a day about what you ate, with the time and how it felt. No numbers.',
+      'Want numbers? Switch to calorie tracking in Settings: type a food, pick it from the suggestions, and see daily totals. Your journal stays.',
     ],
     items: [
+      'Journal: one note per day that saves itself, an “Add the time” button, an optional “how did eating feel” tap, a note of whether you trained, and a list of earlier days.',
+      'Choose Journal or calorie tracking when you set up, or any time in Settings → Food. Switching never deletes anything.',
       'Food tab with search-as-you-type over about 180 common foods plus your own, one-tap “often logged” foods, time and servings per entry, edit, delete with undo, and “Log again now”.',
       'Optional daily calorie and protein goals, a 7-day average, copy yesterday, and a My foods list to edit or remove foods you added.',
       'Food entries sync with your account and are included in backups.',

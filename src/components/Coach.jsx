@@ -58,7 +58,7 @@ export const COACH_STEPS = [
     tab: 'food',
     target: '[data-tour="tab-food"]',
     title: 'Food',
-    body: 'Log what you eat as you go. Type a food and pick it from the list, or add your own. No meals or categories to fill in.',
+    body: 'Keep a simple journal of what you eat each day, or switch to calorie tracking with food search and daily totals. Change it any time in Settings.',
   },
   {
     id: 'body',

@@ -45,6 +45,9 @@ describe('welcome flow', () => {
     await next(user);
     await user.click(screen.getByRole('button', { name: /Dumbbells and bands/ }));
     await next(user);
+    expect(screen.getByText('How do you want to log food?')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: /Track calories and macros/ }));
+    await next(user);
     await user.type(screen.getByLabelText(/Current weight/), '80');
     await user.type(screen.getByLabelText(/Goal weight/), '72');
     await user.type(screen.getByLabelText('Meters'), '1');
@@ -64,6 +67,7 @@ describe('welcome flow', () => {
 
     const profile = await getProfile();
     expect(profile).toMatchObject({ display_name: 'Sam', units: 'kg' });
+    expect(profile.food_mode).toBe('track');
     expect(profile.onboarding).toMatchObject({ goal: 'lose', level: 'new', per_week: 4, minutes: 30, gear: 'dumbbells', cardio: ['swim'], interests: ['swim', 'pickleball'], time: 'evening', days: [1, 2, 4, 5] });
     expect(profile.plan).toMatchObject({ time: 'evening', available: [1, 2, 4, 5] });
     // Every training day lands on a day you said you were free (Mon, Tue, Thu, Fri)
@@ -215,6 +219,7 @@ describe('height boxes', () => {
     await next(user);
     await next(user);
     await user.click(screen.getByRole('button', { name: 'Morning' }));
+    await next(user);
     await next(user);
     await next(user);
     await next(user);

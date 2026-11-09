@@ -1818,3 +1818,7 @@ button:focus-visible,
 .nutrition-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
 .food-sum { margin: 0.2rem 0; }
 .toast { position: sticky; bottom: calc(var(--tab-h) + 0.6rem); background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.4rem 0.8rem; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+
+.journal-text { width: 100%; min-height: 9rem; resize: vertical; font: inherit; line-height: 1.5; padding: 0.7rem; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); color: inherit; }
+.chip-btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.journal-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -108,6 +108,9 @@ db.version(6).stores({ photos: 'id, date' });
 // Version 7 adds the food log: your own foods and everything you have eaten.
 db.version(7).stores({ foods: 'id, dirty', foodLog: 'id, date, dirty' });
 
+// Version 8 adds the food journal: one free-text note per day.
+db.version(8).stores({ foodNotes: 'id, date, dirty' });
+
 // Newest first. Date decides, then start time.
 export const sessionOrder = (s) => `${s.date}|${s.started_at || ''}`;
 export const byNewest = (a, b) => sessionOrder(b).localeCompare(sessionOrder(a));
@@ -357,7 +360,7 @@ export async function listCustomExercises() {
 
 // ---- profile (a single row, id 'me'; on the server its id is your account id) ----
 export const PROFILE_ID = 'me';
-export const PROFILE_DEFAULTS = { display_name: '', units: 'lb', height_cm: null, week_start: 1, onboarding: null, plan: null, calorie_target: null, protein_target: null };
+export const PROFILE_DEFAULTS = { display_name: '', units: 'lb', height_cm: null, week_start: 1, onboarding: null, plan: null, calorie_target: null, protein_target: null, food_mode: null };
 
 export async function getProfile() {
   const row = await db.profile.get(PROFILE_ID);
@@ -379,6 +382,7 @@ export async function saveProfile(patch) {
       clean[k] = patch[k] === null || patch[k] === '' || !(v >= lo && v <= hi) ? null : v;
     }
   }
+  if ('food_mode' in patch) clean.food_mode = patch.food_mode === 'journal' || patch.food_mode === 'track' ? patch.food_mode : null;
   if ('onboarding' in patch) clean.onboarding = cleanOnboarding(patch.onboarding);
   if ('plan' in patch) clean.plan = cleanPlan(patch.plan);
   return putRow(db.profile, { ...PROFILE_DEFAULTS, ...(await db.profile.get(PROFILE_ID)), ...clean, id: PROFILE_ID, deleted_at: null });
@@ -759,3 +763,41 @@ export const restoreFoodEntry = async (id) => {
     r.rev = (r.rev ?? 0) + 1;
   });
 };
+
+// ---- food journal: one note per day ----
+export const FEELING_KEYS = ['great', 'okay', 'rough'];
+export const listFoodNotes = async () => (await db.foodNotes.toArray()).filter((n) => !n.deleted_at).sort((a, b) => b.date.localeCompare(a.date));
+export const getFoodNote = async (date) => (await db.foodNotes.where('date').equals(date).toArray()).filter((n) => !n.deleted_at).sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))[0] ?? null;
+
+// Saves the day's note. One note per day: an existing note for that day is updated, and
+// clearing the text (with no feeling picked) removes it.
+export async function saveFoodNote({ date = today(), text = '', feeling = '' }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('That date is not valid.');
+  const clean = String(text ?? '').replace(/\r\n/g, '\n').slice(0, 5000);
+  const f = FEELING_KEYS.includes(feeling) ? feeling : '';
+  const existing = await getFoodNote(date);
+  if (!clean.trim() && !f) {
+    if (existing) await softDelete(db.foodNotes, existing.id);
+    return null;
+  }
+  return putRow(db.foodNotes, { ...(existing ?? {}), id: existing?.id ?? newId(), date, text: clean, feeling: f, deleted_at: null });
+}
+
+// Two devices can each start a note for the same day. Keep one, with nothing lost.
+export async function mergeDuplicateNotes() {
+  const all = (await db.foodNotes.toArray()).filter((n) => !n.deleted_at);
+  const byDate = {};
+  for (const n of all) (byDate[n.date] ??= []).push(n);
+  let merged = 0;
+  for (const rows of Object.values(byDate)) {
+    if (rows.length < 2) continue;
+    rows.sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
+    const [keep, ...rest] = rows;
+    let text = keep.text;
+    for (const r of rest) if (r.text.trim() && !text.includes(r.text.trim())) text = `${text.trimEnd()}\n\n${r.text.trim()}`;
+    await putRow(db.foodNotes, { ...keep, text: text.slice(0, 5000), feeling: keep.feeling || rest.find((r) => r.feeling)?.feeling || '' });
+    for (const r of rest) await softDelete(db.foodNotes, r.id);
+    merged++;
+  }
+  return merged;
+}

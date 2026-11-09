@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { downloadExport, importFile } from '../backup';
-import { convertLiftWeights, deleteCustomExercise, deletePlace, getProfile, listCustomExercises, updateCustomExercise, lastExportAt, listPlaces, renamePlace, saveProfile, savePlace } from '../db';
+import { convertLiftWeights, deleteCustomExercise, deletePlace, getProfile, listCustomExercises, updateCustomExercise, lastExportAt, listFoodLog, listPlaces, renamePlace, saveProfile, savePlace } from '../db';
 import { heightFromParts, heightToParts } from '../units';
 import { EQUIPMENT, MUSCLES, equipmentLabel, muscleLabel } from '../library';
 import { MODES } from '../measure';
@@ -11,6 +11,7 @@ import { setTheme, useTheme } from '../theme';
 import { ChangeLog } from './WhatsNew';
 import { DONATE_URL, shareApp } from '../share';
 import { resetDevice } from '../reset';
+import { foodMode } from '../food';
 
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300];
 const restLabel = (s) => (s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
@@ -223,6 +224,30 @@ function Places() {
           {error}
         </p>
       )}
+    </section>
+  );
+}
+
+function FoodModeCard() {
+  const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], undefined);
+  const log = useLiveQuery(listFoodLog, [], []);
+  if (profile === undefined) return null;
+  const mode = foodMode(profile, log);
+  const pick = (m) => saveProfile({ food_mode: m });
+  return (
+    <section className="card">
+      <h2>Food</h2>
+      <p className="muted">Choose how the food tab works. Switching never deletes anything.</p>
+      <div className="choices">
+        <button type="button" className={`choice${mode === 'journal' ? ' on' : ''}`} aria-pressed={mode === 'journal'} onClick={() => pick('journal')}>
+          <strong>Journal</strong>
+          <span className="muted">One note a day about what you ate. No numbers.</span>
+        </button>
+        <button type="button" className={`choice${mode === 'track' ? ' on' : ''}`} aria-pressed={mode === 'track'} onClick={() => pick('track')}>
+          <strong>Track calories and macros</strong>
+          <span className="muted">Search foods, set servings, see daily totals.</span>
+        </button>
+      </div>
     </section>
   );
 }
@@ -585,6 +610,8 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
           </p>
         </div>
       </section>
+
+      <FoodModeCard />
 
       <ShareCard />
 
