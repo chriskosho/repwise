@@ -7,7 +7,7 @@ import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
 
 // "I don't know what to do today": a workout built from your goals and what you've trained lately.
-export default function Suggest({ unit, preset = null, onClose, onStarted, onLogActivity, onSaveRoutine }) {
+export default function Suggest({ unit, preset = null, onClose, onStarted, onLogActivity, onStretch, onSaveRoutine }) {
   const [minutes, setMinutes] = useState(preset?.minutes ?? 45);
   const [gear, setGear] = useState(preset?.gear ?? 'gym');
   const [focus, setFocus] = useState(preset?.focus ?? 'auto');
@@ -126,6 +126,11 @@ export default function Suggest({ unit, preset = null, onClose, onStarted, onLog
             {plan.stretches.length > 0 && (
               <>
                 <h3>Cool-down stretches</h3>
+                {onStretch && (
+                  <button type="button" className="btn btn-link" onClick={() => onStretch({ preset: 'recent', minutes: 5 })}>
+                    Choose areas
+                  </button>
+                )}
                 <ul className="plan-list">
                   {plan.stretches.map((n) => (
                     <li key={n}>

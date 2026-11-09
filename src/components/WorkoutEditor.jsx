@@ -9,6 +9,8 @@ import { plateSetup, plateText } from '../plates';
 import { startRest, stopRest } from '../rest';
 import { useNow } from '../useNow';
 import ExercisePicker from './ExercisePicker';
+import RoutinePicker from './RoutinePicker';
+import StretchBuilder from './StretchBuilder';
 import PlacePicker from './PlacePicker';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
@@ -99,6 +101,8 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
   const prefs = usePrefs();
   const [session, setSession] = useState(() => toDoc(initial));
   const [picker, setPicker] = useState(false);
+  const [routinePicker, setRoutinePicker] = useState(false);
+  const [stretching, setStretching] = useState(false);
   const [openSet, setOpenSet] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
   const [hint, setHint] = useState('');
@@ -217,6 +221,21 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
       fresh.push({ id: newId(), name, mode: resolveMode(name, { library: library ?? [], custom, prior }), link: false, notes: '', sets });
     }
     if (fresh.length) update((s) => ({ ...s, exercises: [...s.exercises, ...fresh] }));
+  }
+
+  // Exercises from a routine arrive with their sets and targets; edits to finished workouts
+  // count as already done, like any other exercise added there.
+  function addFromRoutine(exercises) {
+    setRoutinePicker(false);
+    const fresh = exercises.map((e) => ({ ...e, id: newId(), sets: e.sets.map((st) => ({ ...st, id: newId(), done: !active })) }));
+    if (fresh.length) update((s) => ({ ...s, exercises: [...s.exercises, ...fresh] }));
+  }
+
+  // Stretches added from the builder become timed exercises, with the hold as the time.
+  function addStretches(list) {
+    setStretching(false);
+    const fresh = list.map((s) => ({ id: newId(), name: s.name, mode: 'stretch', link: false, notes: '', sets: [{ ...blankSet('normal', !active), time: s.hold }] }));
+    if (fresh.length) update((x) => ({ ...x, exercises: [...x.exercises, ...fresh] }));
   }
 
   function addSet(ex) {
@@ -610,8 +629,16 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
         );
       })}
 
-      <button type="button" className="btn btn-block" onClick={() => setPicker(true)}>
-        + Add exercise
+      <div className="add-row">
+        <button type="button" className="btn btn-block" onClick={() => setPicker(true)}>
+          + Add exercise
+        </button>
+        <button type="button" className="btn btn-block" onClick={() => setRoutinePicker(true)}>
+          + Add routine
+        </button>
+      </div>
+      <button type="button" className="btn btn-ghost btn-block" onClick={() => setStretching(true)}>
+        + Add stretches
       </button>
 
       {hint && (
@@ -641,6 +668,8 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
       </button>
 
       {info && <ExerciseInfo name={info} onClose={() => setInfo(null)} />}
+      {stretching && <StretchBuilder pick preset="total" minutes={5} onUse={addStretches} onClose={() => setStretching(false)} />}
+      {routinePicker && <RoutinePicker existing={session.exercises.map((e) => e.name)} onAdd={addFromRoutine} onClose={() => setRoutinePicker(false)} />}
       {picker && <ExercisePicker sessions={sessions} onAdd={addExercises} onClose={() => setPicker(false)} />}
     </div>
   );

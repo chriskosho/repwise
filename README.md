@@ -175,3 +175,11 @@ The Food tab (`src/components/Food.jsx`, `FoodComposer.jsx`) is a simple running
 ### Food journal
 
 `foodMode(profile, log)` in `src/food.js` picks the Food tab's mode: the profile's `food_mode` ('journal' | 'track') if set, otherwise full tracking for anyone who already has food entries and the journal for everyone else. The journal (`src/components/Journal.jsx`) is one note per day in the `foodNotes` table (Supabase `food_notes`): `saveFoodNote` updates the day's note, removes it if emptied, and `mergeDuplicateNotes` reconciles notes started on two devices. The tab is labelled Journal or Food to match.
+
+## Stretching and routines in a workout
+
+- **Stretch builder** (Workout tab → Stretch): choose total body, a quick pick, or tap body areas; choose 5, 10, 15 or 20 minutes. `src/stretches.js` builds a head-to-toe list from about 34 curated stretches (with how-to cues), falling back to the exercise library when an area runs out. Swap, remove, change holds, add your own, or Shuffle.
+- **Guided mode** (`StretchGuide`): get-ready, hold, and switch-sides steps on a timestamp-based timer, so a locked screen still shows the right time. Uses the existing alert and keep-awake settings. Finishing or ending saves a Stretching activity with the time actually spent.
+- **Save as routine** stores stretch-mode exercises with the hold as the time target.
+- **Inside a workout**: “+ Add routine” (pick which exercises to bring in) and “+ Add stretches”. Both work on an active workout and when editing from History.
+- The curated stretch data is written by hand, so check it before relying on it for rehab.

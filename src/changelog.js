@@ -2,6 +2,25 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.3',
+    date: '2026-11-09',
+    title: 'Stretch sessions and add a routine to a workout',
+    highlights: [
+      'New Stretch button on the Workout tab: pick total body or the areas you want, choose 5 to 20 minutes, and get a list ordered head to toe.',
+      'Start a guided session: a timer walks you through each hold, tells you when to switch sides, and logs it for you.',
+      'Already mid-workout? Tap “+ Add routine” to bring in a saved routine, or “+ Add stretches” to finish with a cool-down.',
+    ],
+    items: [
+      'Stretch builder: quick picks (upper body, lower body, after a run, desk relief, what I trained recently), body areas, Shuffle, swap or remove any stretch, change hold times, and add your own.',
+      'About 34 stretches with short how-to cues, filled out from the exercise library.',
+      'Guided mode with get-ready steps, a hold countdown, switch-sides prompts, sound and vibration (follows your alert setting), pause, back, skip, and the screen stays awake if you have that on.',
+      'Finished sessions are saved as a Stretching activity with the time you actually spent; Edit details is one tap away.',
+      'Save a stretch session as a routine and add it to any workout.',
+      'Add a routine to the workout you are in (active or from History): choose which exercises to bring in, ones already there are left unticked.',
+      'Suggested cool-downs have a “Choose areas” link, and rest days in your plan offer a stretch session.',
+    ],
+  },
+  {
     id: '2.2',
     date: '2026-11-08',
     title: 'Food journal and tracking',

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { curatedStretch } from '../stretches';
 import { equipmentLabel, findExercise, imageUrls, loadHowTo, muscleLabel, useLibrary, youtubeUrl } from '../library';
 
 // Pictures for an exercise: the start and end positions, swapped back and forth.
@@ -31,7 +32,8 @@ export default function ExerciseInfo({ name, onClose }) {
   const { list } = useLibrary();
   const entry = findExercise(list, name);
   const [steps, setSteps] = useState(null);
-  const stretch = entry?.category === 'stretching';
+  const cur = curatedStretch(name);
+  const stretch = entry?.category === 'stretching' || !!cur;
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -58,6 +60,7 @@ export default function ExerciseInfo({ name, onClose }) {
       </div>
       <div className="sheet-list ex-info">
         {tags.length > 0 && <p className="muted">{tags.join(' · ')}</p>}
+        {cur && <p className="ex-cue">{cur.cue} Hold {cur.hold} seconds{cur.sides ? ' each side' : ''}.</p>}
         {entry && <Pictures id={entry.id} name={name} />}
         <div className="ex-links">
           <a className="btn" href={youtubeUrl(name, { shorts: true, stretch })} target="_blank" rel="noopener noreferrer">
@@ -78,7 +81,7 @@ export default function ExerciseInfo({ name, onClose }) {
             </ol>
           </>
         )}
-        {!entry && <p className="muted">This is your own exercise, so there are no built-in steps. The video links still work.</p>}
+        {!entry && !cur && <p className="muted">This is your own exercise, so there are no built-in steps. The video links still work.</p>}
       </div>
     </div>
   );

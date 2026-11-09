@@ -60,7 +60,7 @@ describe('plan days are reachable', () => {
 
 describe('plan day screen', () => {
   const show = (n, extra = {}, todayStr = start) => {
-    const fns = { onBack: vi.fn(), onGoto: vi.fn(), onChangePlan: vi.fn(), onStart: vi.fn(), onSaveRoutine: vi.fn(), onLogActivity: vi.fn(), onOpenWorkout: vi.fn() };
+    const fns = { onBack: vi.fn(), onGoto: vi.fn(), onChangePlan: vi.fn(), onStart: vi.fn(), onSaveRoutine: vi.fn(), onLogActivity: vi.fn(), onStretch: vi.fn(), onOpenWorkout: vi.fn() };
     render(<PlanDay plan={plan} workouts={[]} todayStr={todayStr} n={n} unit="lb" {...fns} {...extra} />);
     return fns;
   };
@@ -84,8 +84,8 @@ describe('plan day screen', () => {
     const n = plan.days.findIndex((d) => d.k === 'r') + 1;
     const fns = show(n);
     expect(screen.getByText('Rest and recovery')).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: /Log stretching/ }));
-    expect(fns.onLogActivity).toHaveBeenCalledWith({ type: 'stretching', minutes: 15 });
+    await user.click(screen.getByRole('button', { name: /Stretch session/ }));
+    expect(fns.onStretch).toHaveBeenCalledWith({ preset: 'total', minutes: 10 });
     await user.click(screen.getByRole('button', { name: 'Next day →' }));
     expect(fns.onGoto).toHaveBeenCalledWith(n + 1);
   });

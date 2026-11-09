@@ -12,6 +12,7 @@ import History from './components/History';
 import Settings from './components/Settings';
 import RestBar from './components/RestBar';
 import RoutineEditor from './components/RoutineEditor';
+import StretchBuilder from './components/StretchBuilder';
 import ActivityEditor from './components/ActivityEditor';
 import Suggest from './components/Suggest';
 import Onboarding from './components/Onboarding';
@@ -69,6 +70,7 @@ export default function App() {
   const [guide, setGuide] = useState(null); // 'first' | 'plan' | 'tour' | 'plan-view' | 'plan-day'
   const [planDayN, setPlanDayN] = useState(1);
   const [dayBack, setDayBack] = useState('plan-view');
+  const [stretchView, setStretchView] = useState(null); // { preset, minutes } while the stretch builder is open
   const [activityView, setActivityView] = useState(null); // { doc, isNew } while the activity editor is open
   const [unitCache, setUnitCache] = useState(readUnit);
   const [dismissed, setDismissed] = useState(false);
@@ -139,6 +141,7 @@ export default function App() {
 
   const sessions = useLiveQuery(listSessions, [], []);
   const places = useLiveQuery(listPlaces, [], []);
+  const openStretch = (o = {}) => setStretchView({ preset: o.preset ?? 'total', minutes: o.minutes ?? 10 });
   const openActivity = (doc, isNew = false) => setActivityView({ doc, isNew });
 
   const { workouts: workoutsList, activities: activityRows, sessions: sessionRows } = useWorkouts();
@@ -196,7 +199,7 @@ export default function App() {
     setSeenRelease(LATEST.id);
   };
   const showWhatsNew =
-    count > 0 && !guideMode && !editId && !routineView && !activityView && !suggestOpen && shouldShowWhatsNew(seenRelease);
+    count > 0 && !guideMode && !editId && !routineView && !activityView && !stretchView && !suggestOpen && shouldShowWhatsNew(seenRelease);
 
   const showReminder = count > 0 && !dismissed && needsExportReminder();
   const restVisible = rest.end != null || rest.over;
@@ -303,6 +306,10 @@ export default function App() {
               setGuide(null);
               openActivity({ ...newActivity(), type: idea.type, duration_min: idea.minutes }, true);
             }}
+            onStretch={(o) => {
+              setGuide(null);
+              openStretch(o);
+            }}
             onOpenWorkout={(w) => {
               setGuide(null);
               if (w.isActivity) openActivity(w.activity);
@@ -336,6 +343,24 @@ export default function App() {
               setSuggestOpen(false);
               openActivity({ ...newActivity(), type: idea.type, duration_min: idea.minutes }, true);
             }}
+            onStretch={(o) => {
+              setSuggestOpen(false);
+              openStretch(o);
+            }}
+          />
+        ) : stretchView ? (
+          <StretchBuilder
+            preset={stretchView.preset}
+            minutes={stretchView.minutes}
+            onClose={() => setStretchView(null)}
+            onEditActivity={(doc) => {
+              setStretchView(null);
+              openActivity(doc);
+            }}
+            onSaveRoutine={(doc) => {
+              setStretchView(null);
+              openRoutine(doc, true);
+            }}
           />
         ) : activityView ? (
           <ActivityEditor
@@ -364,6 +389,7 @@ export default function App() {
                 weekStart={profile?.week_start ?? 1}
                 onOpenSession={setEditId}
                 onLogActivity={() => openActivity(newActivity(), true)}
+                onStretch={() => openStretch()}
                 onSuggest={() => {
                   setSuggestPreset(null);
                   setSuggestOpen(true);
@@ -436,8 +462,8 @@ export default function App() {
             key={id}
             type="button"
             data-tour={`tab-${id}`}
-            className={tab === id && !editId && !routineView && !activityView && !suggestOpen ? 'tab active' : 'tab'}
-            aria-current={tab === id && !editId && !routineView && !activityView && !suggestOpen ? 'page' : undefined}
+            className={tab === id && !editId && !routineView && !activityView && !stretchView && !suggestOpen ? 'tab active' : 'tab'}
+            aria-current={tab === id && !editId && !routineView && !activityView && !stretchView && !suggestOpen ? 'page' : undefined}
             onClick={() => goTab(id)}
           >
             <span className="tab-icon">

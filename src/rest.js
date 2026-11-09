@@ -140,3 +140,33 @@ if (typeof window !== 'undefined') {
     if (document.visibilityState === 'visible') check();
   });
 }
+
+// Sounds for other timers (the guided stretch session). Call primeAudio inside a tap.
+export const primeAudio = () => ensureAudio();
+export function chime(strong = false) {
+  if (!getPrefs().alerts) return;
+  try {
+    navigator.vibrate?.(strong ? [200, 100, 200] : [80]);
+  } catch {
+    /* ignore */
+  }
+  try {
+    ensureAudio();
+    if (!audio) return;
+    const t0 = audio.currentTime;
+    (strong ? [0, 0.22] : [0]).forEach((d) => {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.frequency.value = strong ? 880 : 660;
+      gain.gain.setValueAtTime(0.0001, t0 + d);
+      gain.gain.exponentialRampToValueAtTime(0.25, t0 + d + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.16);
+      osc.connect(gain);
+      gain.connect(audio.destination);
+      osc.start(t0 + d);
+      osc.stop(t0 + d + 0.18);
+    });
+  } catch {
+    /* sound is optional */
+  }
+}

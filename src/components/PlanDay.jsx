@@ -19,7 +19,7 @@ const REST_IDEAS = [
 ];
 
 // One day of the plan: what it is, a preview of the workout, and what you can do about it.
-export default function PlanDay({ plan, workouts, todayStr, n, unit, onBack, onGoto, onChangePlan, onStart, onSaveRoutine, onLogActivity, onOpenWorkout }) {
+export default function PlanDay({ plan, workouts, todayStr, n, unit, onBack, onGoto, onChangePlan, onStart, onSaveRoutine, onLogActivity, onStretch, onOpenWorkout }) {
   const p = planProgress(plan, workouts, todayStr);
   const day = p.days[n - 1];
   const [seed, setSeed] = useState(n);
@@ -210,8 +210,8 @@ export default function PlanDay({ plan, workouts, todayStr, n, unit, onBack, onG
             ))}
           </ul>
           <div className="actions">
-            <button type="button" className="btn btn-ghost" onClick={() => onLogActivity({ type: 'stretching', minutes: 15 })}>
-              Log stretching · 15 min
+            <button type="button" className="btn btn-ghost" onClick={() => onStretch({ preset: 'total', minutes: 10 })}>
+              Stretch session…
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => onLogActivity({ type: 'walk', minutes: 30 })}>
               Log a walk · 30 min
