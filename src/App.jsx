@@ -141,7 +141,7 @@ export default function App() {
 
   const sessions = useLiveQuery(listSessions, [], []);
   const places = useLiveQuery(listPlaces, [], []);
-  const openStretch = (o = {}) => setStretchView({ preset: o.preset ?? 'total', minutes: o.minutes ?? 10 });
+  const openStretch = (o = {}) => setStretchView({ preset: o.preset ?? 'total', minutes: o.minutes ?? 10, focus: o.focus ?? null });
   const openActivity = (doc, isNew = false) => setActivityView({ doc, isNew });
 
   const { workouts: workoutsList, activities: activityRows, sessions: sessionRows } = useWorkouts();
@@ -352,6 +352,7 @@ export default function App() {
           <StretchBuilder
             preset={stretchView.preset}
             minutes={stretchView.minutes}
+            focus={stretchView.focus}
             onClose={() => setStretchView(null)}
             onEditActivity={(doc) => {
               setStretchView(null);
@@ -389,7 +390,7 @@ export default function App() {
                 weekStart={profile?.week_start ?? 1}
                 onOpenSession={setEditId}
                 onLogActivity={() => openActivity(newActivity(), true)}
-                onStretch={() => openStretch()}
+                onStretch={(o) => openStretch(o)}
                 onSuggest={() => {
                   setSuggestPreset(null);
                   setSuggestOpen(true);

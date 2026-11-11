@@ -182,3 +182,90 @@ describe('add a routine to a workout', () => {
     await screen.findByText(/no routines yet/);
   });
 });
+
+describe('stretching what you trained', () => {
+  const lib = [
+    { name: 'Barbell Full Squat', muscle: 'quadriceps', compound: true },
+    { name: 'Barbell Deadlift', muscle: 'lower back', compound: true },
+    { name: 'Bench Press', muscle: 'chest', compound: true },
+    { name: 'Leg Extensions', muscle: 'quadriceps', compound: false },
+    { name: 'Barbell Curl', muscle: 'biceps', compound: false },
+  ];
+  const sets = (n) => Array.from({ length: n }, () => ({ done: true, type: 'normal' }));
+  it('credits supporting muscles for compound lifts only', async () => {
+    const { workoutPlan } = await import('../src/stretches');
+    const squat = workoutPlan({ exercises: [{ name: 'Barbell Full Squat', sets: sets(4) }] }, lib);
+    expect(squat.regions).toEqual(expect.arrayContaining(['quads', 'hips', 'hamstrings']));
+    const ext = workoutPlan({ exercises: [{ name: 'Leg Extensions', sets: sets(4) }] }, lib);
+    expect(ext.regions).toEqual(['quads']);
+    expect(squat.because).toBe('Because of Barbell Full Squat.');
+  });
+  it('weights by completed sets, skips warm-ups, unfinished sets and stretches', async () => {
+    const { workoutPlan } = await import('../src/stretches');
+    const plan = workoutPlan(
+      {
+        exercises: [
+          { name: 'Bench Press', sets: [...sets(5), { done: true, type: 'warmup' }, { done: false, type: 'normal' }] },
+          { name: 'Barbell Curl', sets: sets(1) },
+          { name: 'Leg Extensions', mode: 'stretch', sets: sets(9) },
+        ],
+      },
+      lib,
+    );
+    expect(plan.weights.chest).toBe(1);
+    expect(plan.weights.quads).toBeUndefined();
+    expect(plan.regions).toContain('chest');
+  });
+  it('picks 5 minutes, or 10 after a long workout', async () => {
+    const { workoutMinutes } = await import('../src/stretches');
+    expect(workoutMinutes({ started_at: '2026-11-10T10:00:00Z', ended_at: '2026-11-10T10:45:00Z' })).toBe(5);
+    expect(workoutMinutes({ started_at: '2026-11-10T10:00:00Z', ended_at: '2026-11-10T11:20:00Z' })).toBe(10);
+    expect(workoutMinutes({})).toBe(5);
+  });
+  it('gives the most worked area the most stretches', () => {
+    const list = buildStretches({ regions: ['back', 'hips', 'calves'], minutes: 10, weights: { hips: 1, back: 0.4, calves: 0.25 }, seed: 2 });
+    const n = (r) => list.filter((s) => s.region === r).length;
+    expect(n('hips')).toBeGreaterThan(n('calves'));
+    expect(n('calves')).toBeGreaterThanOrEqual(1);
+    expect(sessionSeconds(list)).toBeLessThanOrEqual(620);
+  });
+  it('a short session keeps the most worked areas', () => {
+    const list = buildStretches({ regions: ['neck', 'chest', 'back', 'core', 'hips'], minutes: 5, weights: { hips: 1, chest: 0.9, neck: 0.2, back: 0.2, core: 0.2 } });
+    const regs = list.map((s) => s.region);
+    expect(regs).toContain('hips');
+    expect(regs).toContain('chest');
+  });
+  it('counts recent activities, with older days counting less', async () => {
+    const { recentPlan } = await import('../src/stretches');
+    const run = { type: 'run', date: '2026-11-10', duration_min: 30 };
+    const plan = recentPlan([], lib, '2026-11-10', { activities: [run] });
+    expect(plan.regions).toEqual(expect.arrayContaining(['hips', 'quads', 'hamstrings', 'calves']));
+    const older = recentPlan([{ date: '2026-11-07', ended_at: 'x', exercises: [{ name: 'Bench Press', sets: sets(3) }] }], lib, '2026-11-10', { activities: [run] });
+    expect(older.weights.chest).toBeLessThan(older.weights.calves ?? 1);
+    expect(recentPlan([], lib, '2026-11-10', { activities: [{ type: 'run', date: '2026-10-01', duration_min: 30 }] }).regions).toEqual([]);
+  });
+  it('the builder opens on the workout areas and explains why', async () => {
+    const user = userEvent.setup();
+    const focus = { regions: ['hips', 'quads'], weights: { hips: 1, quads: 0.7 }, because: 'Because of Barbell Full Squat.', minutes: 5 };
+    render(<StretchBuilder focus={focus} minutes={5} onClose={() => {}} />);
+    await screen.findByText(/stretch(es)? · about/);
+    expect(screen.getByText(/Because of Barbell Full Squat/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'What I just trained' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Hips and glutes' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Calves' }).getAttribute('aria-pressed')).toBe('false');
+    await user.click(screen.getByRole('button', { name: 'Total body' }));
+    expect(screen.queryByText(/Because of Barbell Full Squat/)).toBeNull();
+  });
+});
+
+describe('against the real exercise library', () => {
+  it('a barbell squat points to quads, hips and hamstrings, and a curl only to arms', async () => {
+    const { loadLibrary } = await import('../src/library');
+    const { workoutPlan } = await import('../src/stretches');
+    const library = await loadLibrary();
+    const sets = Array.from({ length: 4 }, () => ({ done: true, type: 'normal' }));
+    expect(workoutPlan({ exercises: [{ name: 'Barbell Full Squat', sets }] }, library).regions).toEqual(expect.arrayContaining(['quads', 'hips', 'hamstrings']));
+    const curl = library.find((l) => l.muscle === 'biceps' && !l.compound);
+    expect(workoutPlan({ exercises: [{ name: curl.name, sets }] }, library).regions).toEqual(['chest']);
+  });
+});

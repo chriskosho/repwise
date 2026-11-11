@@ -11,6 +11,7 @@ import { useNow } from '../useNow';
 import ExercisePicker from './ExercisePicker';
 import RoutinePicker from './RoutinePicker';
 import StretchBuilder from './StretchBuilder';
+import { workoutPlan } from '../stretches';
 import PlacePicker from './PlacePicker';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
@@ -355,6 +356,9 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
   }
 
   // ---- render ----
+  // Stretches for what is logged so far (nothing yet means the usual full list).
+  const plan = stretching && library ? workoutPlan(latest.current, library) : null;
+  const focusPlan = plan?.regions.length ? plan : null;
   return (
     <div className="editor">
       <div className={`card editor-head${active ? ' sticky-head' : ''}`}>
@@ -668,7 +672,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
       </button>
 
       {info && <ExerciseInfo name={info} onClose={() => setInfo(null)} />}
-      {stretching && <StretchBuilder pick preset="total" minutes={5} onUse={addStretches} onClose={() => setStretching(false)} />}
+      {stretching && <StretchBuilder pick preset="total" minutes={focusPlan?.minutes ?? 5} focus={focusPlan} onUse={addStretches} onClose={() => setStretching(false)} />}
       {routinePicker && <RoutinePicker existing={session.exercises.map((e) => e.name)} onAdd={addFromRoutine} onClose={() => setRoutinePicker(false)} />}
       {picker && <ExercisePicker sessions={sessions} onAdd={addExercises} onClose={() => setPicker(false)} />}
     </div>

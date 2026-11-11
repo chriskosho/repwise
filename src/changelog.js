@@ -2,6 +2,23 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.4',
+    date: '2026-11-10',
+    title: 'Stretches based on your workout',
+    highlights: [
+      'After a workout, Repwise offers to stretch exactly what you trained, with more time on the areas you worked hardest.',
+      'Supporting muscles count too: squats also point to hips and hamstrings, rows to lats and arms.',
+      'Runs and other activities now count toward “What I trained recently”.',
+    ],
+    items: [
+      'A “Stretch what you just trained” card on the workout summary: 5 minutes, or 10 after a workout over an hour.',
+      '“+ Add stretches” inside a workout starts from what you have logged so far.',
+      '“What I trained recently” looks at the last 3 days, with today counting most, and includes activities.',
+      'The builder explains why it picked each area, and you can still change any of it.',
+      'Stretches that duplicated each other are gone from the list.',
+    ],
+  },
+  {
     id: '2.3',
     date: '2026-11-09',
     title: 'Stretch sessions and add a routine to a workout',

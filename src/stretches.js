@@ -89,6 +89,7 @@ const LIB = {
 };
 for (const s of RAW) if (LIB[s.name]) s.lib = LIB[s.name];
 export const CURATED = RAW;
+const MAPPED = new Set(Object.values(LIB).map((n) => n.toLowerCase()));
 const BY_NAME = new Map(RAW.map((s) => [s.name.toLowerCase(), s]));
 export const curatedStretch = (name) => BY_NAME.get(String(name ?? '').toLowerCase()) ?? null;
 
@@ -116,6 +117,7 @@ function candidates(region, library) {
   const mine = RAW.filter((s) => s.region === region);
   const muscles = REGIONS.find((r) => r.id === region)?.muscles ?? [];
   const lib = (library ?? [])
+    .filter((l) => !MAPPED.has(l.name.toLowerCase())) // already covered by one of ours
     .filter((l) => l.category === 'stretching' && muscles.includes(l.muscle) && !/smr/i.test(l.name) && ['bodyweight', 'other', 'bands'].includes(l.equipment) && l.level !== 'expert')
     .filter((l) => GOOD_STRETCH.test(l.name) || !muscles.length)
     .map((l) => ({ name: l.name, region, hold: 30, sides: false, cue: '', curated: false }));
@@ -138,7 +140,7 @@ const pick = (region, library, rand, used, minutes) => {
 
 // A stretch list for the areas you chose that fits the time. Regions come head to toe, and
 // when time is short we spread across the chosen areas rather than dropping the lower ones.
-export function buildStretches({ regions = REGION_IDS, minutes = 10, library = [], seed = 0, exclude = [] } = {}) {
+export function buildStretches({ regions = REGION_IDS, minutes = 10, library = [], seed = 0, exclude = [], weights = null } = {}) {
   const chosen = REGION_IDS.filter((r) => regions.includes(r));
   if (!chosen.length) return [];
   const rand = rng(seed);
@@ -146,7 +148,13 @@ export function buildStretches({ regions = REGION_IDS, minutes = 10, library = [
   const budget = minutes * 60;
   const avg = 60;
   const firstRound = Math.max(1, Math.min(chosen.length, Math.floor(budget / avg)));
-  const round1 = firstRound >= chosen.length ? chosen : Array.from({ length: firstRound }, (_, i) => chosen[Math.floor(((i + 0.5) * chosen.length) / firstRound)]);
+  const w = (r) => Math.sqrt(weights?.[r] ?? 1); // soften: the top area leads without crowding out the rest
+  const round1 =
+    firstRound >= chosen.length
+      ? chosen
+      : weights
+        ? [...chosen].sort((a, b) => w(b) - w(a)).slice(0, firstRound) // short on time: the most worked areas
+        : Array.from({ length: firstRound }, (_, i) => chosen[Math.floor(((i + 0.5) * chosen.length) / firstRound)]);
   const out = [];
   let secs = 0;
   const add = (region) => {
@@ -163,7 +171,18 @@ export function buildStretches({ regions = REGION_IDS, minutes = 10, library = [
   // Time left over: keep adding, one per region in turn.
   let guard = 0;
   let progress = true;
-  while (progress && guard++ < 20) {
+  if (weights) {
+    // Spend the spare time where you worked hardest: each area gets stretches in proportion to its weight.
+    const count = (r) => out.filter((x) => x.region === r).length;
+    const dead = new Set();
+    while (secs < budget - 30 && guard++ < 40) {
+      const live = chosen.filter((r) => !dead.has(r));
+      if (!live.length) break;
+      const next = live.reduce((best, r) => (w(r) / (count(r) + 1) > w(best) / (count(best) + 1) ? r : best));
+      if (!add(next)) dead.add(next);
+    }
+  }
+  while (!weights && progress && guard++ < 20) {
     progress = false;
     for (const r of chosen) if (secs < budget - 30 && add(r)) progress = true;
   }
@@ -188,22 +207,131 @@ export function stretchItem(name, library = []) {
   return { name, region: lib ? regionOfMuscle(lib.muscle) ?? 'other' : 'other', hold: 30, sides: false, cue: '', curated: false };
 }
 
-// Regions you worked in the last few days, from your sessions.
-export function recentRegions(sessions, library, todayStr, days = 3) {
-  const from = new Date(`${todayStr}T12:00:00`);
-  from.setDate(from.getDate() - days);
-  const cut = from.toLocaleDateString('en-CA');
-  const byName = new Map((library ?? []).map((l) => [l.name.toLowerCase(), l.muscle]));
-  const out = new Set();
-  for (const s of sessions ?? []) {
-    if (s.deleted_at || !s.ended_at || s.date < cut) continue;
-    for (const e of s.exercises ?? []) {
-      const r = regionOfMuscle(byName.get(String(e.name).toLowerCase()));
-      if (r) out.add(r);
+// ---- stretching what you actually trained ----
+// Compound lifts also work supporting muscles; this says how much credit each one gets.
+const SUPPORT = {
+  quadriceps: { glutes: 0.5, hamstrings: 0.3 },
+  hamstrings: { glutes: 0.5, 'lower back': 0.3 },
+  glutes: { hamstrings: 0.4, quadriceps: 0.3 },
+  'lower back': { hamstrings: 0.6, glutes: 0.6 },
+  chest: { shoulders: 0.5, triceps: 0.5 },
+  shoulders: { triceps: 0.5, traps: 0.3, chest: 0.2 },
+  lats: { biceps: 0.5, 'middle back': 0.3, forearms: 0.2 },
+  'middle back': { lats: 0.5, biceps: 0.4 },
+  traps: { shoulders: 0.4 },
+  triceps: { chest: 0.3, shoulders: 0.3 },
+  biceps: { forearms: 0.2 },
+};
+const LEGS = { calves: 1, quads: 1, hamstrings: 1, hips: 1 };
+// Areas each activity works, in region ids.
+const ACTIVITY_REGIONS = {
+  run: LEGS,
+  hike: LEGS,
+  walk: { calves: 0.6, quads: 0.6, hamstrings: 0.6, hips: 0.6 },
+  cycle: { quads: 1, hips: 1, calves: 0.7, hamstrings: 0.7 },
+  elliptical: { quads: 0.8, hips: 0.8, calves: 0.8, hamstrings: 0.8 },
+  swim: { neck: 1, back: 1, chest: 0.7 },
+  row: { back: 1, hamstrings: 0.6, quads: 0.6, neck: 0.5 },
+  climb: { chest: 0.8, back: 1, neck: 0.8 },
+  hiit: { quads: 0.7, hamstrings: 0.7, hips: 0.7, calves: 0.7, core: 0.5 },
+  soccer: { quads: 0.8, hamstrings: 0.8, calves: 0.8, hips: 0.8 },
+  basketball: { quads: 0.8, hamstrings: 0.6, calves: 0.8, hips: 0.6 },
+  tennis: { neck: 0.7, back: 0.5, quads: 0.5, calves: 0.5 },
+  pickleball: { neck: 0.6, quads: 0.5, calves: 0.5, hips: 0.4 },
+  volleyball: { neck: 0.7, quads: 0.5, calves: 0.5 },
+  table_tennis: { neck: 0.5, back: 0.4 },
+  baseball: { neck: 0.7, core: 0.5, hips: 0.5 },
+  softball: { neck: 0.7, core: 0.5, hips: 0.5 },
+  golf: { back: 0.7, core: 0.5, neck: 0.5, hips: 0.4 },
+  martial: { hips: 0.7, hamstrings: 0.6, quads: 0.5, neck: 0.4 },
+};
+const nameOf = (e) => String(e?.name ?? '').toLowerCase();
+
+// How much each stretch area got worked by a set of exercises, plus which exercises drove it.
+function addExerciseWork(acc, exercises, library, factor = 1) {
+  const byName = new Map((library ?? []).map((l) => [l.name.toLowerCase(), l]));
+  for (const e of exercises ?? []) {
+    if (e.mode === 'stretch') continue;
+    const lib = byName.get(nameOf(e));
+    if (!lib?.muscle) continue;
+    const sets = Array.isArray(e.sets) ? e.sets.filter((st) => st.done !== false && st.type !== 'warmup').length : 1;
+    if (!sets) continue;
+    const credit = { [lib.muscle]: 1 };
+    if (lib.compound) for (const [m, f] of Object.entries(SUPPORT[lib.muscle] ?? {})) credit[m] = (credit[m] ?? 0) + f;
+    let total = 0;
+    for (const [m, f] of Object.entries(credit)) {
+      const r = regionOfMuscle(m);
+      if (!r) continue;
+      acc.weights[r] = (acc.weights[r] ?? 0) + f * sets * factor;
+      total += f * sets;
     }
+    acc.drivers.push({ name: e.name, score: total * factor });
   }
-  return REGION_IDS.filter((r) => out.has(r));
 }
+
+function addActivityWork(acc, a, factor = 1) {
+  const map = ACTIVITY_REGIONS[a?.type];
+  if (!map) return;
+  const load = Math.min(4, Math.max(1, (Number(a.duration_min) || 0) / 15)) * factor;
+  for (const [r, f] of Object.entries(map)) acc.weights[r] = (acc.weights[r] ?? 0) + f * load;
+  acc.drivers.push({ name: a.title || a.type, score: load * 2 });
+}
+
+// Turn raw weights into a plan: the areas that matter, how much, and a sentence on why.
+function finishPlan(acc) {
+  const entries = Object.entries(acc.weights).filter(([, v]) => v > 0);
+  if (!entries.length) return { regions: [], weights: {}, because: '' };
+  const max = Math.max(...entries.map(([, v]) => v));
+  const keep = entries
+    .filter(([, v]) => v >= max * 0.2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const weights = Object.fromEntries(keep.map(([r, v]) => [r, Math.round((v / max) * 100) / 100]));
+  const names = [];
+  for (const d of [...acc.drivers].sort((a, b) => b.score - a.score)) if (!names.includes(d.name)) names.push(d.name);
+  const shown = names.slice(0, 3);
+  const because = shown.length ? `Because of ${shown.join(', ').replace(/, ([^,]*)$/, shown.length > 1 ? ' and $1' : ', $1')}${names.length > 3 ? ' and more' : ''}.` : '';
+  return { regions: REGION_IDS.filter((r) => weights[r] != null), weights, because };
+}
+const fresh = () => ({ weights: {}, drivers: [] });
+
+// Stretch areas for one workout: its completed sets (and supporting muscles), nothing else.
+export function workoutPlan(session, library) {
+  const acc = fresh();
+  addExerciseWork(acc, session?.exercises, library);
+  const plan = finishPlan(acc);
+  return { ...plan, minutes: workoutMinutes(session) };
+}
+
+// 5 minutes after a normal workout, 10 after a long one.
+export function workoutMinutes(session, now = Date.now()) {
+  const start = Date.parse(session?.started_at ?? '');
+  if (!Number.isFinite(start)) return 5;
+  const end = session?.ended_at ? Date.parse(session.ended_at) : now;
+  return (end - start) / 60000 > 60 ? 10 : 5;
+}
+
+// The last few days of workouts and activities, today counting most.
+export function recentPlan(sessions, library, todayStr, { activities = [], days = 3 } = {}) {
+  const dayNum = (d) => Math.round(new Date(`${d}T12:00:00`).getTime() / 86400000);
+  const today = dayNum(todayStr);
+  const factor = (d) => [1, 0.6, 0.35, 0.2][today - dayNum(d)] ?? 0;
+  const acc = fresh();
+  for (const s of sessions ?? []) {
+    if (s.deleted_at || !s.ended_at || !s.date) continue;
+    const age = today - dayNum(s.date);
+    if (age < 0 || age > days) continue;
+    addExerciseWork(acc, s.exercises, library, factor(s.date));
+  }
+  for (const a of activities ?? []) {
+    if (a.deleted_at || !a.date) continue;
+    const age = today - dayNum(a.date);
+    if (age < 0 || age > days) continue;
+    addActivityWork(acc, a, factor(a.date));
+  }
+  return finishPlan(acc);
+}
+export const recentRegions = (sessions, library, todayStr, days = 3) => recentPlan(sessions, library, todayStr, { days }).regions;
 
 // Timed steps for the guided mode: a short get-ready, then each hold (twice for each side).
 export function guideSteps(list, { ready = 5, switchSecs = 4 } = {}) {

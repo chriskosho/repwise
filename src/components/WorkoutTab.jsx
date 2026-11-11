@@ -18,13 +18,17 @@ import { weekStartOf } from '../goals';
 import SessionCard from './SessionCard';
 import ActivityCard from './ActivityCard';
 import { useWorkouts } from '../workouts';
+import { useLibrary } from '../library';
+import { regionLabel, workoutPlan } from '../stretches';
 import WorkoutEditor from './WorkoutEditor';
 import PlanCard from './PlanCard';
 import { ReviewCard } from './Review';
 import { reviewPeriod, showReviewCard } from '../review';
 
-function Summary({ info, unit, onDone, onSaveRoutine }) {
+function Summary({ info, unit, onDone, onSaveRoutine, onStretch }) {
   const { session, stats, prs } = info;
+  const { list: library } = useLibrary();
+  const plan = library ? workoutPlan(session, library) : null;
   return (
     <div className="card">
       <h2>Workout complete</h2>
@@ -82,6 +86,17 @@ function Summary({ info, unit, onDone, onSaveRoutine }) {
             ))}
           </ul>
         </>
+      )}
+      {plan?.regions.length > 0 && onStretch && (
+        <div className="stretch-offer">
+          <h3>Stretch what you just trained</h3>
+          <p className="muted">
+            {plan.regions.map(regionLabel).join(', ')} · about {plan.minutes} min
+          </p>
+          <button type="button" className="btn btn-block" onClick={() => onStretch({ preset: 'workout', minutes: plan.minutes, focus: plan })}>
+            Stretch now
+          </button>
+        </div>
       )}
       <div className="actions">
         <button type="button" className="btn" onClick={onDone}>
@@ -167,6 +182,10 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
         unit={unit}
         onDone={() => setSummary(null)}
         onSaveRoutine={(doc) => onOpenRoutine(doc, true)}
+        onStretch={(o) => {
+          setSummary(null);
+          onStretch(o);
+        }}
       />
     );
   }
@@ -258,7 +277,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
         <button type="button" data-tour="activity" className="btn btn-link" onClick={onLogActivity}>
           Log an activity (run, sport…)
         </button>
-        <button type="button" className="btn btn-link" onClick={onStretch}>
+        <button type="button" className="btn btn-link" onClick={() => onStretch()}>
           Stretch
         </button>
       </section>

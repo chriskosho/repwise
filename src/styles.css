@@ -1842,3 +1842,7 @@ button:focus-visible,
 .stretch-row { flex-direction: column; align-items: stretch; gap: 0.3rem; }
 .stretch-ctl select { width: auto; min-height: 40px; }
 .stretch-ctl .btn { min-height: 40px; padding: 0 0.8rem; }
+.stretch-why { margin: 0; padding: 0.6rem 0.8rem; border-radius: 10px; background: var(--accent-soft); }
+.stretch-offer { margin: 1rem 0; padding: 0.8rem; border-radius: 12px; background: var(--accent-soft); }
+.stretch-offer h3 { margin: 0 0 0.2rem; }
+.stretch-offer .btn { margin-top: 0.5rem; }

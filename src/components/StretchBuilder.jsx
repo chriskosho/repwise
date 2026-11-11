@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { newActivity, newId, newRoutine, saveActivity, listSessions, today } from '../db';
+import { listActivities, newActivity, newId, newRoutine, saveActivity, listSessions, today } from '../db';
 import { useLibrary } from '../library';
 import { plural as pl } from '../stats';
 const plural = (n, w) => (w === 'stretch' ? pl(n, 'stretch', 'stretches') : pl(n, w));
-import { PRESETS, REGIONS, REGION_IDS, TIMES, buildStretches, recentRegions, regionLabel, sessionSeconds, sessionTitle, stretchItem, swapStretch } from '../stretches';
+import { PRESETS, REGIONS, REGION_IDS, TIMES, buildStretches, recentPlan, regionLabel, sessionSeconds, sessionTitle, stretchItem, swapStretch } from '../stretches';
 import ExercisePicker from './ExercisePicker';
 import ExerciseInfo from './ExerciseInfo';
 import StretchGuide from './StretchGuide';
@@ -15,12 +15,17 @@ const mins = (secs) => Math.max(1, Math.round(secs / 60));
 
 // Choose what to stretch and for how long, then do it with a timer or just log it.
 // In pick mode (inside a workout) it only builds the list and hands it back.
-export default function StretchBuilder({ preset = 'total', minutes: startMinutes = 10, pick = false, onUse, onClose, onEditActivity, onSaveRoutine }) {
+export default function StretchBuilder({ preset = 'total', minutes: startMinutes = 10, focus = null, pick = false, onUse, onClose, onEditActivity, onSaveRoutine }) {
   const { list: library } = useLibrary();
   const sessions = useLiveQuery(listSessions, [], []);
-  const recent = useMemo(() => recentRegions(sessions, library, today()), [sessions, library]);
-  const [regions, setRegions] = useState(() => PRESETS.find((p) => p.id === preset)?.regions ?? REGION_IDS);
-  const [minutes, setMinutes] = useState(startMinutes);
+  const activities = useLiveQuery(listActivities, [], []);
+  const recentP = useMemo(() => recentPlan(sessions, library, today(), { activities }), [sessions, library, activities]);
+  const recent = recentP.regions;
+  // `focus` is a plan worked out from a workout: areas, how hard each was worked, and why.
+  const [regions, setRegions] = useState(() => (focus?.regions?.length ? focus.regions : PRESETS.find((p) => p.id === preset)?.regions ?? REGION_IDS));
+  const [weights, setWeights] = useState(focus?.regions?.length ? focus.weights : null);
+  const [because, setBecause] = useState(focus?.regions?.length ? focus.because : '');
+  const [minutes, setMinutes] = useState(focus?.minutes ?? startMinutes);
   const [seed, setSeed] = useState(1);
   const [list, setList] = useState([]);
   const [guide, setGuide] = useState(false);
@@ -32,12 +37,16 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
 
   // "What I trained recently" can only be worked out once workouts and the library have loaded.
   useEffect(() => {
-    if (preset === 'recent' && recent.length && !edited.current) setRegions(recent);
-  }, [preset, recent]);
+    if (preset === 'recent' && !focus && recent.length && !edited.current) {
+      setRegions(recent);
+      setWeights(recentP.weights);
+      setBecause(recentP.because);
+    }
+  }, [preset, focus, recent, recentP]);
 
   useEffect(() => {
-    setList(buildStretches({ regions, minutes, library: library ?? [], seed }));
-  }, [regions, minutes, seed, library]);
+    setList(buildStretches({ regions, minutes, library: library ?? [], seed, weights }));
+  }, [regions, minutes, seed, library, weights]);
 
   const all = regions.length === REGION_IDS.length;
   const same = (rs) => rs.length === regions.length && rs.every((r) => regions.includes(r));
@@ -45,9 +54,11 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
     edited.current = true;
     setRegions((r) => (r.includes(id) ? r.filter((x) => x !== id) : [...r, id]));
   };
-  const choose = (rs) => {
+  const choose = (rs, plan = null) => {
     edited.current = true;
     setRegions(rs);
+    setWeights(plan?.weights ?? null);
+    setBecause(plan?.because ?? '');
   };
   const setHold = (i, hold) => setList((l) => l.map((s, k) => (k === i ? { ...s, hold: Number(hold) } : s)));
   const total = sessionSeconds(list);
@@ -114,7 +125,13 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
       </div>
 
       <h3>What do you want to stretch?</h3>
+      {because && regions.some((r) => weights?.[r]) && <p className="stretch-why">{because} Areas you worked hardest get the most stretches.</p>}
       <div className="chips" role="group" aria-label="Quick picks">
+        {focus?.regions?.length > 0 && (
+          <button type="button" className={same(focus.regions) ? 'chip-toggle on' : 'chip-toggle'} aria-pressed={same(focus.regions)} onClick={() => choose(focus.regions, focus)}>
+            What I just trained
+          </button>
+        )}
         <button type="button" className={all ? 'chip-toggle on' : 'chip-toggle'} aria-pressed={all} onClick={() => choose(REGION_IDS)}>
           Total body
         </button>
@@ -124,7 +141,7 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
           </button>
         ))}
         {recent.length > 0 && (
-          <button type="button" className={same(recent) ? 'chip-toggle on' : 'chip-toggle'} aria-pressed={same(recent)} onClick={() => choose(recent)}>
+          <button type="button" className={same(recent) ? 'chip-toggle on' : 'chip-toggle'} aria-pressed={same(recent)} onClick={() => choose(recent, recentP)}>
             What I trained recently
           </button>
         )}
