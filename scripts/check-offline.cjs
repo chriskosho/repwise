@@ -53,7 +53,7 @@ const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 
   check('reload while offline shows the app', true);
 
   // Lazy parts must work offline too (Body and Progress are separate files; the library is another).
-  await page.getByRole('button', { name: 'Body' }).click();
+  await page.getByRole('button', { name: 'Body', exact: true }).click();
   await page.getByLabel('Weight (lb)').waitFor({ timeout: 8000 });
   check('Body tab (lazy chunk) opens offline', true);
   await page.getByRole('button', { name: 'Progress' }).click();
