@@ -36,9 +36,9 @@ export default function Review({ sessions, activities, plan, unit, weekStart = 1
         <p className="muted">
           {day(start)} to {day(end)}
         </p>
-        <div className="seg" role="group" aria-label="Which week">
+        <div className="segments two" role="group" aria-label="Which week">
           {[['last', 'Last week'], ['this', 'This week so far']].map(([k, label]) => (
-            <button key={k} type="button" className={which === k ? 'on' : ''} aria-pressed={which === k} onClick={() => setWhich(k)}>
+            <button key={k} type="button" className={which === k ? 'seg on' : 'seg'} aria-pressed={which === k} onClick={() => setWhich(k)}>
               {label}
             </button>
           ))}
@@ -115,9 +115,11 @@ export default function Review({ sessions, activities, plan, unit, weekStart = 1
           <ul className="plain plan-days">
             {r.nextWeek.map((d) => (
               <li key={d.date} className={d.k === 'r' || d.mv ? 'is-rest' : ''}>
-                <strong>{day(d.date)}</strong>
-                <span>{d.mv ? 'Rest day' : dayLine(d)}</span>
-                <span />
+                <div className="plan-row">
+                  <strong>{day(d.date)}</strong>
+                  <span>{d.mv ? 'Rest day' : dayLine(d)}</span>
+                  <span />
+                </div>
               </li>
             ))}
           </ul>

@@ -63,11 +63,8 @@ export default function ExerciseInfo({ name, onClose }) {
         {cur && <p className="ex-cue">{cur.cue} Hold {cur.hold} seconds{cur.sides ? ' each side' : ''}.</p>}
         {entry && <Pictures id={entry.id} name={name} />}
         <div className="ex-links">
-          <a className="btn" href={youtubeUrl(name, { shorts: true, stretch })} target="_blank" rel="noopener noreferrer">
-            Watch Shorts
-          </a>
-          <a className="btn btn-ghost" href={youtubeUrl(name, { shorts: false, stretch })} target="_blank" rel="noopener noreferrer">
-            Longer videos
+          <a className="btn" href={youtubeUrl(name, { stretch })} target="_blank" rel="noopener noreferrer">
+            Watch on YouTube
           </a>
         </div>
         <p className="muted small">Opens a YouTube search for “{name}”.</p>

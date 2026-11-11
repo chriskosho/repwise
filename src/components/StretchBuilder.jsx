@@ -117,18 +117,21 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
 
   return (
     <div className={pick ? 'stretch-page stretch-pick' : 'stretch-page'}>
-      <div className="sheet-head">
-        <h2 className="sheet-title">{pick ? 'Add stretches' : 'Stretch'}</h2>
-        {pick ? (
+      {pick ? (
+        <div className="sheet-head">
+          <h2 className="sheet-title">Add stretches</h2>
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
-        ) : (
+        </div>
+      ) : (
+        <div className="card editor-head">
           <button type="button" className="btn btn-ghost btn-small back" onClick={onClose}>
             ← Back
           </button>
-        )}
-      </div>
+          <h2>Stretch</h2>
+        </div>
+      )}
 
       <h3>What do you want to stretch?</h3>
       {because && regions.some((r) => weights?.[r]) && <p className="stretch-why">{because} Areas you worked hardest get the most stretches.</p>}
@@ -216,7 +219,7 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
           </div>
         </>
       )}
-      <button type="button" className="btn btn-block" onClick={() => setAdding(true)}>
+      <button type="button" className="btn btn-block btn-ghost" onClick={() => setAdding(true)}>
         + Add a stretch
       </button>
 
@@ -246,10 +249,10 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
             Start guided session
           </button>
           <div className="add-row">
-            <button type="button" className="btn btn-block" disabled={!list.length} onClick={() => log({ seconds: total })}>
+            <button type="button" className="btn btn-block btn-ghost" disabled={!list.length} onClick={() => log({ seconds: total })}>
               Just log it
             </button>
-            <button type="button" className="btn btn-block" disabled={!list.length} onClick={() => onSaveRoutine?.(routineDoc())}>
+            <button type="button" className="btn btn-block btn-ghost" disabled={!list.length} onClick={() => onSaveRoutine?.(routineDoc())}>
               Save as routine
             </button>
           </div>

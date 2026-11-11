@@ -156,6 +156,23 @@ h3 {
   box-shadow: var(--shadow);
 }
 
+/* Vertical rhythm: a card stacks its children with one even gap, so nothing touches and
+   nothing drifts. Components that need a tighter or looser stack set their own gap below. */
+.card:not(details) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.card > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.card > .btn:not(.btn-block) {
+  align-self: flex-start;
+}
+
 .form {
   display: flex;
   flex-direction: column;
@@ -523,7 +540,7 @@ button:focus-visible,
 .btn-block {
   display: flex;
   width: 100%;
-  margin-bottom: 14px;
+  margin-bottom: var(--sp-3);
 }
 
 .btn-big {
@@ -590,7 +607,7 @@ button:focus-visible,
 }
 
 .exercise {
-  padding: 12px;
+  padding: var(--sp-4);
 }
 
 .exercise.in-superset {
@@ -599,7 +616,7 @@ button:focus-visible,
 
 .exercise-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
@@ -1091,8 +1108,9 @@ button:focus-visible,
 
 /* ---- progress views ---- */
 .segments {
-  display: flex;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-1);
   padding: 4px;
   margin-bottom: 12px;
   background: var(--card);
@@ -1104,10 +1122,10 @@ button:focus-visible,
 .seg {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 38px;
-  padding: 0 1px;
+  min-height: var(--ctl-sm);
+  padding: 0 var(--sp-2);
   font: inherit;
-  font-size: 0.76rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--muted);
   background: transparent;
@@ -1799,8 +1817,6 @@ button:focus-visible,
 .wk-day.done strong { color: #3aa76d; }
 .wk-day.rest { opacity: 0.55; }
 .day-nav { margin-top: 0.4rem; }
-.day-nav + * { margin-top: 0.6rem; }
-.card .btn-danger.btn-small { margin-top: 0.6rem; }
 
 /* ---- food log ---- */
 .food > .card { margin-bottom: 0.8rem; }
@@ -1892,22 +1908,16 @@ button:focus-visible,
 .home-row:hover, .home-row:active { border-color: var(--accent); }
 
 /* ---- design pass: shared rhythm ---- */
-.card > p:last-child { margin-bottom: 0; }
-.review-card p { margin: 0 0 var(--sp-3); }
 .review-card .actions .btn { min-width: 112px; }
 .add-row { gap: var(--sp-2); }
 .sheet-choice, .home-row { min-height: 56px; padding: var(--sp-3) var(--sp-4); margin: 0 0 var(--sp-2); }
 .home-row { margin-top: var(--sp-3); margin-bottom: 0; }
 .actions { gap: var(--sp-2); }
 .row { gap: var(--sp-3); }
-label + .actions, .muted + .actions, .muted + .chips, .journal-text + .actions { margin-top: var(--sp-3); }
 .editor-head h2, .editor-head p { margin: 0; }
 .chips .chip { min-height: var(--ctl-sm); }
 
 /* text next to buttons and fields gets the same gap everywhere */
-.card > .btn + p, .card > .btn + .muted, .card > p + .btn, .card > .muted + .btn,
-.actions + p, .actions + .muted, .field + p, .field + .muted { margin-top: var(--sp-3); }
-.actions > .btn-link:first-child { margin-left: calc(var(--sp-2) * -1); }
 
 /* ---- preview before adding ---- */
 .routine-open, .starter-open { display: grid; gap: 2px; width: 100%; padding: 0; text-align: left; color: inherit; font: inherit; background: none; border: 0; cursor: pointer; }
@@ -1918,3 +1928,21 @@ label + .actions, .muted + .actions, .muted + .chips, .journal-text + .actions {
 .card > .plan-list:first-child { margin: 0; }
 .card > .plan-list:first-child > li:first-child { border-top: 0; padding-top: 0; }
 .card > .plan-list:last-child > li:last-child { padding-bottom: 0; }
+
+/* Outside cards (sheets, pages), the same rule for text that follows a control. */
+.actions + p, .actions + .muted, .field + p, .field + .muted, .field + .actions, .row + .actions, .row + .btn { margin-top: var(--sp-3); }
+/* Keep the card gap in charge: margins set on direct children elsewhere would stack on top of it. */
+.card.card > * { margin-top: 0; margin-bottom: 0; }
+.plain.plan-days { list-style: none; padding: 0; }
+.plain.plan-days li { margin-bottom: 0; }
+.segments.two { grid-template-columns: 1fr 1fr; box-shadow: none; }
+@media (min-width: 560px) { .segments:not(.two) { grid-template-columns: repeat(6, 1fr); } }
+a.btn { text-decoration: none; }
+.row:has(> .field) { align-items: flex-end; }
+.card > .empty { padding: var(--sp-3) 0; }
+.exercise-head .btn-small { width: var(--ctl); min-height: var(--ctl); padding: 0; }
+.stretch-page { gap: var(--sp-3); }
+.stretch-page > .card { margin: 0; }
+.stretch-page h3 { margin: var(--sp-2) 0 0; }
+.stretch-page .add-row .btn-block { margin: 0; }
+.card > .btn-link, .actions > .btn-link:first-child { padding-left: 0; padding-right: 0; }

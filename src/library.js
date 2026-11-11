@@ -103,10 +103,10 @@ export const categoryGroup = (c) => (['powerlifting', 'olympic weightlifting', '
 const IMAGE_BASE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/';
 export const imageUrls = (id) => (id ? [`${IMAGE_BASE}${id}/0.jpg`, `${IMAGE_BASE}${id}/1.jpg`] : []);
 
-// A YouTube search built from the exercise's name. "#shorts" steers results toward Shorts
-// (YouTube has no URL switch for them); the second form finds longer how-to videos.
-export function youtubeUrl(name, { shorts = true, stretch = false } = {}) {
-  const q = `${name} ${stretch ? 'stretch' : 'exercise form'}${shorts ? ' #shorts' : ' tutorial'}`;
+// A plain YouTube search built from the exercise's name. YouTube mixes Shorts and longer
+// videos into the results on its own.
+export function youtubeUrl(name, { stretch = false } = {}) {
+  const q = `${name} ${stretch ? 'stretch' : 'exercise form'}`;
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
 }
 

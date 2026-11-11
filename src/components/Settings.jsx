@@ -215,7 +215,7 @@ function Places() {
           <span>Add a place</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
         </label>
-        <button type="submit" className="btn btn-small">
+        <button type="submit" className="btn">
           Add
         </button>
       </form>
@@ -263,10 +263,10 @@ function ShareCard() {
       <h2>Share and support</h2>
       <p className="muted">Repwise is free. If it helps you, tell a friend, or chip in to keep it going.</p>
       <div className="actions">
-        <button type="button" className="btn btn-small" onClick={onShare}>
+        <button type="button" className="btn" onClick={onShare}>
           Share Repwise
         </button>
-        <a className="btn btn-small btn-ghost" href={DONATE_URL} target="_blank" rel="noopener noreferrer">
+        <a className="btn btn-ghost" href={DONATE_URL} target="_blank" rel="noopener noreferrer">
           Donate
         </a>
       </div>
@@ -626,15 +626,15 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
           {plan ? `Active plan: ${plan.length} days starting ${plan.start}.` : 'No active plan.'} Plans are built from a few questions about your goal and schedule.
         </p>
         <div className="actions">
-          <button type="button" className="btn btn-small" onClick={() => onGuide(onboarded ? 'plan' : 'first')}>
+          <button type="button" className="btn" onClick={() => onGuide(onboarded ? 'plan' : 'first')}>
             {plan ? 'Build a new plan' : 'Set up my plan'}
           </button>
           {plan && (
-            <button type="button" className="btn btn-small btn-ghost" onClick={() => onGuide('plan-view')}>
+            <button type="button" className="btn btn-ghost" onClick={() => onGuide('plan-view')}>
               View plan
             </button>
           )}
-          <button type="button" className="btn btn-small btn-ghost" onClick={() => onGuide('tour')}>
+          <button type="button" className="btn btn-ghost" onClick={() => onGuide('tour')}>
             Take the tour
           </button>
         </div>
@@ -683,7 +683,7 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
         <div className="actions">
           <button
             type="button"
-            className="btn btn-small btn-ghost"
+            className="btn btn-ghost"
             onClick={async () => {
               if (!window.confirm('Restart the welcome setup? Your current plan and answers are replaced. Workouts are kept.')) return;
               await saveProfile({ onboarding: null, plan: null });
@@ -698,7 +698,7 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
         </p>
         <button
           type="button"
-          className="btn btn-small btn-danger"
+          className="btn btn-danger"
           onClick={async () => {
             if (!window.confirm('Clear everything Repwise stores on this device? This can’t be undone.')) return;
             await resetDevice(sync.session ? sync.signOut : null);

@@ -2,6 +2,21 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.9',
+    date: '2026-11-10',
+    title: 'Even spacing everywhere, one video button',
+    highlights: [
+      'Every card now spaces its contents the same way, so buttons, fields and text no longer touch.',
+      'One “Watch on YouTube” button replaces the separate Shorts and longer-video buttons.',
+    ],
+    items: [
+      'Progress tabs are larger and easier to tap, in two even rows on phones.',
+      'The weekly review week switch and next-week list are tidied up.',
+      'Settings buttons share one size, and the Stretch screen has the same Back header as other screens.',
+      'Workout exercise headers line up their title and buttons.',
+    ],
+  },
+  {
     id: '2.8',
     date: '2026-11-10',
     title: 'A more consistent look',

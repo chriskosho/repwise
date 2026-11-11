@@ -24,11 +24,11 @@ beforeEach(async () => {
 afterEach(cleanup);
 
 describe('library help', () => {
-  it('builds video searches from the exercise name, Shorts first', () => {
+  it('builds one general video search from the exercise name', () => {
     const u = new URL(youtubeUrl('Barbell Squat'));
     expect(u.hostname).toBe('www.youtube.com');
-    expect(u.searchParams.get('search_query')).toBe('Barbell Squat exercise form #shorts');
-    expect(new URL(youtubeUrl("Child's Pose", { shorts: false, stretch: true })).searchParams.get('search_query')).toBe("Child's Pose stretch tutorial");
+    expect(u.searchParams.get('search_query')).toBe('Barbell Squat exercise form');
+    expect(new URL(youtubeUrl("Child's Pose", { stretch: true })).searchParams.get('search_query')).toBe("Child's Pose stretch");
   });
   it('has ids for pictures and a stretching filter', () => {
     expect(imageUrls('Cat_Stretch')[1]).toMatch(/Cat_Stretch\/1\.jpg$/);
@@ -124,8 +124,9 @@ describe('the screens', () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'How to: Cat Stretch' }));
-    const link = await screen.findByRole('link', { name: 'Watch Shorts' });
-    expect(link.getAttribute('href')).toContain('Cat%20Stretch%20stretch%20%23shorts');
+    const link = await screen.findByRole('link', { name: 'Watch on YouTube' });
+    expect(link.getAttribute('href')).toContain('Cat%20Stretch%20stretch');
+    expect(screen.queryByRole('link', { name: /Longer videos|Shorts/ })).toBeNull();
     expect(link.getAttribute('target')).toBe('_blank');
     expect(await screen.findByText('How to do it', {}, { timeout: 4000 })).toBeTruthy();
   });
