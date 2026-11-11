@@ -1,7 +1,19 @@
-import { continuePlan, dayTitle, isWorkoutDay, phaseOf, planProgress, recentNotes } from '../plan';
+import { continuePlan, dayTitle, isWorkoutDay, phaseOf, planNote, planProgress } from '../plan';
 import { typeLabel } from '../activities';
 
 const dowName = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
+const shortDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+// Days set aside as "Time away" when a plan resumed after a break show as one row per stretch.
+const away = (d) => d.k === 'r' && d.adj === 'Time away';
+function collapseAway(days) {
+  const out = [];
+  for (const d of days) {
+    const last = out[out.length - 1];
+    if (away(d) && last?.run) last.run.push(d);
+    else out.push(away(d) ? { ...d, run: [d] } : d);
+  }
+  return out;
+}
 const longDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
 // What a plan day asks you to do, in a sentence.
@@ -99,11 +111,11 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
           })}
       </ol>
 
-      {recentNotes(plan, todayStr).map((n) => (
-        <p key={n.k} className="plan-note" role="note">
-          Plan update: {n.t}
+      {planNote(plan, todayStr) && (
+        <p className="plan-note" role="note">
+          {planNote(plan, todayStr)}
         </p>
-      ))}
+      )}
 
       {t.done && isWorkoutDay(t) ? (
         <h3>Today: done ✓ Nice work.</h3>
@@ -180,10 +192,20 @@ export function PlanView({ plan, workouts, todayStr, onClose, onNewPlan, onEndPl
       {weeks.map((days, w) => (
         <section className="card" key={w}>
           <h3>
-            Week {w + 1}: {phaseOf(plan, w + 1)}
+            Week {w + 1}: {days.every(away) ? 'Time away' : phaseOf(plan, w + 1)}
           </h3>
           <ul className="plain plan-days">
-            {days.map((d) => {
+            {collapseAway(days).map((d) => {
+              if (d.run)
+                return (
+                  <li key={d.n} className="is-rest away-run">
+                    <div className="plan-row">
+                      <strong>{d.run.length > 1 ? `${shortDate(d.date)}–${shortDate(d.run[d.run.length - 1].date)}` : longDate(d.date)}</strong>
+                      <span>Time away{d.run.length > 1 ? ` · ${d.run.length} days` : ''}</span>
+                      <span className="plan-state" />
+                    </div>
+                  </li>
+                );
               const past = d.date < todayStr;
               const state = d.date === todayStr ? 'today' : d.done ? 'done' : d.mv ? 'moved' : past && isWorkoutDay(d) ? 'missed' : '';
               return (
@@ -195,7 +217,7 @@ export function PlanView({ plan, workouts, todayStr, onClose, onNewPlan, onEndPl
                       {d.adj ? ` · ${d.adj}` : ''}
                     </span>
                     <span className="plan-state">
-                      {state === 'done' ? '✓' : state === 'today' ? 'Today' : state === 'missed' ? 'Missed' : state === 'moved' ? 'Moved' : ''}
+                      {state === 'done' ? '✓' : state === 'today' ? 'Today' : state === 'missed' ? 'Not done' : state === 'moved' ? 'Moved' : ''}
                       <span aria-hidden="true"> ›</span>
                     </span>
                   </button>

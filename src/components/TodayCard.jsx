@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { routineFromSession, saveSession, sessionFromRoutine } from '../db';
-import { STYLE_FOR_GOAL, dayTitle, isWorkoutDay, planProgress, recentNotes } from '../plan';
+import { newActivity, routineFromSession, saveActivity, saveProfile, saveSession, sessionFromRoutine } from '../db';
+import { STYLE_FOR_GOAL, ackWelcome, dayTitle, isWorkoutDay, planNote, planProgress, resumePlan, welcomeBack } from '../plan';
 import { coolDownNote, suggestionAsRoutine } from '../suggest';
 import { useSuggestion } from '../useSuggestion';
 import { typeLabel } from '../activities';
@@ -33,12 +33,26 @@ export function mainAction({ plan, progress, lastSession, routines = [] }) {
 }
 
 // Home: one card that says what today is and offers the one thing you most likely want.
-export default function TodayCard({ unit, plan, workouts, sessions, routines, todayStr, onPreviewPlanned, onPlanDo, onViewPlan, onViewDay, onStretch, onChooser, onLog }) {
+export default function TodayCard({ unit, plan, workouts, sessions, routines, todayStr, onPreviewPlanned, onPlanDo, onViewPlan, onViewDay, onStretch, onChooser, onLog, onOpenActivity = () => {}, onNewPlan = () => {} }) {
   const progress = plan ? planProgress(plan, workouts, todayStr) : null;
   const lastSession = sessions.find((s) => s.ended_at && s.exercises?.length) ?? null;
   const action = mainAction({ plan, progress, lastSession, routines });
   const suggestion = useSuggestion(unit, action.kind === 'planned' ? planPreset(plan, action.day) : { minutes: 30 });
   const [busy, setBusy] = useState(false);
+  const [logged, setLogged] = useState(null); // the activity just saved from the big button
+  const back = progress?.status === 'active' ? welcomeBack(plan, workouts, todayStr) : null;
+
+  // One tap: save today's planned activity as planned. Details can be added after.
+  async function quickLog(day) {
+    setBusy(true);
+    try {
+      const doc = { ...newActivity(todayStr), type: day.t, duration_min: day.m };
+      await saveActivity(doc);
+      setLogged(doc);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function begin(make) {
     setBusy(true);
@@ -69,16 +83,22 @@ export default function TodayCard({ unit, plan, workouts, sessions, routines, to
     case 'cardio':
       status = `Today: ${dayLine(action.day)}`;
       main = (
-        <button type="button" data-tour="start" className="btn btn-big btn-block" onClick={() => onPlanDo(action.day)}>
+        <button type="button" data-tour="start" className="btn btn-big btn-block" disabled={busy} onClick={() => quickLog(action.day)}>
           Log {typeLabel(action.day.t).toLowerCase()} · {action.day.m} min
         </button>
       );
-      if (action.day.k === 'a')
-        alt = (
-          <button type="button" className="btn btn-link btn-small" onClick={() => onStretch({ preset: 'recent', minutes: 10 })}>
-            Stretch instead
+      alt = (
+        <div className="today-alt">
+          <button type="button" className="btn btn-link btn-small" onClick={() => onPlanDo(action.day)}>
+            Add details
           </button>
-        );
+          {action.day.k === 'a' && (
+            <button type="button" className="btn btn-link btn-small" onClick={() => onStretch({ preset: 'recent', minutes: 10 })}>
+              Stretch instead
+            </button>
+          )}
+        </div>
+      );
       break;
     case 'rest':
       status = 'Today: rest day';
@@ -90,6 +110,15 @@ export default function TodayCard({ unit, plan, workouts, sessions, routines, to
       break;
     case 'done':
       status = 'Today: done ✓';
+      if (logged)
+        alt = (
+          <p className="today-logged">
+            {typeLabel(logged.type)} · {logged.duration_min} min logged.{' '}
+            <button type="button" className="btn btn-link btn-small" onClick={() => onOpenActivity(logged)}>
+              Add details
+            </button>
+          </p>
+        );
       break;
     case 'repeat': {
       const r = action.routine;
@@ -111,15 +140,38 @@ export default function TodayCard({ unit, plan, workouts, sessions, routines, to
   }
 
   const t = progress?.status === 'active' ? progress.today : null;
+  const note = t ? planNote(plan, todayStr) : null;
+
+  if (back) {
+    return (
+      <section className="hero today welcome" aria-label="Today">
+        <h2 className="today-headline">Welcome back</h2>
+        <p className="today-sub">
+          It's been {back.away} days. Pick up your plan where it suits you.
+        </p>
+        <button type="button" className="btn btn-big btn-block" disabled={busy} onClick={() => saveProfile({ plan: resumePlan(plan, workouts, todayStr) })}>
+          Resume from today
+        </button>
+        <div className="today-links">
+          <button type="button" className="btn btn-link" onClick={onNewPlan}>
+            Start a fresh plan
+          </button>
+          <button type="button" className="btn btn-link" onClick={() => saveProfile({ plan: ackWelcome(plan, back.lastDate) })}>
+            Carry on as is
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="hero today" aria-label="Today">
       <h2 className="today-headline">{status}</h2>
-      {t &&
-        recentNotes(plan, todayStr).map((n) => (
-          <p key={n.k} className="plan-note" role="note">
-            Plan update: {n.t}
-          </p>
-        ))}
+      {note && (
+        <p className="plan-note" role="note">
+          {note}
+        </p>
+      )}
       {main}
       {alt}
       {progress?.catchUp && action.kind !== 'planned' && (

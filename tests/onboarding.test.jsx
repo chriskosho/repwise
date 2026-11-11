@@ -242,7 +242,7 @@ describe('plan card after adapting', () => {
     const fri = '2026-11-13';
     const adapted = adaptPlan(plan, [{ date: start }], fri).plan;
     render(<PlanCard plan={adapted} workouts={[{ date: start }]} todayStr={fri} onDo={() => {}} onViewPlan={() => {}} onNewPlan={() => {}} onEndPlan={() => {}} onSuggest={() => {}} />);
-    expect(screen.getByText(/Plan update: You missed Wed/)).toBeTruthy();
+    expect(screen.getByText(/Plan update: Wed's workout moved to/)).toBeTruthy();
     cleanup();
     render(<PlanView plan={adapted} workouts={[{ date: start }]} todayStr={fri} onClose={() => {}} onNewPlan={() => {}} onEndPlan={() => {}} />);
     expect(screen.getByText('Moved')).toBeTruthy();

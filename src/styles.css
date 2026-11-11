@@ -1771,7 +1771,7 @@ button:focus-visible,
 .plan-row { display: grid; grid-template-columns: 6.5rem 1fr auto; gap: 0.5rem; padding: 0.55rem 0; align-items: center; width: 100%; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .plan-days li.is-rest { opacity: 0.6; }
 .plan-days li.today { font-weight: 600; }
-.plan-days li.missed .plan-state { color: #d9822b; }
+.plan-days li.missed .plan-state { color: var(--muted); }
 .plan-days li.done .plan-state { color: #3aa76d; }
 .plan-state { font-size: 0.8rem; }
 .plan-card .actions { margin-top: 0.6rem; }
@@ -1946,3 +1946,17 @@ a.btn { text-decoration: none; }
 .stretch-page h3 { margin: var(--sp-2) 0 0; }
 .stretch-page .add-row .btn-block { margin: 0; }
 .card > .btn-link, .actions > .btn-link:first-child { padding-left: 0; padding-right: 0; }
+
+/* ---- 2.11: one plan note, welcome back, quick log, workout recap ---- */
+.today-sub { margin: 0 0 var(--sp-3); text-align: center; color: var(--muted); }
+.today-alt { display: flex; justify-content: center; gap: var(--sp-4); }
+.today-logged { margin: var(--sp-2) 0 0; text-align: center; color: var(--muted); }
+.today-logged .btn-link { min-height: 0; padding: 0; vertical-align: baseline; }
+.recap { display: grid; gap: var(--sp-2); }
+.recap-vs h3 { margin: 0 0 var(--sp-1); }
+.recap-vs p { margin: 0; }
+.recap-tops { list-style: none; margin: var(--sp-2) 0 0; padding: 0; }
+.recap-tops li { display: flex; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-2) 0; border-top: 1px solid var(--line); font-size: 0.92rem; }
+.recap-tops li span:last-child { color: var(--muted); text-align: right; }
+.recap-tops li.recap-up span:last-child { color: var(--ok); font-weight: 600; }
+.recap-line { margin: 0; }

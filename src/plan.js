@@ -215,7 +215,8 @@ function cleanWhen(p) {
 export function cleanPlan(p) {
   if (!p || typeof p !== 'object') return null;
   const length = Number(p.length);
-  if (!LENGTHS.some(([n]) => n === length) || !Array.isArray(p.days) || p.days.length !== length) return null;
+  // Plan lengths come from LENGTHS, but resuming after a break adds the time away, so allow up to 240 days.
+  if (!Number.isInteger(length) || length < 7 || length > 240 || !Array.isArray(p.days) || p.days.length !== length) return null;
   if (typeof p.start !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(p.start)) return null;
   const days = p.days.map((d) => {
     const k = KINDS.has(d?.k) ? d.k : 'r';
@@ -244,12 +245,13 @@ export function cleanPlan(p) {
     ...(Math.round(Number(p.boost)) > 0 ? { boost: Math.min(3, Math.round(Number(p.boost))) } : {}),
     days,
     ...(typeof p.ended_at === 'string' ? { ended_at: p.ended_at.slice(0, 30) } : {}),
+    ...(typeof p.ack === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.ack) ? { ack: p.ack } : {}),
     ...(Array.isArray(p.log) && p.log.length
       ? {
           log: p.log
             .filter((e) => e && typeof e.k === 'string' && typeof e.t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.d))
             .slice(-30)
-            .map((e) => ({ k: e.k.slice(0, 40), d: e.d, t: e.t.slice(0, 200) })),
+            .map((e) => ({ k: e.k.slice(0, 40), d: e.d, t: e.t.slice(0, 200), ...(typeof e.x === 'string' && e.x ? { x: e.x.slice(0, 120) } : {}) })),
         }
       : {}),
   };
@@ -321,9 +323,10 @@ export function adaptPlan(plan, workouts, todayStr) {
   const days = plan.days.map((d, i) => ({ ...d, date: planDate(plan, i + 1) }));
   const log = [...(plan.log ?? [])];
   const seen = new Set(log.map((e) => e.k));
-  const note = (k, t) => {
+  // t: the full sentence (plan view). x: a short phrase for the one-line note on home.
+  const note = (k, t, x = '') => {
     seen.add(k);
-    log.push({ k, d: todayStr, t });
+    log.push({ k, d: todayStr, t, ...(x ? { x } : {}) });
   };
   const ti = dayNumber - 1;
   const today = days[ti];
@@ -337,8 +340,8 @@ export function adaptPlan(plan, workouts, todayStr) {
     const todayBusy = isWorkoutDay(today) && !today.mv && !dates.has(todayStr);
     if (!todayBusy && ti - i < 2) continue;
     const moved = moveWorkout(days, i, ti, dates, plan.available);
-    if (moved) note(key, `You missed ${weekday(d.date)}'s ${d.k === 's' ? dayTitle(d).toLowerCase() : 'cardio'} workout, so it moved to ${weekday(moved.date)}.`);
-    else note(key, `You missed ${weekday(d.date)}'s workout. There was no good day to move it to, so we've left it.`);
+    if (moved) note(key, `${weekday(d.date)}'s ${d.k === 's' ? dayTitle(d).toLowerCase() : 'cardio'} workout moved to ${weekday(moved.date)}.`, `${weekday(d.date)}'s workout moved to ${weekday(moved.date)}`);
+    else note(key, `There was no free day to move ${weekday(d.date)}'s workout to, so the plan carries on from here.`);
     changed = true;
   }
 
@@ -349,10 +352,10 @@ export function adaptPlan(plan, workouts, todayStr) {
   if (run >= 4 && tomorrow && isWorkoutDay(tomorrow) && !tomorrow.mv && !seen.has(`rest:${tomorrow.date}`)) {
     const moved = moveWorkout(days, ti + 1, ti + 1, dates, plan.available);
     if (moved) {
-      note(`rest:${tomorrow.date}`, `You've trained ${run} days in a row, so ${weekday(tomorrow.date)} is now a rest day and that workout moved to ${weekday(moved.date)}.`);
+      note(`rest:${tomorrow.date}`, `You've trained ${run} days in a row, so ${weekday(tomorrow.date)} is now a rest day and that workout moved to ${weekday(moved.date)}.`, `${weekday(tomorrow.date)} is now a rest day after ${run} days in a row`);
     } else {
       days[ti + 1] = { ...tomorrow, mv: true };
-      note(`rest:${tomorrow.date}`, `You've trained ${run} days in a row, so ${weekday(tomorrow.date)} is now a rest day.`);
+      note(`rest:${tomorrow.date}`, `You've trained ${run} days in a row, so ${weekday(tomorrow.date)} is now a rest day.`, `${weekday(tomorrow.date)} is now a rest day after ${run} days in a row`);
     }
     changed = true;
   }
@@ -370,10 +373,10 @@ export function adaptPlan(plan, workouts, todayStr) {
       const last = rest[rest.length - 1];
       if (rest.length > 1 && last) days[diffDays(last.date, plan.start)] = { ...last, mv: true };
       for (const d of rest.slice(0, -1)) days[diffDays(d.date, plan.start)] = { ...d, ease: true };
-      note(`week:${week}`, `Last week was tough (${prev.done} of ${prev.planned} workouts), so this week is lighter to help you get back in the groove.`);
+      note(`week:${week}`, 'This week is a little lighter to help you find your rhythm again.', 'this week is a little lighter');
       changed = true;
     } else if (week >= 3 && prev.planned >= 2 && prev.done >= prev.planned && weekStats(week - 2).planned >= 2 && weekStats(week - 2).done >= weekStats(week - 2).planned) {
-      note(`week:${week}`, 'Two full weeks in a row. Nice consistency!');
+      note(`week:${week}`, 'Two full weeks in a row. Nice consistency!', 'two full weeks in a row, nice');
       changed = true;
     } else {
       seen.add(`week:${week}`);
@@ -387,11 +390,11 @@ export function adaptPlan(plan, workouts, todayStr) {
     const next = prev.planned >= 2 && prev.done / prev.planned >= 0.8 ? Math.min(3, boost + 1) : prev.planned >= 2 && prev.done / prev.planned < 0.5 ? Math.max(0, boost - 1) : boost;
     if (next > boost) {
       boost = next;
-      note(`boost:${week}`, `Strong week (${prev.done} of ${prev.planned}). Your first lifts now get an extra set on regular days.`);
+      note(`boost:${week}`, `Strong week (${prev.done} of ${prev.planned}). Your first lifts now get an extra set on regular days.`, 'your first lifts get an extra set');
       changed = true;
     } else if (next < boost) {
       boost = next;
-      note(`boost:${week}`, 'Dialing the extra sets back while you find your rhythm.');
+      note(`boost:${week}`, 'Dialing the extra sets back while you find your rhythm.', 'extra sets are dialed back for now');
       changed = true;
     } else seen.add(`boost:${week}`);
   }
@@ -405,7 +408,7 @@ export function adaptPlan(plan, workouts, todayStr) {
     const nextS = days.findIndex((d) => d.k === 's' && !d.mv && d.date >= todayStr);
     if (nextS >= 0) {
       days[nextS] = { ...days[nextS], ease: true };
-      note(`back:${lastDate}`, `It's been ${away} days since your last workout. Your next one is an easy session to ease back in.`);
+      note(`back:${lastDate}`, 'Welcome back. Your next workout is an easy one to ease back in.', 'your next workout is an easy one');
       changed = true;
     }
   }
@@ -419,6 +422,83 @@ export function adaptPlan(plan, workouts, todayStr) {
 
 // Plan notes from the last couple of days, newest first.
 export const recentNotes = (plan, todayStr) => (plan.log ?? []).filter((e) => e.d >= addDays(todayStr, -1)).reverse();
+
+// Short phrases for older notes saved before they carried one.
+function oldPhrase(kind, t) {
+  if (kind === 'miss') return /moved to (\w+)/.test(t) ? `a workout moved to ${t.match(/moved to (\w+)/)[1]}` : '';
+  if (kind === 'rest') return 'a rest day was added';
+  if (kind === 'week') return /two full weeks/i.test(t) ? 'two full weeks in a row, nice' : 'this week is a little lighter';
+  if (kind === 'boost') return /extra set on/i.test(t) ? 'your first lifts get an extra set' : 'extra sets are dialed back for now';
+  if (kind === 'back') return 'your next workout is an easy one';
+  return '';
+}
+// The recent notes as one neutral sentence for home, or null. Most useful changes first.
+const ORDER = ['resume', 'back', 'week', 'miss', 'rest', 'boost'];
+export function planNote(plan, todayStr) {
+  const notes = recentNotes(plan, todayStr);
+  const phrases = [];
+  // Right after resuming, that is the whole story.
+  const resumed = notes.find((e) => e.k.startsWith('resume:'));
+  if (resumed) return `Plan update: ${resumed.x.charAt(0).toUpperCase()}${resumed.x.slice(1)}.`;
+  for (const kind of ORDER) {
+    for (const n of notes.filter((e) => e.k.split(':')[0] === kind)) {
+      const x = n.x ?? oldPhrase(kind, n.t);
+      if (x && !phrases.includes(x)) phrases.push(x);
+    }
+  }
+  if (!phrases.length) return null;
+  const shown = phrases.slice(0, 2);
+  const more = phrases.length - shown.length;
+  const text = shown.join(' and ') + (more ? `, plus ${more} more ${more === 1 ? 'change' : 'changes'}` : '');
+  return `Plan update: ${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+}
+
+// ---- coming back after a break ----
+// The last day you did anything, on or before today (or the day before the plan, if nothing yet).
+function lastActive(plan, workouts, todayStr) {
+  const past = workouts.filter((w) => !w.deleted_at && w.date <= todayStr).map((w) => w.date).sort();
+  return past[past.length - 1] ?? addDays(plan.start, -1);
+}
+
+// A week or more away during an active plan, and not answered yet: { away, lastDate } or null.
+export function welcomeBack(plan, workouts, todayStr) {
+  if (!plan || plan.ended_at) return null;
+  const n = diffDays(todayStr, plan.start) + 1;
+  if (n < 1 || n > plan.length) return null;
+  const lastDate = lastActive(plan, workouts, todayStr);
+  const away = diffDays(todayStr, lastDate);
+  if (away < 7 || plan.ack === lastDate) return null;
+  return { away, lastDate };
+}
+
+// "Carry on as is": remember the answer for this break.
+export const ackWelcome = (plan, lastDate) => ({ ...plan, ack: lastDate });
+
+// "Resume from today": days up to your last workout stay where they are (with what you did);
+// the time away becomes rest, and the rest of the plan starts today. The first workout back is easy.
+export function resumePlan(plan, workouts, todayStr) {
+  const dates = new Set(workouts.filter((w) => !w.deleted_at).map((w) => w.date));
+  const lastDate = lastActive(plan, workouts, todayStr);
+  let keep = 0; // days kept as they were: everything up to and including the last day you trained
+  for (let i = 0; i < plan.days.length; i++) if (dates.has(planDate(plan, i + 1)) && planDate(plan, i + 1) <= todayStr) keep = i + 1;
+  // Pick up at the next workout, so "Resume from today" means training today.
+  let from = keep;
+  while (from < plan.days.length - 1 && !(isWorkoutDay(plan.days[from]) && !plan.days[from].mv)) from++;
+  const rest = plan.days.slice(from).map(({ adj, ...d }) => d);
+  let days;
+  let start = plan.start;
+  if (keep === 0) {
+    start = todayStr; // nothing done yet: the plan simply starts today
+    days = rest;
+  } else {
+    const gap = Math.max(0, diffDays(todayStr, planDate(plan, keep + 1)));
+    days = [...plan.days.slice(0, keep), ...Array.from({ length: gap }, () => ({ k: 'r', adj: 'Time away' })), ...rest];
+  }
+  const first = days.findIndex((d, i) => d.k === 's' && addDays(start, i) >= todayStr);
+  if (first >= 0) days[first] = { ...days[first], ease: true };
+  const note = { k: `resume:${todayStr}`, d: todayStr, t: 'Welcome back. The rest of your plan picks up from today, starting with an easy workout.', x: 'your plan picks up from today with an easy workout' };
+  return { ...plan, start, length: days.length, days, ack: lastDate, log: [...(plan.log ?? []), note].slice(-30) };
+}
 
 
 // The next plan, built from how this one went: promote beginners, add a day for a great run,

@@ -2,6 +2,22 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.11',
+    date: '2026-11-11',
+    title: 'Coming back, and the moment after',
+    highlights: [
+      'Back after a week or more? Home offers to resume your plan from today, start a fresh plan, or carry on as is.',
+      'After a workout, see how it compares with last time, where your week stands and what’s next.',
+      'A planned walk or run logs in one tap, with “Add details” if you want them.',
+    ],
+    items: [
+      'Plan changes show as one short note on home, worded kindly.',
+      'Past plan days you didn’t do now say “Not done” in grey instead of an orange “Missed”.',
+      'Resuming keeps the days you trained, sets the time away aside as one line in the plan, and starts with an easy workout.',
+      'The workout summary shows volume against the last session of the same name and how your top sets moved.',
+    ],
+  },
+  {
     id: '2.10',
     date: '2026-11-11',
     title: 'Suggested workouts you’d actually do',

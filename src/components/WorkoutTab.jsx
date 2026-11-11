@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import {
   getActiveSession,
   getSession,
+  listGoals,
   listRoutines,
   listSessions,
   newRoutine,
@@ -20,18 +21,27 @@ import { useWorkouts } from '../workouts';
 import { useLibrary, exName } from '../library';
 import { regionLabel, workoutPlan } from '../stretches';
 import WorkoutEditor from './WorkoutEditor';
-import PlanCard from './PlanCard';
+import PlanCard, { dayLine } from './PlanCard';
 import StarterRoutines from './StarterRoutines';
 import RoutinePreview from './RoutinePreview';
 import TodayCard from './TodayCard';
 import { LogSheet, StartSheet } from './HomeSheets';
 import { routineFromStarter } from '../starterRoutines';
 import { planProgress } from '../plan';
+import { compareWithLast, nextPlanned, weekCount } from '../recap';
 import { ReviewCard } from './Review';
 import { reviewPeriod, showReviewCard } from '../review';
 
-function Summary({ info, unit, onDone, onSaveRoutine, onStretch }) {
+const shortDay = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
+const setText = (t, unit) => `${t.weight} ${unit} × ${t.reps}`;
+
+function Summary({ info, unit, onDone, onSaveRoutine, onStretch, sessions = [], workouts = [], trainingPlan = null, weekStart = 1 }) {
   const { session, stats, prs } = info;
+  const goals = useLiveQuery(listGoals, [], []);
+  const todayStr = today();
+  const vs = compareWithLast(session, sessions, stats);
+  const week = weekCount({ plan: trainingPlan, workouts, goals, todayStr, weekStart, extraDate: session.date });
+  const next = nextPlanned(trainingPlan, [...workouts, { date: session.date }], todayStr);
   const { list: library } = useLibrary();
   const plan = library ? workoutPlan(session, library) : null;
   return (
@@ -66,6 +76,39 @@ function Summary({ info, unit, onDone, onSaveRoutine, onStretch }) {
               {Math.round(kmToLong(stats.km, unit) * 100) / 100} {longUnit(unit)}
             </strong>
           </div>
+        )}
+      </div>
+      <div className="recap">
+        {vs && (
+          <div className="recap-vs">
+            <h3>Compared with last time</h3>
+            <p className="muted">
+              {session.name} on {shortDay(vs.prev.date)}
+              {vs.volume.change != null && vs.volume.change !== 0 ? ` · volume ${vs.volume.change > 0 ? 'up' : 'down'} ${Math.abs(vs.volume.change)}%` : vs.volume.change === 0 ? ' · same volume' : ''}
+            </p>
+            {vs.tops.length > 0 && (
+              <ul className="recap-tops">
+                {vs.tops.map((t) => (
+                  <li key={t.name} className={`recap-${t.dir}`}>
+                    <span>{exName(t.name)}</span>
+                    <span>
+                      {t.dir === 'same' ? `${setText(t.after, unit)}, same as last time` : `${setText(t.before, unit)} → ${setText(t.after, unit)}`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+        <p className="recap-line">
+          <strong>This week:</strong>{' '}
+          {week.target ? `${week.done} of ${week.target} ${week.of === 'plan' ? 'planned workouts' : 'workouts (your goal)'}` : plural(week.done, 'workout day')}
+          {week.target && week.done >= week.target ? '. Week complete.' : ''}
+        </p>
+        {next && (
+          <p className="recap-line">
+            <strong>Next:</strong> {shortDay(next.date)} · {dayLine(next)}
+          </p>
         )}
       </div>
       {prs.length > 0 && (
@@ -208,6 +251,10 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
       <Summary
         info={summary}
         unit={unit}
+        sessions={sessions ?? []}
+        workouts={workouts ?? []}
+        trainingPlan={plan}
+        weekStart={weekStart}
         onDone={() => setSummary(null)}
         onSaveRoutine={(doc) => onOpenRoutine(doc, true)}
         onStretch={(o) => {
@@ -356,6 +403,8 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
         onStretch={onStretch}
         onChooser={() => setSheet('start')}
         onLog={() => setSheet('log')}
+        onOpenActivity={onOpenActivity}
+        onNewPlan={onNewPlan}
       />
       {sheet === 'start' && (
         <StartSheet

@@ -121,7 +121,8 @@ describe('adapting to what you do', () => {
     expect(r.changed).toBe(true);
     expect(r.plan.days[2].mv).toBe(true);
     expect(r.plan.days[5]).toMatchObject({ k: 's', adj: 'Moved from Wed' });
-    expect(recentNotes(r.plan, D(4))[0].t).toMatch(/missed Wed.*moved to Sat/);
+    expect(recentNotes(r.plan, D(4))[0].t).toMatch(/Wed.*moved to Sat/);
+    expect(recentNotes(r.plan, D(4))[0].t).not.toMatch(/missed/i);
     // Idempotent, and the moved workout no longer counts as planned for Wed.
     expect(adaptPlan(r.plan, wk(0), D(4)).changed).toBe(false);
     expect(planProgress(r.plan, wk(0), D(4)).catchUp).toBeNull();
@@ -147,7 +148,7 @@ describe('adapting to what you do', () => {
     const w2 = r.plan.days.slice(7, 14).filter((d) => d.k === 's');
     expect(w2.some((d) => d.mv)).toBe(true);
     expect(w2.filter((d) => !d.mv).every((d) => d.ease)).toBe(true);
-    expect(recentNotes(r.plan, D(7)).some((e) => /Last week was tough/.test(e.t))).toBe(true);
+    expect(recentNotes(r.plan, D(7)).some((e) => /a little lighter/.test(e.t))).toBe(true);
   });
   it('eases you back in after a week away', () => {
     const p = mk({ per_week: 4, length: 28, level: 'pro' });

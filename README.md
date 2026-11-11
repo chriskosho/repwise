@@ -193,3 +193,6 @@ Shared tokens in `src/styles.css` (`--sp-*` spacing, `--r-ctl`/`--r-card` corner
 
 ## 2.10 Core exercises
 `src/coreExercises.js` lists about 100 familiar library exercises, each tagged with a movement slot, muscle, equipment and minimum level, plus a short display name. `suggestWorkout` fills slot templates per focus from this list (gear, level and focus enforced) and only falls back to beginner-level library exercises when a slot cannot be filled. `exName()` in `src/library.js` turns a stored name into the display name; stored names never change, so history, records and goals keep matching.
+
+## 2.11 Coming back
+`planNote()` merges recent plan log entries (each now carries a short `x` phrase) into one sentence for home. `welcomeBack()` / `resumePlan()` / `ackWelcome()` in `src/plan.js` handle a 7+ day break: resuming keeps days up to the last workout, inserts `{ k: "r", adj: "Time away" }` days for the gap and continues from the next workout today, so plan length can now be any 7-240 days. `src/recap.js` powers the post-workout summary (compare with last session of the same name, week count against plan or goal, next planned day).
