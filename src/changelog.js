@@ -2,6 +2,21 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.8',
+    date: '2026-11-10',
+    title: 'A more consistent look',
+    highlights: [
+      'Buttons, chips and icon buttons now share the same sizes across every screen.',
+      'Section headings are easier to read, in plain sentence case.',
+      'Spacing and corner shapes match from screen to screen, in light and dark.',
+    ],
+    items: [
+      'Two button heights (44 and 36) and one icon-button size, so tap targets feel the same everywhere.',
+      'Cards, rows and sheets use the same padding and spacing.',
+      'The weekly review card has even spacing and matching buttons.',
+    ],
+  },
+  {
     id: '2.7',
     date: '2026-11-10',
     title: 'Home, simplified further',

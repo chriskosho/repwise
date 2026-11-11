@@ -187,3 +187,6 @@ The Food tab (`src/components/Food.jsx`, `FoodComposer.jsx`) is a simple running
 - **Starter routines** (`src/starterRoutines.js`, `StarterRoutines.jsx`): 14 ready-made routines (gym, at home, stretching) added as copies with one tap. A test checks every exercise name against the library, so a renamed library entry cannot silently break one.
 - **Home screen** (`TodayCard`, `HomeSheets`): one main button chosen by `mainAction` (planned workout → start directly using the same `planPreset` options as the Suggest preview; cardio day → log it; rest day → stretch; no plan → repeat the last workout or its routine; new → the start sheet). “Something else” opens the start sheet and “Log” opens the log sheet. The full plan card is only shown before a plan starts and after it ends.
 - **Home, simplified**: `TodayCard` is a headline, one `mainAction` button, “Something else / Log” links and (with a plan) the week strip. Below it are two rows: Routines (opens `RoutinesScreen`, which also holds the starter routines; its open state lives in `App` so editing a routine returns to it) and a one-line “Last: …” (hidden when the card already says it).
+
+## 2.8 Design pass
+Shared tokens in `src/styles.css` (`--sp-*` spacing, `--r-ctl`/`--r-card` corners, `--ctl`/`--ctl-sm` control heights). Use them for new UI instead of one-off values.
