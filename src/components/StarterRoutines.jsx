@@ -4,7 +4,7 @@ import { plural } from '../stats';
 import { STARTERS, STARTER_GROUPS, routineFromStarter } from '../starterRoutines';
 
 // Browse ready-made routines and add the ones you want. Open by default until you have routines.
-export default function StarterRoutines({ routines, defaultOpen = false }) {
+export default function StarterRoutines({ routines, defaultOpen = false, onPreview = null }) {
   const [open, setOpen] = useState(defaultOpen);
   const [busy, setBusy] = useState('');
   const have = new Set(routines.map((r) => (r.name || '').trim().toLowerCase()));
@@ -43,12 +43,21 @@ export default function StarterRoutines({ routines, defaultOpen = false }) {
               const count = s.stretch ? s.names.length : s.exercises.length;
               return (
                 <li key={s.id} className="starter-row">
-                  <div className="starter-info">
-                    <strong>{s.name}</strong>
-                    <span className="muted small">
-                      {plural(count, s.stretch ? 'stretch' : 'exercise', s.stretch ? 'stretches' : undefined)} · {s.blurb}
-                    </span>
-                  </div>
+                  {onPreview ? (
+                    <button type="button" className="starter-info starter-open" aria-label={`View ${s.name}`} onClick={() => onPreview(s)}>
+                      <strong>{s.name}</strong>
+                      <span className="muted small">
+                        {plural(count, s.stretch ? 'stretch' : 'exercise', s.stretch ? 'stretches' : undefined)} · {s.blurb}
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="starter-info">
+                      <strong>{s.name}</strong>
+                      <span className="muted small">
+                        {plural(count, s.stretch ? 'stretch' : 'exercise', s.stretch ? 'stretches' : undefined)} · {s.blurb}
+                      </span>
+                    </div>
+                  )}
                   <button type="button" className="btn btn-small" disabled={added || busy === s.id} onClick={() => add(s)} aria-label={added ? `${s.name} added` : `Add ${s.name}`}>
                     {added ? 'Added' : 'Add'}
                   </button>

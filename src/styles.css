@@ -1908,3 +1908,13 @@ label + .actions, .muted + .actions, .muted + .chips, .journal-text + .actions {
 .card > .btn + p, .card > .btn + .muted, .card > p + .btn, .card > .muted + .btn,
 .actions + p, .actions + .muted, .field + p, .field + .muted { margin-top: var(--sp-3); }
 .actions > .btn-link:first-child { margin-left: calc(var(--sp-2) * -1); }
+
+/* ---- preview before adding ---- */
+.routine-open, .starter-open { display: grid; gap: 2px; width: 100%; padding: 0; text-align: left; color: inherit; font: inherit; background: none; border: 0; cursor: pointer; }
+.routine-open .routine-top { display: flex; }
+.routine-open .routine-list { margin: 2px 0 var(--sp-3); }
+.starter-open strong { font-weight: 600; }
+.plan-list .icon-btn { margin: -4px -8px -4px 0; }
+.card > .plan-list:first-child { margin: 0; }
+.card > .plan-list:first-child > li:first-child { border-top: 0; padding-top: 0; }
+.card > .plan-list:last-child > li:last-child { padding-bottom: 0; }

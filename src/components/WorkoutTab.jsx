@@ -8,6 +8,7 @@ import {
   newRoutine,
   newSession,
   routineFromSession,
+  saveRoutine,
   saveSession,
   sessionFromRoutine,
   today,
@@ -21,6 +22,7 @@ import { regionLabel, workoutPlan } from '../stretches';
 import WorkoutEditor from './WorkoutEditor';
 import PlanCard from './PlanCard';
 import StarterRoutines from './StarterRoutines';
+import RoutinePreview from './RoutinePreview';
 import TodayCard from './TodayCard';
 import { LogSheet, StartSheet } from './HomeSheets';
 import { routineFromStarter } from '../starterRoutines';
@@ -142,17 +144,19 @@ export function EditSession({ id, unit, onClose, onSaveRoutine }) {
   );
 }
 
-function RoutineCard({ routine, onStart, onEdit }) {
+function RoutineCard({ routine, onStart, onEdit, onPreview }) {
   const sets = routine.exercises.reduce((a, e) => a + e.sets.length, 0);
   return (
     <div className="card routine">
-      <div className="routine-top">
-        <strong className="routine-name">{routine.name}</strong>
-        <span className="muted">
-          {plural(routine.exercises.length, 'exercise')} · {plural(sets, 'set')}
+      <button type="button" className="routine-open" aria-label={`View ${routine.name}`} onClick={() => onPreview(routine)}>
+        <span className="routine-top">
+          <strong className="routine-name">{routine.name}</strong>
+          <span className="muted">
+            {plural(routine.exercises.length, 'exercise')} · {plural(sets, 'set')}
+          </span>
         </span>
-      </div>
-      <p className="routine-list">{routine.exercises.map((e) => e.name).join(' · ')}</p>
+        <span className="routine-list">{routine.exercises.map((e) => e.name).join(' · ')}</span>
+      </button>
       <div className="routine-actions">
         <button type="button" className="btn btn-small" onClick={() => onStart(routine)}>
           Start {routine.name}
@@ -166,7 +170,7 @@ function RoutineCard({ routine, onStart, onEdit }) {
 }
 
 // Your routines and the ready-made ones, off the home screen so home stays about today.
-function RoutinesScreen({ routines, onBack, onStart, onEdit, onNew }) {
+function RoutinesScreen({ routines, onBack, onStart, onEdit, onNew, onPreview, onPreviewStarter }) {
   return (
     <div>
       <div className="card editor-head">
@@ -180,9 +184,9 @@ function RoutinesScreen({ routines, onBack, onStart, onEdit, onNew }) {
         </button>
       </div>
       {routines.map((r) => (
-        <RoutineCard key={r.id} routine={r} onStart={onStart} onEdit={onEdit} />
+        <RoutineCard key={r.id} routine={r} onStart={onStart} onEdit={onEdit} onPreview={onPreview} />
       ))}
-      <StarterRoutines routines={routines} defaultOpen />
+      <StarterRoutines routines={routines} defaultOpen onPreview={onPreviewStarter} />
     </div>
   );
 }
@@ -195,6 +199,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
   const [reviewHidden, setReviewHidden] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState(null); // 'start' | 'log'
+  const [preview, setPreview] = useState(null); // { routine, starter } while looking at a routine
   const showRoutines = routinesOpen;
   const setShowRoutines = onRoutinesOpen;
 
@@ -214,9 +219,49 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
   }
   if (active === undefined || !workouts || routines === undefined) return <p className="muted">Loading…</p>;
 
+  if (showRoutines && !active && preview) {
+    const back = () => setPreview(null);
+    return preview.starter ? (
+      <RoutinePreview
+        routine={preview.routine}
+        unit={unit}
+        sessions={sessions}
+        onBack={back}
+        primary={{
+          label: routines.some((r) => (r.name || '').trim().toLowerCase() === preview.routine.name.toLowerCase()) ? 'Added' : 'Add to my routines',
+          disabled: routines.some((r) => (r.name || '').trim().toLowerCase() === preview.routine.name.toLowerCase()),
+          onClick: async () => {
+            await saveRoutine(preview.routine);
+            back();
+          },
+        }}
+      />
+    ) : (
+      <RoutinePreview
+        routine={preview.routine}
+        unit={unit}
+        sessions={sessions}
+        onBack={back}
+        primary={{
+          label: `Start ${preview.routine.name}`,
+          onClick: () => {
+            setPreview(null);
+            setShowRoutines(false);
+            start(preview.routine);
+          },
+        }}
+        onEdit={() => {
+          setPreview(null);
+          onOpenRoutine(preview.routine, false);
+        }}
+      />
+    );
+  }
   if (showRoutines && !active) {
     return (
       <RoutinesScreen
+        onPreview={(r) => setPreview({ routine: r, starter: false })}
+        onPreviewStarter={(st) => setPreview({ routine: routineFromStarter(st), starter: true })}
         routines={routines}
         onBack={() => setShowRoutines(false)}
         onStart={(r) => {

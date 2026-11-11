@@ -15,6 +15,7 @@ export const RELEASES = [
       'Cards, rows and sheets use the same padding and spacing.',
       'The weekly review card has even spacing and matching buttons.',
       'History recap rows, the Today card and text beside buttons now have even spacing, and “Clear this device” is a clear red outline button.',
+      'Tap any routine or starter routine to look through it first: exercises, sets and reps, your last weights and the muscles it works. Nothing is saved until you add or start it.',
       'Every screen now has the same “← Back” button in the top left (it used to say Done, Plan or Food on some).',
     ],
   },
