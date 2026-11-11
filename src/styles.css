@@ -282,6 +282,12 @@ button:focus-visible,
 
 .btn-danger {
   color: var(--danger);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+}
+
+.btn-link.btn-danger {
+  border-color: transparent;
 }
 
 .btn-danger-solid {
@@ -770,17 +776,19 @@ button:focus-visible,
 }
 
 .session-lines li {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0 12px;
-  padding: 4px 0;
+  display: grid;
+  gap: 2px;
+  padding: var(--sp-2) 0;
   border-top: 1px solid var(--line);
 }
 
 .session-lines li:first-child {
   border-top: 0;
+  padding-top: 0;
+}
+
+.session-lines li:last-child {
+  padding-bottom: 0;
 }
 
 .session-lines .muted {
@@ -1252,8 +1260,8 @@ button:focus-visible,
 }
 
 .hero {
-  padding: 18px 16px 10px;
-  margin-bottom: 8px;
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-3);
   background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 16%, var(--card)), var(--card) 70%);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
@@ -1861,8 +1869,8 @@ button:focus-visible,
 .today-status { margin: 0.2rem 0 0.6rem; font-weight: 600; }
 .today-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.6rem; }
 .today-row:has(> :only-child) { grid-template-columns: 1fr; }
-.today-plan { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--line); }
-.today-plan .week-strip { margin: 0 0 0.4rem; }
+.today-plan { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--line); }
+.today-plan .week-strip { margin: 0 0 var(--sp-1); }
 .today-plan-meta { margin: 0; }
 .home-sheet h2 { margin-top: 0; }
 .sheet-group { margin: var(--sp-4) 0 var(--sp-1); font-size: 0.85rem; font-weight: 600; color: var(--muted); }
@@ -1877,15 +1885,14 @@ button:focus-visible,
 .today-status-muted { font-weight: 400; color: var(--muted); font-size: 0.92rem; }
 
 /* Home, simplified: a headline, one button, quiet links. */
-.today-headline { margin: 0 0 0.7rem; font-size: 1.15rem; text-align: center; }
-.today-links { display: flex; justify-content: center; gap: 1.5rem; margin-top: 0.3rem; }
+.today-headline { margin: 0 0 var(--sp-1); font-size: 1.15rem; text-align: center; }
+.today-links { display: flex; justify-content: center; gap: var(--sp-5); margin: 0; }
 .today-plan-link { display: block; margin: 0 auto; }
 .home-row { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 0.6rem; padding: 0.85rem 1rem; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--card); color: inherit; font: inherit; text-align: left; cursor: pointer; min-height: 48px; }
 .home-row:hover, .home-row:active { border-color: var(--accent); }
 
 /* ---- design pass: shared rhythm ---- */
 .card > p:last-child { margin-bottom: 0; }
-.card > .muted:first-of-type { margin-top: 0; }
 .review-card p { margin: 0 0 var(--sp-3); }
 .review-card .actions .btn { min-width: 112px; }
 .add-row { gap: var(--sp-2); }
@@ -1896,3 +1903,8 @@ button:focus-visible,
 label + .actions, .muted + .actions, .muted + .chips, .journal-text + .actions { margin-top: var(--sp-3); }
 .editor-head h2, .editor-head p { margin: 0; }
 .chips .chip { min-height: var(--ctl-sm); }
+
+/* text next to buttons and fields gets the same gap everywhere */
+.card > .btn + p, .card > .btn + .muted, .card > p + .btn, .card > .muted + .btn,
+.actions + p, .actions + .muted, .field + p, .field + .muted { margin-top: var(--sp-3); }
+.actions > .btn-link:first-child { margin-left: calc(var(--sp-2) * -1); }

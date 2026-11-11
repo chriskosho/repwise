@@ -14,6 +14,7 @@ export const RELEASES = [
       'Two button heights (44 and 36) and one icon-button size, so tap targets feel the same everywhere.',
       'Cards, rows and sheets use the same padding and spacing.',
       'The weekly review card has even spacing and matching buttons.',
+      'History recap rows, the Today card and text beside buttons now have even spacing, and “Clear this device” is a clear red outline button.',
       'Every screen now has the same “← Back” button in the top left (it used to say Done, Plan or Food on some).',
     ],
   },

@@ -95,7 +95,7 @@ function MyExercises() {
             ) : removing === c.id ? (
               <span className="actions">
                 <span>Delete {c.name}? Past workouts keep it.</span>
-                <button type="button" className="btn btn-small btn-danger" onClick={() => deleteCustomExercise(c.id).then(() => setRemoving(null))}>
+                <button type="button" className="btn btn-small btn-danger-solid" onClick={() => deleteCustomExercise(c.id).then(() => setRemoving(null))}>
                   Yes, delete
                 </button>
                 <button type="button" className="btn btn-small btn-ghost" onClick={() => setRemoving(null)}>
@@ -181,7 +181,7 @@ function Places() {
             ) : removing === p.id ? (
               <span className="actions">
                 <span>Remove {p.name}? Workouts keep working, they just lose the place.</span>
-                <button type="button" className="btn btn-small btn-danger" onClick={() => run(() => deletePlace(p.id)).then(() => setRemoving(null))}>
+                <button type="button" className="btn btn-small btn-danger-solid" onClick={() => run(() => deletePlace(p.id)).then(() => setRemoving(null))}>
                   Yes, remove
                 </button>
                 <button type="button" className="btn btn-small btn-ghost" onClick={() => setRemoving(null)}>
@@ -732,7 +732,7 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
                 </p>
               )}
               <div className="actions">
-                <button type="button" className="btn btn-danger" disabled={deleteText.trim() !== 'DELETE' || deleteBusy} onClick={onDelete}>
+                <button type="button" className="btn btn-danger-solid" disabled={deleteText.trim() !== 'DELETE' || deleteBusy} onClick={onDelete}>
                   {deleteBusy ? 'Deleting…' : 'Permanently delete my account'}
                 </button>
                 <button
