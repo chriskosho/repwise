@@ -50,7 +50,7 @@ it('walks through start, log, finish, history and editing', async () => {
   expect((await screen.findByLabelText('Set 1 weight')).value).toBe('100');
 
   // Leaving the editor returns to History.
-  await user.click(screen.getByRole('button', { name: '← Done' }));
+  await user.click(screen.getByRole('button', { name: '← Back' }));
   await waitFor(() => expect(screen.queryByLabelText('Set 1 weight')).toBeNull());
   expect(await screen.findByText('Zercher squat')).toBeTruthy();
 

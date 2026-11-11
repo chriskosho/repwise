@@ -364,7 +364,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
       <div className={`card editor-head${active ? ' sticky-head' : ''}`}>
         {!active && (
           <button type="button" className="btn btn-ghost btn-small back" onClick={saveAndClose}>
-            ← Done
+            ← Back
           </button>
         )}
         <input

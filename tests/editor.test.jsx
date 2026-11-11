@@ -190,7 +190,7 @@ describe('editing a finished workout', () => {
     const weight = screen.getByLabelText('Set 1 weight');
     await user.clear(weight);
     await user.type(weight, '205');
-    await user.click(screen.getByRole('button', { name: '← Done' }));
+    await user.click(screen.getByRole('button', { name: '← Back' }));
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     const saved = await db.sessions.get(s.id);

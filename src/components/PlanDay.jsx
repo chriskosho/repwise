@@ -61,7 +61,7 @@ export default function PlanDay({ plan, workouts, todayStr, n, unit, onBack, onG
     <div>
       <div className="card editor-head">
         <button type="button" className="btn btn-ghost btn-small back" onClick={onBack}>
-          ← Plan
+          ← Back
         </button>
         <h2>{rest ? 'Rest day' : dayTitle(day)}</h2>
         <p className="muted">

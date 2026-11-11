@@ -99,7 +99,7 @@ function MyFoods({ foods, onClose }) {
     <div>
       <div className="card editor-head">
         <button type="button" className="btn btn-ghost btn-small back" onClick={onClose}>
-          ← Food
+          ← Back
         </button>
         <h2>My foods</h2>
         <p className="muted">Foods you added yourself. They autofill when you type. Changing one doesn’t change what you already logged.</p>

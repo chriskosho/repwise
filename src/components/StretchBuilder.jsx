@@ -119,9 +119,15 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
     <div className={pick ? 'stretch-page stretch-pick' : 'stretch-page'}>
       <div className="sheet-head">
         <h2 className="sheet-title">{pick ? 'Add stretches' : 'Stretch'}</h2>
-        <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
-        </button>
+        {pick ? (
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+        ) : (
+          <button type="button" className="btn btn-ghost btn-small back" onClick={onClose}>
+            ← Back
+          </button>
+        )}
       </div>
 
       <h3>What do you want to stretch?</h3>
