@@ -175,33 +175,39 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
               Shuffle
             </button>
           </div>
-          <ul className="list stretch-list">
+          <div className="stretch-groups">
             {list.map((s, i) => (
-              <li key={s.name} className="stretch-row">
-                <div>
-                  <button type="button" className="stretch-name" onClick={() => setInfo(s.name)}>
-                    {s.name}
+              <div key={s.name}>
+                {(i === 0 || list[i - 1].region !== s.region) && <h4 className="stretch-region">{s.region === 'other' ? 'Added by you' : regionLabel(s.region)}</h4>}
+                <div className="stretch-row">
+                  <button type="button" className="stretch-name" onClick={() => setInfo(s.name)} aria-label={`How to: ${s.name}`}>
+                    <span>{s.name}</span>
+                    {s.sides && <small>each side</small>}
                   </button>
-                  <div className="muted small">{regionLabel(s.region)}</div>
-                </div>
-                <div className="stretch-ctl">
-                  <select aria-label={`Hold time for ${s.name}`} value={s.hold} onChange={(e) => setHold(i, e.target.value)}>
-                    {[...new Set([...HOLDS, s.hold])].sort((a, b) => a - b).map((h) => (
+                  <select className="stretch-hold" aria-label={`Hold time for ${s.name}`} value={s.hold} onChange={(e) => setHold(i, e.target.value)}>
+                    {[...new Set([...HOLDS, s.hold])].sort((x, y) => x - y).map((h) => (
                       <option key={h} value={h}>
-                        {h}s{s.sides ? ' each side' : ''}
+                        {h}s
                       </option>
                     ))}
                   </select>
-                  <button type="button" className="btn btn-ghost" aria-label={`Swap ${s.name}`} onClick={() => setList((l) => swapStretch(l, i, { library: library ?? [], seed: seed + i + l.length }))}>
-                    Swap
+                  <button type="button" className="icon-btn" aria-label={`Swap ${s.name}`} title="Swap for another" onClick={() => setList((l) => swapStretch(l, i, { library: library ?? [], seed: seed + i + l.length }))}>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M17 3l4 4-4 4" />
+                      <path d="M3 11V9a2 2 0 0 1 2-2h16" />
+                      <path d="M7 21l-4-4 4-4" />
+                      <path d="M21 13v2a2 2 0 0 1-2 2H3" />
+                    </svg>
                   </button>
-                  <button type="button" className="btn btn-ghost" aria-label={`Remove ${s.name}`} onClick={() => setList((l) => l.filter((_, k) => k !== i))}>
-                    Remove
+                  <button type="button" className="icon-btn" aria-label={`Remove ${s.name}`} title="Remove" onClick={() => setList((l) => l.filter((_, k) => k !== i))}>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
                   </button>
                 </div>
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </>
       )}
       <button type="button" className="btn btn-block" onClick={() => setAdding(true)}>
@@ -215,11 +221,13 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
       )}
 
       {pick ? (
-        <button type="button" className="btn btn-big btn-block" disabled={!list.length} onClick={() => onUse(list)}>
-          Add {plural(list.length, 'stretch')} to workout
-        </button>
+        <div className="stretch-actions">
+          <button type="button" className="btn btn-big btn-block" disabled={!list.length} onClick={() => onUse(list)}>
+            Add {plural(list.length, 'stretch')} to workout
+          </button>
+        </div>
       ) : (
-        <>
+        <div className="stretch-actions">
           <button
             type="button"
             className="btn btn-big btn-block"
@@ -231,13 +239,15 @@ export default function StretchBuilder({ preset = 'total', minutes: startMinutes
           >
             Start guided session
           </button>
-          <button type="button" className="btn btn-block" disabled={!list.length} onClick={() => log({ seconds: total })}>
-            Just log it
-          </button>
-          <button type="button" className="btn btn-ghost btn-block" disabled={!list.length} onClick={() => onSaveRoutine?.(routineDoc())}>
-            Save as routine
-          </button>
-        </>
+          <div className="add-row">
+            <button type="button" className="btn btn-block" disabled={!list.length} onClick={() => log({ seconds: total })}>
+              Just log it
+            </button>
+            <button type="button" className="btn btn-block" disabled={!list.length} onClick={() => onSaveRoutine?.(routineDoc())}>
+              Save as routine
+            </button>
+          </div>
+        </div>
       )}
 
       {info && <ExerciseInfo name={info} onClose={() => setInfo(null)} />}

@@ -2,6 +2,22 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.5',
+    date: '2026-11-10',
+    title: 'Starter routines and a cleaner stretch list',
+    highlights: [
+      'New starter routines: full body, push, pull, legs, upper, lower, bodyweight, dumbbells only, and stretch routines. Add any with one tap.',
+      'The stretch list is redesigned: grouped by body area, with compact rows and a Start button that stays in reach.',
+      'Selected options now highlight properly across the app (they were not showing a background).',
+    ],
+    items: [
+      'Starter routines live on the Workout tab under Routines. They are copies, so rename or change them freely.',
+      'Stretch routines set the hold time for each stretch and note which ones are done each side.',
+      'Stretch list: swap and remove are icons, the hold time is a small menu, and Start guided session stays on screen while you scroll.',
+      'Fixed the soft highlight color that was missing, which affected today in the week strip, selected choices and plan notes.',
+    ],
+  },
+  {
     id: '2.4',
     date: '2026-11-10',
     title: 'Stretches based on your workout',

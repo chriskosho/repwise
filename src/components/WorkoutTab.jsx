@@ -22,6 +22,7 @@ import { useLibrary } from '../library';
 import { regionLabel, workoutPlan } from '../stretches';
 import WorkoutEditor from './WorkoutEditor';
 import PlanCard from './PlanCard';
+import StarterRoutines from './StarterRoutines';
 import { ReviewCard } from './Review';
 import { reviewPeriod, showReviewCard } from '../review';
 
@@ -296,6 +297,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
       {routines.map((r) => (
         <RoutineCard key={r.id} routine={r} onStart={start} onEdit={(x) => onOpenRoutine(x, false)} />
       ))}
+      <StarterRoutines routines={routines} />
 
       {recent.length > 0 && (
         <>

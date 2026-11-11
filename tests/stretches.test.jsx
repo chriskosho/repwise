@@ -269,3 +269,46 @@ describe('against the real exercise library', () => {
     expect(workoutPlan({ exercises: [{ name: curl.name, sets }] }, library).regions).toEqual(['chest']);
   });
 });
+
+describe('stretch list layout', () => {
+  it('groups stretches under their body area and keeps a pinned Start button', async () => {
+    render(<StretchBuilder preset="lower" onClose={() => {}} />);
+    await screen.findByText(/stretch(es)? · about/);
+    expect(document.querySelectorAll('.stretch-region').length).toBeGreaterThanOrEqual(2);
+    expect(document.querySelector('.stretch-actions')).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /^Swap / }).length).toBeGreaterThan(2);
+  });
+});
+
+describe('starter routines', () => {
+  it('every starter exercise exists in the real library and every stretch is curated', async () => {
+    const { STARTERS, starterNames } = await import('../src/starterRoutines');
+    const { loadLibrary, findExercise } = await import('../src/library');
+    const library = await loadLibrary();
+    for (const st of STARTERS) for (const n of starterNames(st)) expect(st.stretch ? curatedStretch(n) : findExercise(library, n), `${st.name}: ${n}`).toBeTruthy();
+  });
+  it('adds a copy to your routines once, with sets and targets', async () => {
+    const user = userEvent.setup();
+    const { default: StarterRoutines } = await import('../src/components/StarterRoutines');
+    const { listRoutines } = await import('../src/db');
+    const { rerender } = render(<StarterRoutines routines={[]} />);
+    await user.click(screen.getByRole('button', { name: 'Add Full body A' }));
+    const mine = await waitFor(async () => {
+      const r = await listRoutines();
+      expect(r).toHaveLength(1);
+      return r;
+    });
+    expect(mine[0].name).toBe('Full body A');
+    expect(mine[0].exercises[0].sets).toHaveLength(3);
+    expect(mine[0].exercises[0].target.reps).toBe(8);
+    expect(mine[0].exercises[3].target.time).toBe(30);
+    rerender(<StarterRoutines routines={mine} />);
+    expect(screen.getByRole('button', { name: 'Full body A added' }).disabled).toBe(true);
+  });
+  it('stretch starters become stretch-mode routines', async () => {
+    const { STARTERS, routineFromStarter } = await import('../src/starterRoutines');
+    const r = routineFromStarter(STARTERS.find((s) => s.id === 'st-run'));
+    expect(r.exercises.every((e) => e.mode === 'stretch' && e.target.time > 0 && e.sets.length === 1)).toBe(true);
+    expect(r.exercises.find((e) => e.name === 'Wall calf stretch').notes).toBe('Each side');
+  });
+});
