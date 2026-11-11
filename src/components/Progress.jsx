@@ -19,7 +19,7 @@ const VIEWS = [
 ];
 
 // Everything about how you're doing, in one tab. The views share one load of your workouts.
-export default function Progress({ unit }) {
+export default function Progress({ unit, onOpenReview }) {
   const [view, setView] = useState('charts');
   const { ready, sessions, activities, workouts } = useWorkouts();
   const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], null);
@@ -27,6 +27,13 @@ export default function Progress({ unit }) {
 
   return (
     <div>
+      {onOpenReview && (
+        <div className="row-end">
+          <button type="button" className="btn btn-link btn-small" onClick={onOpenReview}>
+            Weekly review
+          </button>
+        </div>
+      )}
       <div className="segments" role="tablist" aria-label="Progress views">
         {VIEWS.map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={view === id} className={view === id ? 'seg on' : 'seg'} onClick={() => setView(id)}>

@@ -25,6 +25,7 @@ it('walks through start, log, finish, history and editing', async () => {
 
   // Start a workout.
   await user.click(await screen.findByRole('button', { name: 'Start workout' }));
+    await user.click(await screen.findByRole('button', { name: /^Empty workout/ }));
   expect(await screen.findByLabelText('Workout name')).toBeTruthy();
 
   // Log one set.
@@ -41,7 +42,7 @@ it('walks through start, log, finish, history and editing', async () => {
   await user.click(screen.getByRole('button', { name: 'Done' }));
   expect(await screen.findByText('Workout complete')).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Done' }));
-  expect(await screen.findByRole('button', { name: 'Start workout' })).toBeTruthy();
+  expect(await screen.findByRole('button', { name: /^Repeat / })).toBeTruthy();
   expect(screen.getByText('Recent')).toBeTruthy();
 
   // History lists it; opening it shows the editor with the logged set.
@@ -63,6 +64,7 @@ it('resumes a workout that was in progress after a reload', async () => {
   const user = userEvent.setup();
   const first = render(<App />);
   await user.click(await screen.findByRole('button', { name: 'Start workout' }));
+    await user.click(await screen.findByRole('button', { name: /^Empty workout/ }));
   await user.click(await screen.findByRole('button', { name: '+ Add exercise' }));
   await user.type(screen.getByLabelText('Search exercises'), 'Barbell Curl');
   await user.click(await screen.findByRole('button', { name: 'Barbell Curl' }));

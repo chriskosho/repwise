@@ -63,6 +63,7 @@ const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 
   // Log a workout with a library exercise, entirely offline.
   await page.getByRole('button', { name: 'Workout' }).click();
   await page.getByRole('button', { name: 'Start workout' }).click();
+  await page.getByRole('button', { name: /^Empty workout/ }).click();
   await page.getByRole('button', { name: '+ Add exercise' }).click();
   await page.getByLabel('Search exercises').fill('bench press');
   const first = page.locator('.sheet-list .pick:not(.create)').first();
@@ -81,7 +82,7 @@ const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 
 
   // And it survives a reload, still offline.
   await page.reload();
-  await page.getByRole('button', { name: 'Start workout' }).waitFor({ timeout: 10000 });
+  await page.getByRole('region', { name: 'Today' }).waitFor({ timeout: 10000 });
   await page.getByRole('button', { name: 'History' }).click();
   const saved = await page.getByText(name).first().waitFor({ timeout: 8000 }).then(() => true, () => false);
   check('saved workout is still there after an offline reload', saved);
@@ -89,7 +90,7 @@ const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 
   // Back online: still fine.
   await ctx.setOffline(false);
   await page.reload();
-  await page.getByRole('button', { name: 'Start workout' }).waitFor();
+  await page.getByRole('region', { name: 'Today' }).waitFor();
   check('back online works', true);
 
   check('no page errors', errors.length === 0, errors.join(' | '));

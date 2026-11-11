@@ -292,6 +292,7 @@ describe('starter routines', () => {
     const { default: StarterRoutines } = await import('../src/components/StarterRoutines');
     const { listRoutines } = await import('../src/db');
     const { rerender } = render(<StarterRoutines routines={[]} />);
+    await user.click(screen.getByRole('button', { name: 'Browse starter routines' }));
     await user.click(screen.getByRole('button', { name: 'Add Full body A' }));
     const mine = await waitFor(async () => {
       const r = await listRoutines();

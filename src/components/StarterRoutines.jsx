@@ -5,7 +5,7 @@ import { STARTERS, STARTER_GROUPS, routineFromStarter } from '../starterRoutines
 
 // Browse ready-made routines and add the ones you want. Open by default until you have routines.
 export default function StarterRoutines({ routines }) {
-  const [open, setOpen] = useState(routines.length === 0);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState('');
   const have = new Set(routines.map((r) => (r.name || '').trim().toLowerCase()));
 
@@ -29,11 +29,9 @@ export default function StarterRoutines({ routines }) {
     <section className="card starters" aria-label="Starter routines">
       <div className="section-head">
         <h3>Starter routines</h3>
-        {routines.length > 0 && (
-          <button type="button" className="btn btn-link btn-small" onClick={() => setOpen(false)}>
-            Hide
-          </button>
-        )}
+        <button type="button" className="btn btn-link btn-small" onClick={() => setOpen(false)}>
+          Hide
+        </button>
       </div>
       <p className="muted">Add any of these to your routines, then change them however you like.</p>
       {STARTER_GROUPS.map((g) => (

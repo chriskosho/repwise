@@ -193,6 +193,7 @@ describe('the workout screen', () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'Start workout' }));
+    await user.click(await screen.findByRole('button', { name: /^Empty workout/ }));
     await user.click(await screen.findByRole('button', { name: '+ Add exercise' }));
     await user.type(await screen.findByLabelText('Search exercises'), 'Plank');
     await user.click(await screen.findByRole('button', { name: 'Plank' }));

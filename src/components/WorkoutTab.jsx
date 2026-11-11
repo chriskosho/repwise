@@ -23,6 +23,10 @@ import { regionLabel, workoutPlan } from '../stretches';
 import WorkoutEditor from './WorkoutEditor';
 import PlanCard from './PlanCard';
 import StarterRoutines from './StarterRoutines';
+import TodayCard from './TodayCard';
+import { LogSheet, StartSheet } from './HomeSheets';
+import { routineFromStarter } from '../starterRoutines';
+import { planProgress } from '../plan';
 import { ReviewCard } from './Review';
 import { reviewPeriod, showReviewCard } from '../review';
 
@@ -163,11 +167,6 @@ function RoutineCard({ routine, onStart, onEdit }) {
   );
 }
 
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-}
-
 export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onStretch, onOpenActivity, onSuggest, plan = null, hasOnboarding = false, onContinue, onOpenReview, onPlanDo, onPlanView, onPlanDay, onNewPlan, onEndPlan, onDismissOffer }) {
   const active = useLiveQuery(getActiveSession, [], undefined);
   const { sessions, activities, places, workouts } = useWorkouts();
@@ -175,6 +174,8 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
   const [summary, setSummary] = useState(null);
   const [reviewHidden, setReviewHidden] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [sheet, setSheet] = useState(null); // 'start' | 'log'
+  const [allRoutines, setAllRoutines] = useState(false);
 
   if (summary) {
     return (
@@ -197,6 +198,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
   }
 
   async function start(routine) {
+    setSheet(null);
     setBusy(true);
     try {
       await saveSession(routine ? sessionFromRoutine(routine) : newSession());
@@ -206,6 +208,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
   }
 
   async function logPast() {
+    setSheet(null);
     const s = newSession({ finished: true });
     await saveSession(s);
     onOpenSession(s.id);
@@ -241,7 +244,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
           }}
         />
       )}
-      {plan && (
+      {plan && planProgress(plan, workouts, today()).status !== 'active' && (
         <PlanCard plan={plan} workouts={workouts} todayStr={today()} onDo={onPlanDo} onViewPlan={onPlanView} onViewDay={onPlanDay} onNewPlan={onNewPlan} onEndPlan={onEndPlan} onSuggest={onSuggest} onContinue={onContinue} />
       )}
       {!plan && !hasOnboarding && workouts.length > 0 && (
@@ -258,30 +261,54 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
           </div>
         </section>
       )}
-      <section className="hero">
-        <h2 className="hero-title">
-          {greeting()}
-          {name ? `, ${name}` : ''}
-        </h2>
-        <p className="muted">
-          {thisWeek ? `${plural(thisWeek, 'workout')} this week. Keep it going.` : 'No workouts yet this week.'}
-        </p>
-        <button type="button" data-tour="start" className="btn btn-big btn-block" disabled={busy} onClick={() => start(null)}>
-          Start workout
-        </button>
-        <button type="button" data-tour="suggest" className="btn btn-ghost btn-block" onClick={onSuggest}>
-          Not sure what to do? Suggest a workout
-        </button>
-        <button type="button" className="btn btn-link" onClick={logPast}>
-          Log a past workout
-        </button>
-        <button type="button" data-tour="activity" className="btn btn-link" onClick={onLogActivity}>
-          Log an activity (run, sport…)
-        </button>
-        <button type="button" className="btn btn-link" onClick={() => onStretch()}>
-          Stretch
-        </button>
-      </section>
+      <TodayCard
+        unit={unit}
+        name={name}
+        plan={plan}
+        workouts={workouts}
+        sessions={sessions}
+        routines={routines}
+        todayStr={today()}
+        thisWeek={thisWeek}
+        onPreviewPlanned={onPlanDo}
+        onPlanDo={onPlanDo}
+        onViewPlan={onPlanView}
+        onViewDay={onPlanDay}
+        onStretch={onStretch}
+        onChooser={() => setSheet('start')}
+        onLog={() => setSheet('log')}
+      />
+      {sheet === 'start' && (
+        <StartSheet
+          routines={routines}
+          onRoutine={start}
+          onStarter={(st) => start(routineFromStarter(st))}
+          onSuggest={() => {
+            setSheet(null);
+            onSuggest();
+          }}
+          onEmpty={() => start(null)}
+          onStretch={() => {
+            setSheet(null);
+            onStretch();
+          }}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === 'log' && (
+        <LogSheet
+          onPast={logPast}
+          onActivity={() => {
+            setSheet(null);
+            onLogActivity();
+          }}
+          onStretch={() => {
+            setSheet(null);
+            onStretch();
+          }}
+          onClose={() => setSheet(null)}
+        />
+      )}
 
       <div className="section-head" data-tour="routines">
         <h3>Routines</h3>
@@ -291,12 +318,17 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
       </div>
       {routines.length === 0 && (
         <p className="muted routine-empty">
-          Save a workout you do often as a routine and start it with one tap. Create one here, or tap “Save as routine” after a workout.
+          Save a workout you do often as a routine and start it with one tap, or add a ready-made one below.
         </p>
       )}
-      {routines.map((r) => (
+      {(allRoutines ? routines : routines.slice(0, 3)).map((r) => (
         <RoutineCard key={r.id} routine={r} onStart={start} onEdit={(x) => onOpenRoutine(x, false)} />
       ))}
+      {routines.length > 3 && (
+        <button type="button" className="btn btn-link btn-block" onClick={() => setAllRoutines((v) => !v)}>
+          {allRoutines ? 'Show fewer' : `See all ${routines.length} routines`}
+        </button>
+      )}
       <StarterRoutines routines={routines} />
 
       {recent.length > 0 && (
@@ -316,9 +348,6 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
               <SessionCard key={s.id} session={s} unit={unit} placeName={placeName(s.place_id)} onOpen={(x) => onOpenSession(x.id)} />
             ),
           )}
-          <button type="button" className="btn btn-link" onClick={onOpenReview}>
-            Weekly review
-          </button>
         </>
       )}
     </div>

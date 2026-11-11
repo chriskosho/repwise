@@ -421,7 +421,7 @@ export default function App() {
             )}
             {tab === 'progress' && (
               <Suspense fallback={<p className="muted">Loading…</p>}>
-                <Progress unit={unit} />
+                <Progress unit={unit} onOpenReview={() => setGuide('review')} />
               </Suspense>
             )}
             {tab === 'body' && (

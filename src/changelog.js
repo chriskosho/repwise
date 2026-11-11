@@ -2,6 +2,23 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.6',
+    date: '2026-11-10',
+    title: 'A simpler home screen',
+    highlights: [
+      'One main button that starts what you most likely want: today’s planned workout, your last workout again, or a stretch on rest days.',
+      'Everything else is behind two buttons: “Something else” (routines, a suggested workout, an empty workout, stretching) and “Log” (things you already did).',
+      'Your plan’s week sits right in the same card. Tap any day to see it.',
+    ],
+    items: [
+      'Planned workouts start in one tap. “Preview or change it first” opens the same workout to adjust.',
+      'Without a plan, the main button repeats your last workout (or starts its routine if you saved one).',
+      'New to Repwise? “Start workout” offers three starter routines, a suggested workout, or an empty one.',
+      'Routines show your first three, with “See all”. Starter routines are behind “Browse starter routines”.',
+      'Weekly review moved to the Progress tab.',
+    ],
+  },
+  {
     id: '2.5',
     date: '2026-11-10',
     title: 'Starter routines and a cleaner stretch list',

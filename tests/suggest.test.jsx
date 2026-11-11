@@ -106,7 +106,8 @@ describe('the screens', () => {
     await saveGoal({ type: 'lift', exercise: 'Barbell Squat', metric: 'weight', target: 225, start_value: 200 });
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /Suggest a workout/ }));
+    await user.click(await screen.findByRole('button', { name: 'Start workout' }));
+    await user.click(await screen.findByRole('button', { name: /^Suggest a workout/ }));
     expect(await screen.findByText(/Barbell Squat leads/, {}, { timeout: 4000 })).toBeTruthy();
     expect(screen.getAllByRole('button', { name: /^How to:/ }).length).toBeGreaterThan(3);
     await user.click(screen.getByRole('button', { name: 'Start this workout' }));
@@ -132,7 +133,8 @@ describe('the screens', () => {
   it('adds stretches to an activity', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /Log an activity/ }));
+    await user.click(await screen.findByRole('button', { name: 'Log', exact: true }));
+    await user.click(await screen.findByRole('button', { name: /^A run, walk or sport/ }));
     await user.selectOptions(screen.getByLabelText('Activity'), 'stretching');
     await user.type(screen.getByLabelText('Minutes'), '15');
     await user.click(screen.getByRole('button', { name: '+ Add stretches' }));

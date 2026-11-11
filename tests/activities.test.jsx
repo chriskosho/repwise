@@ -135,7 +135,8 @@ describe('the screens', () => {
   it('logs an activity from the home screen, then shows it in history and the home count', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: /Log an activity/ }));
+    await user.click(await screen.findByRole('button', { name: 'Log', exact: true }));
+    await user.click(await screen.findByRole('button', { name: /^A run, walk or sport/ }));
     await user.selectOptions(screen.getByLabelText('Activity'), 'cycle');
     await user.type(screen.getByLabelText('Minutes'), '30');
     await user.type(screen.getByLabelText(/^Distance/), '10');
@@ -183,6 +184,7 @@ describe('the screens', () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'Start workout' }));
+    await user.click(await screen.findByRole('button', { name: /^Empty workout/ }));
     await user.click(await screen.findByText('Place and notes'));
     await user.type(screen.getByLabelText('Workout notes'), 'Shoulder tight');
     await user.selectOptions(screen.getByLabelText('Place'), '__new__');

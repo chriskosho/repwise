@@ -181,6 +181,7 @@ describe('routines in the app', () => {
 
     // Log a workout.
     await user.click(await screen.findByRole('button', { name: 'Start workout' }));
+    await user.click(await screen.findByRole('button', { name: /^Empty workout/ }));
     await user.click(await screen.findByRole('button', { name: '+ Add exercise' }));
     await user.type(screen.getByLabelText('Search exercises'), 'Barbell Curl');
     await user.click(await screen.findByRole('button', { name: 'Barbell Curl' }));
@@ -203,7 +204,7 @@ describe('routines in the app', () => {
 
     // It now shows under Routines on the start screen.
     expect(await screen.findByText('Routines')).toBeTruthy();
-    const start = await screen.findByRole('button', { name: 'Start Biceps' });
+    const [start] = await screen.findAllByRole('button', { name: 'Start Biceps' }); // the main button and the routine card both offer it
 
     // Starting it creates a live workout with 2 empty sets and last time's numbers.
     await user.click(start);

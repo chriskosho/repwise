@@ -1859,3 +1859,21 @@ button:focus-visible,
 .starter-row:last-child { border-bottom: 0; }
 .starter-info { display: grid; gap: 0.1rem; }
 .starter-info .small { font-size: 0.85rem; }
+/* Home: one Today card, one main button. */
+.today-status { margin: 0.2rem 0 0.6rem; font-weight: 600; }
+.today-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.6rem; }
+.today-row:has(> :only-child) { grid-template-columns: 1fr; }
+.today-plan { margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px solid var(--line); }
+.today-plan .week-strip { margin: 0 0 0.4rem; }
+.today-plan-meta { margin: 0; }
+.home-sheet h2 { margin-top: 0; }
+.sheet-group { margin: 0.9rem 0 0.3rem; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.sheet-choice { display: grid; gap: 0.1rem; width: 100%; text-align: left; padding: 0.75rem 0.8rem; margin: 0 0 0.4rem; border: 1px solid var(--line); border-radius: 12px; background: none; color: inherit; font: inherit; cursor: pointer; min-height: 48px; }
+.sheet-choice:hover, .sheet-choice:active { border-color: var(--accent); background: var(--accent-soft); }
+.sheet-choice .small { font-size: 0.85rem; }
+@media (max-width: 520px) {
+  .sheet-backdrop { place-items: end center; padding: 0; }
+  .sheet-backdrop .home-sheet { border-radius: 18px 18px 0 0; max-height: 88vh; padding-bottom: calc(1rem + env(safe-area-inset-bottom)); }
+}
+.row-end { display: flex; justify-content: flex-end; margin: -0.4rem 0 0.2rem; }
+.today-status-muted { font-weight: 400; color: var(--muted); font-size: 0.92rem; }
