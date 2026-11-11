@@ -12,11 +12,9 @@ import {
   sessionFromRoutine,
   today,
 } from '../db';
+import { typeLabel } from '../activities';
 import { fmtDuration, fmtVolume, plural } from '../stats';
 import { fmtCardioTime, fmtSeconds, kmToLong, longUnit, paceFromMinPerKm } from '../measure';
-import { weekStartOf } from '../goals';
-import SessionCard from './SessionCard';
-import ActivityCard from './ActivityCard';
 import { useWorkouts } from '../workouts';
 import { useLibrary } from '../library';
 import { regionLabel, workoutPlan } from '../stretches';
@@ -167,7 +165,29 @@ function RoutineCard({ routine, onStart, onEdit }) {
   );
 }
 
-export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onStretch, onOpenActivity, onSuggest, plan = null, hasOnboarding = false, onContinue, onOpenReview, onPlanDo, onPlanView, onPlanDay, onNewPlan, onEndPlan, onDismissOffer }) {
+// Your routines and the ready-made ones, off the home screen so home stays about today.
+function RoutinesScreen({ routines, onBack, onStart, onEdit, onNew }) {
+  return (
+    <div>
+      <div className="card editor-head">
+        <button type="button" className="btn btn-ghost btn-small back" onClick={onBack}>
+          ← Back
+        </button>
+        <h2>Routines</h2>
+        <p className="muted">Save a workout you repeat and start it with one tap.</p>
+        <button type="button" className="btn btn-block" onClick={onNew}>
+          + New routine
+        </button>
+      </div>
+      {routines.map((r) => (
+        <RoutineCard key={r.id} routine={r} onStart={onStart} onEdit={onEdit} />
+      ))}
+      <StarterRoutines routines={routines} defaultOpen />
+    </div>
+  );
+}
+
+export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, onOpenRoutine, onShowHistory, onLogActivity, onStretch, onOpenActivity, onSuggest, plan = null, hasOnboarding = false, onContinue, onOpenReview, onPlanDo, onPlanView, onPlanDay, onNewPlan, onEndPlan, onDismissOffer, routinesOpen = false, onRoutinesOpen = () => {} }) {
   const active = useLiveQuery(getActiveSession, [], undefined);
   const { sessions, activities, places, workouts } = useWorkouts();
   const routines = useLiveQuery(listRoutines, [], undefined);
@@ -175,7 +195,8 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
   const [reviewHidden, setReviewHidden] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState(null); // 'start' | 'log'
-  const [allRoutines, setAllRoutines] = useState(false);
+  const showRoutines = routinesOpen;
+  const setShowRoutines = onRoutinesOpen;
 
   if (summary) {
     return (
@@ -193,6 +214,20 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
   }
   if (active === undefined || !workouts || routines === undefined) return <p className="muted">Loading…</p>;
 
+  if (showRoutines && !active) {
+    return (
+      <RoutinesScreen
+        routines={routines}
+        onBack={() => setShowRoutines(false)}
+        onStart={(r) => {
+          setShowRoutines(false);
+          start(r);
+        }}
+        onEdit={(x) => onOpenRoutine(x, false)}
+        onNew={() => onOpenRoutine(newRoutine(), true)}
+      />
+    );
+  }
   if (active) {
     return <WorkoutEditor key={active.id} initial={active} mode="active" sessions={sessions} unit={unit} onFinish={setSummary} onSaveRoutine={(doc) => onOpenRoutine(doc, true)} />;
   }
@@ -214,8 +249,11 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
     onOpenSession(s.id);
   }
 
-  const recent = workouts.slice(0, 2);
-  const placeName = (id) => places.find((p) => p.id === id)?.name;
+  // One line for the most recent thing you did, unless the main card already says it.
+  const lastSession = sessions.find((s) => s.ended_at && s.exercises?.length) ?? null;
+  const planActive = plan && planProgress(plan, workouts, today()).status === 'active';
+  const newest = workouts[0] ?? null;
+  const latest = newest && !(newest.id === lastSession?.id && !planActive) ? newest : null;
   let dismissed = '';
   try {
     dismissed = localStorage.getItem('repwise.reviewDismissed') ?? '';
@@ -223,8 +261,6 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
     /* ignore */
   }
   const showReview = !reviewHidden && showReviewCard(today(), weekStart) && dismissed !== reviewPeriod(today(), weekStart).start;
-  const weekFrom = weekStartOf(today(), weekStart);
-  const thisWeek = workouts.filter((s) => s.date >= weekFrom).length;
 
   return (
     <div>
@@ -263,13 +299,11 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
       )}
       <TodayCard
         unit={unit}
-        name={name}
         plan={plan}
         workouts={workouts}
         sessions={sessions}
         routines={routines}
         todayStr={today()}
-        thisWeek={thisWeek}
         onPreviewPlanned={onPlanDo}
         onPlanDo={onPlanDo}
         onViewPlan={onPlanView}
@@ -310,45 +344,17 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
         />
       )}
 
-      <div className="section-head" data-tour="routines">
-        <h3>Routines</h3>
-        <button type="button" className="btn btn-ghost btn-small" onClick={() => onOpenRoutine(newRoutine(), true)}>
-          + New routine
+      <button type="button" data-tour="routines" className="home-row" onClick={() => setShowRoutines(true)}>
+        <span>Routines{routines.length ? ` (${routines.length})` : ''}</span>
+        <span aria-hidden="true">›</span>
+      </button>
+      {latest && (
+        <button type="button" className="home-row" onClick={() => (latest.isActivity ? onOpenActivity(latest.activity) : onOpenSession(latest.id))}>
+          <span>
+            Last: {latest.isActivity ? latest.activity.title || typeLabel(latest.activity.type) : latest.name || 'Workout'} · {new Date(`${latest.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}
+          </span>
+          <span aria-hidden="true">›</span>
         </button>
-      </div>
-      {routines.length === 0 && (
-        <p className="muted routine-empty">
-          Save a workout you do often as a routine and start it with one tap, or add a ready-made one below.
-        </p>
-      )}
-      {(allRoutines ? routines : routines.slice(0, 3)).map((r) => (
-        <RoutineCard key={r.id} routine={r} onStart={start} onEdit={(x) => onOpenRoutine(x, false)} />
-      ))}
-      {routines.length > 3 && (
-        <button type="button" className="btn btn-link btn-block" onClick={() => setAllRoutines((v) => !v)}>
-          {allRoutines ? 'Show fewer' : `See all ${routines.length} routines`}
-        </button>
-      )}
-      <StarterRoutines routines={routines} />
-
-      {recent.length > 0 && (
-        <>
-          <div className="section-head">
-            <h3>Recent</h3>
-            {workouts.length > recent.length && (
-              <button type="button" className="btn btn-link btn-small" onClick={onShowHistory}>
-                See all
-              </button>
-            )}
-          </div>
-          {recent.map((s) =>
-            s.isActivity ? (
-              <ActivityCard key={s.id} activity={s.activity} unit={unit} placeName={placeName(s.activity.place_id)} onOpen={onOpenActivity} />
-            ) : (
-              <SessionCard key={s.id} session={s} unit={unit} placeName={placeName(s.place_id)} onOpen={(x) => onOpenSession(x.id)} />
-            ),
-          )}
-        </>
       )}
     </div>
   );

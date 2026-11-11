@@ -203,7 +203,7 @@ describe('routines in the app', () => {
     await user.click(screen.getByRole('button', { name: 'Save routine' }));
 
     // It now shows under Routines on the start screen.
-    expect(await screen.findByText('Routines')).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /^Routines \(1\)/ })).toBeTruthy();
     const [start] = await screen.findAllByRole('button', { name: 'Start Biceps' }); // the main button and the routine card both offer it
 
     // Starting it creates a live workout with 2 empty sets and last time's numbers.
@@ -218,6 +218,7 @@ describe('routines in the app', () => {
   it('creates a routine from scratch and edits it', async () => {
     const user = userEvent.setup();
     render(<App />);
+    await user.click(await screen.findByRole('button', { name: /^Routines/ }));
     await user.click(await screen.findByRole('button', { name: '+ New routine' }));
     await user.type(screen.getByLabelText('Name'), 'Leg day');
     await user.click(screen.getByRole('button', { name: '+ Add exercises' }));
@@ -226,7 +227,7 @@ describe('routines in the app', () => {
     await user.click(screen.getByRole('button', { name: 'Add 1 exercise' }));
     await user.click(screen.getByRole('button', { name: 'Save routine' }));
 
-    const card = (await screen.findByText('Leg day')).closest('.routine');
+    const card = (await screen.findAllByText('Leg day')).map((e) => e.closest('.routine')).find(Boolean); // a starter is also called Leg day
     expect(within(card).getByText('Barbell Squat')).toBeTruthy();
     expect(within(card).getByText(/1 exercise · 3 sets/)).toBeTruthy();
 
@@ -235,7 +236,8 @@ describe('routines in the app', () => {
     await user.type(screen.getByLabelText('Name'), 'Legs');
     await user.click(screen.getByRole('button', { name: 'Save routine' }));
     expect(await screen.findByRole('button', { name: 'Start Legs' })).toBeTruthy();
-    expect(screen.queryByText('Leg day')).toBeNull();
+    expect(document.querySelectorAll('.routine')).toHaveLength(1);
+    expect(within(document.querySelector('.routine')).queryByText('Leg day')).toBeNull();
   });
 
   it('saves a past workout as a routine from the workout editor', async () => {

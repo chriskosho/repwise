@@ -146,7 +146,7 @@ describe('the screens', () => {
     await user.type(screen.getByLabelText('Notes'), 'Headwind home');
     await user.click(screen.getByRole('button', { name: 'Save activity' }));
 
-    expect(await screen.findByText(/1 workout this week/)).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /^Last: Cycling/ })).toBeTruthy();
     const [a] = await listActivities();
     expect(a).toMatchObject({ type: 'cycle', duration_min: 30, notes: 'Headwind home' });
     expect(a.distance_km).toBeCloseTo(16.09, 1);

@@ -44,12 +44,11 @@ it('lift charts ignore a workout that is still in progress', async () => {
   expect(screen.getByText('Sessions').parentElement.textContent).toContain('2');
 });
 
-it('greets you by name and counts this week on the home screen', async () => {
-  await saveProfile({ display_name: 'Chris' });
+it('the home screen says what you did last and offers to repeat it', async () => {
   await seed(new Date().toLocaleDateString('en-CA'), 'Squat', [set(5, 100)]);
   render(<App />);
-  expect(await screen.findByText(/, Chris$/)).toBeTruthy();
-  expect(screen.getByText(/1 workout this week/)).toBeTruthy();
+  expect(await screen.findByText(/^Last time: /)).toBeTruthy();
+  expect(screen.getByRole('button', { name: /^Repeat / })).toBeTruthy();
 });
 
 it('deletes a body entry from the form after a confirming tap', async () => {

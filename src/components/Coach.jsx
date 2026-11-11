@@ -37,7 +37,7 @@ export const COACH_STEPS = [
     tab: 'workout',
     target: '[data-tour="routines"]',
     title: 'Routines',
-    body: 'Save a workout you repeat and start it in one tap. You can set target weights for each exercise.',
+    body: 'Your saved workouts live here, along with ready-made routines to add. Starting one is a single tap from the Start sheet too.',
   },
   {
     id: 'history',

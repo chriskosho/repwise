@@ -43,7 +43,6 @@ it('walks through start, log, finish, history and editing', async () => {
   expect(await screen.findByText('Workout complete')).toBeTruthy();
   await user.click(screen.getByRole('button', { name: 'Done' }));
   expect(await screen.findByRole('button', { name: /^Repeat / })).toBeTruthy();
-  expect(screen.getByText('Recent')).toBeTruthy();
 
   // History lists it; opening it shows the editor with the logged set.
   await user.click(screen.getByRole('button', { name: 'History' }));

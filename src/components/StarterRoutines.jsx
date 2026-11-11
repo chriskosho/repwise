@@ -4,8 +4,8 @@ import { plural } from '../stats';
 import { STARTERS, STARTER_GROUPS, routineFromStarter } from '../starterRoutines';
 
 // Browse ready-made routines and add the ones you want. Open by default until you have routines.
-export default function StarterRoutines({ routines }) {
-  const [open, setOpen] = useState(false);
+export default function StarterRoutines({ routines, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
   const [busy, setBusy] = useState('');
   const have = new Set(routines.map((r) => (r.name || '').trim().toLowerCase()));
 

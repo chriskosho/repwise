@@ -70,6 +70,7 @@ export default function App() {
   const [guide, setGuide] = useState(null); // 'first' | 'plan' | 'tour' | 'plan-view' | 'plan-day'
   const [planDayN, setPlanDayN] = useState(1);
   const [dayBack, setDayBack] = useState('plan-view');
+  const [routinesOpen, setRoutinesOpen] = useState(false); // the Routines screen on the Workout tab
   const [stretchView, setStretchView] = useState(null); // { preset, minutes } while the stretch builder is open
   const [activityView, setActivityView] = useState(null); // { doc, isNew } while the activity editor is open
   const [unitCache, setUnitCache] = useState(readUnit);
@@ -408,6 +409,8 @@ export default function App() {
                 onOpenActivity={(a) => openActivity(a)}
                 onOpenRoutine={openRoutine}
                 onShowHistory={() => goTab('history')}
+                routinesOpen={routinesOpen}
+                onRoutinesOpen={setRoutinesOpen}
               />}
             {tab === 'history' && (
               <History

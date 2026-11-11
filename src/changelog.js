@@ -2,6 +2,22 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.7',
+    date: '2026-11-10',
+    title: 'Home, simplified further',
+    highlights: [
+      'The home screen is now one card: a headline, one main button, and two quiet links.',
+      'Routines moved into their own screen, one tap from home, with ready-made routines to add.',
+      'One line shows what you did last. The full list stays in History.',
+    ],
+    items: [
+      'A single headline says what today is, such as “Today: Full body · 45 min” or “Last time: Pull day · Tue”.',
+      '“Something else” and “Log” are plain links under the main button.',
+      'The plan shows as this week’s strip with one “View plan” link.',
+      'Routines and starter routines live on the Routines screen; starting a routine is still one tap from “Something else”.',
+    ],
+  },
+  {
     id: '2.6',
     date: '2026-11-10',
     title: 'A simpler home screen',

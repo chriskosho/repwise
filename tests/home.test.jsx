@@ -5,7 +5,11 @@ import App from '../src/App';
 import { mainAction } from '../src/components/TodayCard';
 import { clearLocalData, listSessions, newSession, saveSession } from '../src/db';
 
-afterEach(cleanup);
+// An open workout editor saves on unmount; let that finish before the next test clears the database.
+afterEach(async () => {
+  cleanup();
+  await new Promise((r) => setTimeout(r, 150));
+});
 beforeEach(clearLocalData);
 
 describe('the main button', () => {
@@ -30,16 +34,16 @@ describe('the main button', () => {
 describe('home screen', () => {
   it('a new person sees one main button, one Log button, and no starter list', async () => {
     render(<App />);
-    const hero = await screen.findByRole('region', { name: 'Today' });
+    const hero = await screen.findByRole('region', { name: 'Today' }, { timeout: 4000 });
     expect(within(hero).getAllByRole('button').map((b) => b.textContent)).toEqual(['Start workout', 'Log']);
     expect(screen.queryByText('Starter routines')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Browse starter routines' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Routines/ })).toBeTruthy();
   });
   it('starts a starter routine in two taps', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Start workout' }));
-    await user.click(await screen.findByRole('button', { name: /^Bodyweight basics/ }));
+    await user.click(await screen.findByRole('button', { name: 'Start workout' }, { timeout: 4000 }));
+    await user.click(await screen.findByRole('button', { name: /^Bodyweight basics/ }, { timeout: 4000 }));
     expect((await screen.findByLabelText('Workout name')).value).toBe('Bodyweight basics');
     const [s] = await listSessions();
     expect(s.exercises[0]).toMatchObject({ name: 'Pushups' });
@@ -51,7 +55,7 @@ describe('home screen', () => {
     await saveSession(s);
     const user = userEvent.setup();
     render(<App />);
-    expect(await screen.findByText(/Last time: 1 exercise, Barbell Curl/)).toBeTruthy();
+    expect(await screen.findByText(/^Last time: Arms/, {}, { timeout: 4000 })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Repeat Arms' }));
     expect(await screen.findByRole('heading', { name: 'Barbell Curl' })).toBeTruthy();
     expect((await listSessions()).filter((x) => !x.ended_at)).toHaveLength(1);
@@ -59,7 +63,7 @@ describe('home screen', () => {
   it('Log opens one sheet with every kind of log', async () => {
     const user = userEvent.setup();
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Log', exact: true }));
+    await user.click(await screen.findByRole('button', { name: 'Log', exact: true }, { timeout: 4000 }));
     const sheet = screen.getByRole('dialog', { name: 'Log something you did' });
     expect(within(sheet).getAllByRole('button').map((b) => b.querySelector('strong')?.textContent).filter(Boolean)).toEqual(['A past workout', 'A run, walk or sport', 'A stretch session']);
   });
@@ -83,7 +87,7 @@ describe('planned workout from home', () => {
     await screen.findByRole('button', { name: 'Start this workout' }, { timeout: 4000 });
     const previewNames = screen.getAllByRole('button', { name: /^How to:/ }).map((b) => b.getAttribute('aria-label').replace('How to: ', ''));
     await user.click(screen.getByRole('button', { name: /Back/ }));
-    await user.click(await screen.findByRole('button', { name: btn.textContent }));
+    await user.click(await screen.findByRole('button', { name: btn.textContent }, { timeout: 4000 }));
     await screen.findByLabelText('Workout name');
     const [session] = await listSessions();
     expect(session.exercises.length).toBeGreaterThan(2);

@@ -4,16 +4,10 @@ import { STYLE_FOR_GOAL, dayTitle, isWorkoutDay, planProgress, recentNotes } fro
 import { coolDownNote, suggestionAsRoutine } from '../suggest';
 import { useSuggestion } from '../useSuggestion';
 import { typeLabel } from '../activities';
-import { plural } from '../stats';
 import { dayLine } from './PlanCard';
 
 const dowName = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
 const longDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-
-function greeting() {
-  const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-}
 
 // The options the Suggest screen uses for a plan day. Both places must agree, so the workout
 // you start straight from home is the same one "Preview or change" shows.
@@ -39,7 +33,7 @@ export function mainAction({ plan, progress, lastSession, routines = [] }) {
 }
 
 // Home: one card that says what today is and offers the one thing you most likely want.
-export default function TodayCard({ unit, name, plan, workouts, sessions, routines, todayStr, thisWeek, onPreviewPlanned, onPlanDo, onViewPlan, onViewDay, onStretch, onChooser, onLog }) {
+export default function TodayCard({ unit, plan, workouts, sessions, routines, todayStr, onPreviewPlanned, onPlanDo, onViewPlan, onViewDay, onStretch, onChooser, onLog }) {
   const progress = plan ? planProgress(plan, workouts, todayStr) : null;
   const lastSession = sessions.find((s) => s.ended_at && s.exercises?.length) ?? null;
   const action = mainAction({ plan, progress, lastSession, routines });
@@ -87,7 +81,7 @@ export default function TodayCard({ unit, name, plan, workouts, sessions, routin
         );
       break;
     case 'rest':
-      status = 'Today: rest day. Recovery is when your body adapts.';
+      status = 'Today: rest day';
       main = (
         <button type="button" data-tour="start" className="btn btn-big btn-block" onClick={() => onStretch({ preset: 'recent', minutes: 10 })}>
           Stretch · 10 min
@@ -95,12 +89,11 @@ export default function TodayCard({ unit, name, plan, workouts, sessions, routin
       );
       break;
     case 'done':
-      status = 'Today: done ✓ Nice work.';
+      status = 'Today: done ✓';
       break;
     case 'repeat': {
       const r = action.routine;
-      const names = action.session.exercises.map((e) => e.name);
-      status = { muted: true, text: `Last time: ${plural(names.length, 'exercise')}, ${names.slice(0, 2).join(', ')}${names.length > 2 ? '…' : ''}` };
+      status = `Last time: ${action.session.name || 'workout'} · ${dowName(action.session.date)}`;
       main = (
         <button type="button" data-tour="start" className="btn btn-big btn-block" disabled={busy} onClick={() => begin(() => sessionFromRoutine(r ?? routineFromSession(action.session)))}>
           {r ? `Start ${r.name}` : `Repeat ${action.session.name || 'last workout'}`}
@@ -109,6 +102,7 @@ export default function TodayCard({ unit, name, plan, workouts, sessions, routin
       break;
     }
     default:
+      status = 'Ready to train?';
       main = (
         <button type="button" data-tour="start" className="btn btn-big btn-block" onClick={onChooser}>
           Start workout
@@ -119,12 +113,7 @@ export default function TodayCard({ unit, name, plan, workouts, sessions, routin
   const t = progress?.status === 'active' ? progress.today : null;
   return (
     <section className="hero today" aria-label="Today">
-      <h2 className="hero-title">
-        {greeting()}
-        {name ? `, ${name}` : ''}
-      </h2>
-      <p className="muted">{thisWeek ? `${plural(thisWeek, 'workout')} this week. Keep it going.` : 'No workouts yet this week.'}</p>
-      {status && <p className={status.muted ? 'today-status today-status-muted' : 'today-status'}>{status.text ?? status}</p>}
+      <h2 className="today-headline">{status}</h2>
       {t &&
         recentNotes(plan, todayStr).map((n) => (
           <p key={n.k} className="plan-note" role="note">
@@ -141,13 +130,13 @@ export default function TodayCard({ unit, name, plan, workouts, sessions, routin
           </button>
         </p>
       )}
-      <div className="today-row">
+      <div className="today-links">
         {action.kind !== 'new' && (
-          <button type="button" data-tour="suggest" className="btn btn-ghost btn-block" onClick={onChooser}>
+          <button type="button" data-tour="suggest" className="btn btn-link" onClick={onChooser}>
             {action.kind === 'done' || action.kind === 'rest' ? 'Train anyway' : 'Something else'}
           </button>
         )}
-        <button type="button" data-tour="activity" className="btn btn-ghost btn-block" onClick={onLog}>
+        <button type="button" data-tour="activity" className="btn btn-link" onClick={onLog}>
           Log
         </button>
       </div>
@@ -174,12 +163,9 @@ export default function TodayCard({ unit, name, plan, workouts, sessions, routin
                 );
               })}
           </ol>
-          <p className="muted small today-plan-meta">
-            Day {progress.dayNumber} of {plan.length} · {progress.done} of {progress.planned} workouts done ·{' '}
-            <button type="button" className="btn btn-link btn-small" onClick={onViewPlan}>
-              View plan
-            </button>
-          </p>
+          <button type="button" className="btn btn-link btn-small today-plan-link" onClick={onViewPlan}>
+            Day {progress.dayNumber} of {plan.length} · View plan
+          </button>
         </div>
       )}
     </section>
