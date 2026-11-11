@@ -12,6 +12,7 @@ import ExercisePicker from './ExercisePicker';
 import RoutinePicker from './RoutinePicker';
 import StretchBuilder from './StretchBuilder';
 import { workoutPlan } from '../stretches';
+import { progressHint } from '../suggest';
 import PlacePicker from './PlacePicker';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
@@ -189,6 +190,18 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
   }, [session.exercises, prior]);
 
   const prs = useMemo(() => computePRs(session.exercises, prior), [session.exercises, prior]);
+
+  // What to aim for on each weighted lift, from its history: "Try 105 lb", "Repeat and add a rep"…
+  const hints = useMemo(() => {
+    const m = new Map();
+    for (const ex of session.exercises) {
+      if (modeOf(ex) !== 'weight') continue;
+      const lib = library?.find((l) => l.name.toLowerCase() === ex.name.trim().toLowerCase());
+      const h = progressHint(ex.name, prior, { unit, equipment: lib?.equipment ?? '' });
+      if (h) m.set(ex.id, h);
+    }
+    return m;
+  }, [session.exercises, prior, unit, library]);
   const stats = sessionStats(session);
 
   // Exercises from older routines or workouts have no measurement type yet. Work it out once
@@ -442,6 +455,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
                 ⋯
               </button>
             </div>
+            {hints.get(ex.id) && openMenu !== ex.id && <p className={`ex-hint ex-hint-${hints.get(ex.id).kind}`}>{hints.get(ex.id).text}</p>}
             {ex.notes && openMenu !== ex.id && <p className="notes">{ex.notes}</p>}
 
             {openMenu === ex.id && (

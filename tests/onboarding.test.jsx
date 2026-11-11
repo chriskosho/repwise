@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import Onboarding, { heightCm } from '../src/components/Onboarding';
 import PlanCard, { PlanView } from '../src/components/PlanCard';
 import Coach from '../src/components/Coach';
-import { buildPlan, addDays } from '../src/plan';
+import { buildPlan, addDays, suggestGoal } from '../src/plan';
 import { clearLocalData, getProfile, listBodyEntries, listGoals, saveProfile, today } from '../src/db';
 
 beforeEach(async () => {
@@ -16,48 +16,47 @@ afterEach(cleanup);
 const next = (user) => user.click(screen.getByRole('button', { name: 'Next' }));
 
 describe('welcome flow', () => {
-  it('asks the questions, builds a plan and saves everything', async () => {
+  it('asks five short steps, suggests a goal, builds a plan and saves it', async () => {
     const user = userEvent.setup();
     const setUnit = vi.fn();
     const onDone = vi.fn();
     render(<Onboarding unit="lb" setUnit={setUnit} onDone={onDone} />);
+    expect(screen.getByText('Step 1 of 5')).toBeTruthy();
 
     await user.type(screen.getByPlaceholderText(/Name/), 'Sam');
     await user.selectOptions(screen.getByLabelText('Weight unit'), 'kg');
     await next(user);
 
-    expect(screen.getByRole('button', { name: 'Next' }).disabled).toBe(true); // needs a goal
+    // Goal discovery: three plain questions, each moves on when tapped.
+    expect(screen.getByText('Step 2 of 5')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Next' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Lose some weight/ }));
+    await user.click(screen.getByRole('button', { name: /Little or none/ }));
+    await user.click(screen.getByRole('button', { name: /Not really/ }));
+    expect(screen.getByRole('heading', { name: 'Your goal: Lose weight' })).toBeTruthy();
+    expect(screen.getByText(/cardio isn’t your favorite/)).toBeTruthy();
+    // It can be overridden.
+    await user.click(screen.getByRole('button', { name: 'Pick a different goal' }));
+    await user.click(screen.getByRole('button', { name: /Feel healthier/ }));
+    expect(screen.getByRole('heading', { name: 'Your goal: Feel healthier' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: /Lose weight/ }));
     await next(user);
-    await user.click(screen.getByRole('button', { name: /New to this/ }));
-    await next(user);
+
+    expect(screen.getByText('Step 3 of 5')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: '4' }));
     await user.click(screen.getByRole('button', { name: '30' }));
-    await next(user);
-    expect(screen.getByRole('button', { name: 'Next' }).disabled).toBe(true); // pick a time of day first
-    await user.click(screen.getByRole('button', { name: 'Evening' }));
     await user.click(screen.getByRole('button', { name: 'Sat' }));
     await user.click(screen.getByRole('button', { name: 'Sun' }));
     await user.click(screen.getByRole('button', { name: 'Wed' }));
+    await user.click(screen.getByRole('button', { name: 'Evening' }));
     await next(user);
-    await user.click(screen.getByRole('button', { name: 'Swim' }));
-    await user.click(screen.getByRole('button', { name: 'Pickleball' }));
-    await next(user);
+
+    // Equipment moves on when tapped.
     await user.click(screen.getByRole('button', { name: /Dumbbells and bands/ }));
-    await next(user);
-    expect(screen.getByText('How do you want to log food?')).toBeTruthy();
-    await user.click(screen.getByRole('button', { name: /Track calories and macros/ }));
-    await next(user);
-    await user.type(screen.getByLabelText(/Current weight/), '80');
-    await user.type(screen.getByLabelText(/Goal weight/), '72');
-    await user.type(screen.getByLabelText('Meters'), '1');
-    await user.type(screen.getByLabelText('Centimeters'), '78');
-    await next(user);
+    expect(screen.getByText('Step 5 of 5')).toBeTruthy();
     // New lifters are steered to the 21-day plan
     expect(screen.getByRole('button', { name: /21 days/ }).getAttribute('aria-pressed')).toBe('true');
-    expect(screen.getByText('Suggested')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: /60 days/ }));
-    await next(user);
     expect(screen.getByText(/Week 1 is deliberately easy/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Tomorrow' }));
     await user.click(screen.getByRole('button', { name: 'Create my plan' }));
@@ -67,21 +66,30 @@ describe('welcome flow', () => {
 
     const profile = await getProfile();
     expect(profile).toMatchObject({ display_name: 'Sam', units: 'kg' });
-    expect(profile.food_mode).toBe('track');
-    expect(profile.onboarding).toMatchObject({ goal: 'lose', level: 'new', per_week: 4, minutes: 30, gear: 'dumbbells', cardio: ['swim'], interests: ['swim', 'pickleball'], time: 'evening', days: [1, 2, 4, 5] });
+    expect(profile.onboarding).toMatchObject({ goal: 'lose', level: 'new', per_week: 4, minutes: 30, gear: 'dumbbells', time: 'evening', days: [1, 2, 4, 5] });
     expect(profile.plan).toMatchObject({ time: 'evening', available: [1, 2, 4, 5] });
     // Every training day lands on a day you said you were free (Mon, Tue, Thu, Fri)
     expect(profile.plan.days.every((d, i) => d.k === 'r' || [1, 2, 4, 5].includes(new Date(`${addDays(profile.plan.start, i)}T12:00:00`).getDay()))).toBe(true);
     expect(profile.plan).toMatchObject({ length: 60, start: addDays(today(), 1), goal: 'lose' });
-    expect(profile.plan.days.some((d) => d.k === 'c' && d.t === 'swim')).toBe(true);
-    expect(profile.height_cm).toBe(178);
-    expect((await listBodyEntries())[0].weight_kg).toBe(80);
+    // Food, body details and interests are no longer asked here.
+    expect(profile.height_cm ?? null).toBeNull();
+    expect(await listBodyEntries()).toEqual([]);
     const goals = await listGoals();
-    expect(goals.find((g) => g.type === 'body_weight')).toMatchObject({ target: 72, start_value: 80 });
     expect(goals.find((g) => g.type === 'weekly_workouts').target).toBe(4);
 
     await user.click(screen.getByRole('button', { name: 'Show me around' }));
     expect(onDone).toHaveBeenCalledWith({ tour: true });
+  });
+
+  it('suggests a goal from plain answers', () => {
+    expect(suggestGoal({ want: 'strong', level: 'pro', cardio: 'no' }).goal).toBe('strength');
+    expect(suggestGoal({ want: 'strong', level: 'new', cardio: 'no' }).goal).toBe('muscle');
+    expect(suggestGoal({ want: 'shape', level: 'some', cardio: 'yes' }).goal).toBe('muscle');
+    expect(suggestGoal({ want: 'lose', level: 'some', cardio: 'yes' }).goal).toBe('lose');
+    expect(suggestGoal({ want: 'energy', level: 'some', cardio: 'yes' }).goal).toBe('endurance');
+    expect(suggestGoal({ want: 'energy', level: 'some', cardio: 'no' }).goal).toBe('health');
+    expect(suggestGoal({ want: 'move', level: 'new', cardio: 'some' }).goal).toBe('health');
+    for (const want of ['strong', 'shape', 'lose', 'energy', 'move']) for (const cardio of ['yes', 'some', 'no']) expect(suggestGoal({ want, level: 'some', cardio }).reason.length).toBeGreaterThan(20);
   });
 
   it('can be skipped and then stays out of the way', async () => {
@@ -99,9 +107,9 @@ describe('welcome flow', () => {
     const onDone = vi.fn();
     const saved = { goal: 'muscle', level: 'pro', per_week: 5, minutes: 60, gear: 'gym', cardio: [] };
     render(<Onboarding mode="plan" saved={saved} unit="lb" setUnit={() => {}} onDone={onDone} />);
+    // Straight to the review, with the length suggested for an experienced lifter.
     expect(screen.getByRole('button', { name: /60 days/ }).getAttribute('aria-pressed')).toBe('true');
     await user.click(screen.getByRole('button', { name: /30 days/ }));
-    await next(user);
     await user.click(screen.getByRole('button', { name: 'Start this plan' }));
     await waitFor(() => expect(onDone).toHaveBeenCalled());
     expect((await getProfile()).plan).toMatchObject({ length: 30, per_week: 5, level: 'pro' });
@@ -210,27 +218,6 @@ describe('height boxes', () => {
     expect(heightCm('kg', '1', '75')).toBe(175);
     expect(heightCm('kg', '', '')).toBeNull();
     expect(heightCm('lb', '0', '5')).toBeNull();
-    const user = userEvent.setup();
-    render(<Onboarding unit="lb" setUnit={() => {}} onDone={() => {}} />);
-    await next(user);
-    await user.click(screen.getByRole('button', { name: /Build muscle/ }));
-    await next(user);
-    await user.click(screen.getByRole('button', { name: /Some experience/ }));
-    await next(user);
-    await next(user);
-    await user.click(screen.getByRole('button', { name: 'Morning' }));
-    await next(user);
-    await next(user);
-    await next(user);
-    await next(user);
-    expect(screen.getByLabelText('Feet')).toBeTruthy();
-    expect(screen.getByLabelText('Inches')).toBeTruthy();
-    await user.type(screen.getByLabelText('Feet'), '5');
-    await user.type(screen.getByLabelText('Inches'), '10');
-    await next(user);
-    await next(user);
-    await user.click(screen.getByRole('button', { name: 'Create my plan' }));
-    await waitFor(async () => expect((await getProfile()).height_cm).toBe(177.8));
   });
 });
 

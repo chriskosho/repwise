@@ -22,6 +22,38 @@ export const LEVELS = [
   ['pro', 'Experienced', 'You train regularly and know the lifts.'],
 ];
 export const DAYS_PER_WEEK = [2, 3, 4, 5, 6];
+// Goal discovery: a few plain questions instead of picking from a list.
+export const WANTS = [
+  ['strong', 'Feel stronger', 'Lift more, carry more, feel capable.'],
+  ['shape', 'Build muscle and shape', 'Look and feel more toned.'],
+  ['lose', 'Lose some weight', 'Burn more and build healthy habits.'],
+  ['energy', 'More energy and stamina', 'Get less winded, keep going longer.'],
+  ['move', 'Just move more', 'Feel better day to day.'],
+];
+export const CARDIO_LIKES = [
+  ['yes', 'Yes, I enjoy it'],
+  ['some', 'Some is fine'],
+  ['no', 'Not really'],
+];
+// The goal those answers point to, with a one-line reason. People can always pick another.
+export function suggestGoal({ want, level, cardio }) {
+  if (want === 'strong') {
+    if (level === 'new') return { goal: 'muscle', reason: 'Moderate weights build strength safely while you learn the lifts. Heavier work comes later.' };
+    return { goal: 'strength', reason: 'Heavier weights and lower reps, so the numbers on the bar keep going up.' };
+  }
+  if (want === 'shape') return { goal: 'muscle', reason: 'Moderate weights and steady progress are what build muscle and shape.' };
+  if (want === 'lose') {
+    if (cardio === 'no') return { goal: 'lose', reason: 'Mostly lifting with short, easy cardio, since cardio isn’t your favorite. Food matters most for weight.' };
+    return { goal: 'lose', reason: 'Lifting to keep muscle, plus cardio to burn more. Food matters most for weight.' };
+  }
+  if (want === 'energy') {
+    if (cardio === 'no') return { goal: 'health', reason: 'A balanced mix builds stamina without a lot of cardio you don’t enjoy.' };
+    return { goal: 'endurance', reason: 'More cardio to build stamina, with strength work to support it.' };
+  }
+  if (cardio === 'yes') return { goal: 'health', reason: 'A balanced mix, with room for the cardio you enjoy.' };
+  return { goal: 'health', reason: 'A balanced, easy-to-keep mix to move more and feel good.' };
+}
+
 export const TIMES_OF_DAY = [
   ['morning', 'Morning'],
   ['afternoon', 'Afternoon'],
@@ -155,7 +187,9 @@ export const planDate = (plan, n) => addDays(plan.start, n - 1);
 export const planWeek = (n) => Math.floor((n - 1) / 7) + 1;
 export function phaseOf(plan, week) {
   const days = plan.days.slice((week - 1) * 7, week * 7);
-  const lighter = days.some((d) => d.k === 's' && d.ease);
+  // A lighter week eases every lifting day; one easy comeback workout doesn't make a lighter week.
+  const lifts = days.filter((d) => d.k === 's' && !d.mv);
+  const lighter = lifts.length >= 2 && lifts.every((d) => d.ease);
   if (lighter && plan.level !== 'new') return 'Lighter week to recover';
   if (week === 1) return plan.level === 'new' ? 'Learn the moves' : 'Settle into the routine';
   if (week === 2) return plan.level === 'new' ? 'Find your weights' : 'Build the habit';

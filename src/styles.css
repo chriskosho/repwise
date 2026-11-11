@@ -1960,3 +1960,11 @@ a.btn { text-decoration: none; }
 .recap-tops li span:last-child { color: var(--muted); text-align: right; }
 .recap-tops li.recap-up span:last-child { color: var(--ok); font-weight: 600; }
 .recap-line { margin: 0; }
+.onboarding-head { margin: 0 0 var(--sp-3); }
+.onboarding-head .tour-step { margin: 0 0 var(--sp-2); }
+.goal-reason { margin: 0; }
+.card > .goal-change { align-self: flex-start; }
+.ex-hint { margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--accent); }
+.ex-hint-stalled, .ex-hint-down { color: var(--muted); }
+.review-advice { background: var(--accent-soft); border-color: transparent; }
+.review-advice p { margin: 0; }

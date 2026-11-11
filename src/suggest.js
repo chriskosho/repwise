@@ -170,7 +170,18 @@ export function suggestWeight(name, sessions, { unit = 'lb', reps = '8–12', eq
     weight = Math.max(step, roundTo(weight * 0.9, step));
     why += ' (lighter today)';
   }
-  return { weight: clean(weight), note: why, justPR, stalled };
+  return { weight: clean(weight), note: why, justPR, stalled, last: clean(top) };
+}
+
+// One short hint for the workout screen, from your history of this lift, or null without history.
+export function progressHint(name, sessions, { unit = 'lb', equipment = '', reps } = {}) {
+  const w = suggestWeight(name, sessions, { unit, equipment, ...(reps ? { reps } : {}) });
+  if (!w) return null;
+  // Hitting the top of the rep range means it's time to add weight, even if the number has sat still.
+  if (w.weight > w.last) return { kind: 'up', text: `Try ${w.weight} ${unit}` };
+  if (w.stalled) return { kind: 'stalled', text: 'Stalled for 3 sessions: drop 10% and rebuild' };
+  if (w.weight < w.last) return { kind: 'down', text: `Try ${w.weight} ${unit}, a little lighter` };
+  return { kind: 'same', text: 'Repeat and add a rep' };
 }
 
 export function suggestWorkout({

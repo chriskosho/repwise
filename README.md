@@ -196,3 +196,6 @@ Shared tokens in `src/styles.css` (`--sp-*` spacing, `--r-ctl`/`--r-card` corner
 
 ## 2.11 Coming back
 `planNote()` merges recent plan log entries (each now carries a short `x` phrase) into one sentence for home. `welcomeBack()` / `resumePlan()` / `ackWelcome()` in `src/plan.js` handle a 7+ day break: resuming keeps days up to the last workout, inserts `{ k: "r", adj: "Time away" }` days for the gap and continues from the next workout today, so plan length can now be any 7-240 days. `src/recap.js` powers the post-workout summary (compare with last session of the same name, week count against plan or goal, next planned day).
+
+## 2.12 Guidance
+`progressHint()` in `src/suggest.js` turns `suggestWeight` into one line per weighted exercise in the workout editor. Onboarding is five steps (`suggestGoal()` in `src/plan.js` maps three plain answers to a goal with a reason). `nextWeekAdvice()` in `src/review.js` gives one rule-based suggestion: low days, long streak, stalled lift, or a neglected muscle group.

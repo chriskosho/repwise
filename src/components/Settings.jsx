@@ -12,6 +12,7 @@ import { ChangeLog } from './WhatsNew';
 import { DONATE_URL, shareApp } from '../share';
 import { resetDevice } from '../reset';
 import { foodMode } from '../food';
+import { ACTIVITY_TYPES } from '../activities';
 
 const REST_CHOICES = [30, 45, 60, 90, 120, 150, 180, 240, 300];
 const restLabel = (s) => (s % 60 === 0 ? `${s / 60} min` : s > 60 ? `${Math.floor(s / 60)} min ${s % 60} s` : `${s} s`);
@@ -247,6 +248,29 @@ function FoodModeCard() {
           <strong>Track calories and macros</strong>
           <span className="muted">Search foods, set servings, see daily totals.</span>
         </button>
+      </div>
+    </section>
+  );
+}
+
+// The activities you enjoy: they go first when you log an activity, show up in workout ideas and set
+// your plan's cardio days. (They used to be an onboarding question.)
+const INTEREST_TYPES = ACTIVITY_TYPES.filter(([k]) => k !== 'other');
+function InterestsCard() {
+  const profile = useLiveQuery(async () => (await getProfile()) ?? null, [], undefined);
+  if (profile === undefined) return null;
+  const list = profile?.onboarding?.interests ?? [];
+  const toggle = (k) => saveProfile({ onboarding: { ...(profile?.onboarding ?? {}), interests: list.includes(k) ? list.filter((x) => x !== k) : [...list, k] } });
+  return (
+    <section className="card">
+      <h2>Activities you enjoy</h2>
+      <p className="muted">These go first when you log an activity, show up in workout ideas, and set the cardio days in your next plan.</p>
+      <div className="pills" role="group" aria-label="Activities you enjoy">
+        {INTEREST_TYPES.map(([k, label]) => (
+          <button key={k} type="button" className={`pill${list.includes(k) ? ' on' : ''}`} aria-pressed={list.includes(k)} onClick={() => toggle(k)}>
+            {label}
+          </button>
+        ))}
       </div>
     </section>
   );
@@ -611,6 +635,7 @@ export default function Settings({ sync, unit, setUnit, onExported, plan = null,
         </div>
       </section>
 
+      <InterestsCard />
       <FoodModeCard />
 
       <ShareCard />

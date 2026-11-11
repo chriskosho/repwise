@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
-import { getProfile, listGoals, saveBodyEntry, saveGoal, saveProfile, today } from '../db';
-import { CARDIO_CHOICES, DAYS_PER_WEEK, GOALS, LENGTHS, LEVELS, TIMES_OF_DAY, WEEKDAYS as DOW, addDays, buildPlan, dayTitle } from '../plan';
+import { listGoals, saveGoal, saveProfile, today } from '../db';
+import { CARDIO_CHOICES, CARDIO_LIKES, DAYS_PER_WEEK, GOALS, LENGTHS, LEVELS, TIMES_OF_DAY, WANTS, WEEKDAYS as DOW, addDays, buildPlan, dayTitle, suggestGoal } from '../plan';
 import { GEAR, TIMES } from '../suggest';
-import { ACTIVITY_TYPES, typeLabel } from '../activities';
-import { heightFromParts, weightIn } from '../units';
+import { typeLabel } from '../activities';
+import { heightFromParts } from '../units';
 
-const STEPS = ['welcome', 'goal', 'level', 'schedule', 'when', 'interests', 'gear', 'food', 'body', 'length', 'review', 'tour'];
-const PLAN_STEPS = ['goal', 'level', 'schedule', 'when', 'interests', 'gear', 'length', 'review'];
-const INTEREST_TYPES = ACTIVITY_TYPES.filter(([k]) => k !== 'other');
+// Five short steps. Food, body details and the activities you enjoy live in Settings.
+const STEPS = ['welcome', 'goal', 'when', 'gear', 'review', 'tour'];
+const PLAN_STEPS = ['goal', 'when', 'gear', 'review'];
 const RECOMMENDED = { new: 21, some: 30, pro: 60 };
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const LEVEL_TEXT = { new: 'Little or none', some: 'On and off', pro: 'Regularly' };
 
 function Choice({ selected, title, text, onClick, tag }) {
   return (
@@ -33,23 +34,23 @@ function nextMonday(from) {
 // First-run questions, then a starter plan and a short tour. `mode` is "first" for a new
 // user or "plan" when someone comes back to build a new plan from Settings or the plan card.
 export default function Onboarding({ unit, setUnit, name: startName = '', saved = null, mode = 'first', onDone }) {
-  const [step, setStep] = useState(mode === 'plan' ? (saved?.goal && saved?.level ? 'length' : 'goal') : 'welcome');
+  const known = !!(saved?.goal && saved?.level);
+  const [step, setStep] = useState(mode === 'plan' ? (known ? 'review' : 'goal') : 'welcome');
+  const [q, setQ] = useState(0); // which goal question: 0 want, 1 experience, 2 cardio, 3 the suggestion
   const [name, setName] = useState(startName);
   const [u, setU] = useState(unit);
+  const [want, setWant] = useState('');
+  const [cardioLike, setCardioLike] = useState('');
   const [goal, setGoal] = useState(saved?.goal ?? '');
   const [level, setLevel] = useState(saved?.level ?? '');
+  const [changing, setChanging] = useState(false);
   const [perWeek, setPerWeek] = useState(saved?.per_week ?? 3);
   const [minutes, setMinutes] = useState(saved?.minutes ?? 45);
   const [gear, setGear] = useState(saved?.gear ?? 'gym');
-  const [foodMode, setFoodMode] = useState('journal');
-  const [interests, setInterests] = useState(saved?.interests ?? saved?.cardio ?? []);
-  const [time, setTime] = useState(saved?.time ?? '');
+  const interests = saved?.interests ?? saved?.cardio ?? [];
+  const [time, setTime] = useState(saved?.time ?? 'any');
   const [days, setDays] = useState(saved?.days ?? [0, 1, 2, 3, 4, 5, 6]);
   const cardio = interests.filter((t) => CARDIO_CHOICES.includes(t));
-  const [weight, setWeight] = useState('');
-  const [h1, setH1] = useState(''); // feet, or meters
-  const [h2, setH2] = useState(''); // inches, or centimeters
-  const [target, setTarget] = useState('');
   const [length, setLength] = useState(0);
   const [startOn, setStartOn] = useState('today');
   const [error, setError] = useState('');
@@ -59,13 +60,35 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
   const chosenLength = length || RECOMMENDED[level] || 21;
   const plan = useMemo(
     () => (goal && level ? buildPlan({ length: chosenLength, start, goal, level, per_week: perWeek, minutes, gear, cardio, available: days, time }) : null),
-    [chosenLength, start, goal, level, perWeek, minutes, gear, interests, days, time],
+    [chosenLength, start, goal, level, perWeek, minutes, gear, days, time], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const suggestion = want && level && cardioLike ? suggestGoal({ want, level, cardio: cardioLike }) : null;
 
   const steps = mode === 'first' ? STEPS : PLAN_STEPS;
   const idx = steps.indexOf(step);
-  const canNext = step === 'goal' ? !!goal : step === 'level' ? !!level : step === 'when' ? days.length > 0 && !!time : true;
+  const shown = steps.filter((x) => x !== 'tour').length;
+  const canNext = step === 'goal' ? !!goal && !!level && q === 3 : step === 'when' ? days.length > 0 : true;
   const go = (d) => setStep(steps[Math.max(0, Math.min(steps.length - 1, idx + d))]);
+  const back = () => {
+    if (step === 'goal' && q > 0) setQ(q - 1);
+    else go(-1);
+  };
+
+  // Each goal question moves on as soon as you answer it.
+  const answer = (setter, value) => {
+    setter(value);
+    if (q < 2) setQ(q + 1);
+    else {
+      const sug = suggestGoal({ want, level, cardio: value });
+      setGoal(sug.goal);
+      setChanging(false);
+      setQ(3);
+    }
+  };
+  const answerLevel = (value) => {
+    setLevel(value);
+    setQ(2);
+  };
 
   async function skip() {
     await saveProfile({ onboarding: { skipped: true } });
@@ -78,16 +101,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
     try {
       if (mode === 'first') {
         if (u !== unit) setUnit(u);
-        const patch = { display_name: name, units: u, food_mode: foodMode };
-        const cm = heightCm(u, h1, h2);
-        if (cm) patch.height_cm = cm;
-        await saveProfile(patch);
-        if (weight !== '' && Number(weight) > 0) {
-          await saveBodyEntry({ weight_kg: weightIn(weight, u) });
-          if (target !== '' && Number(target) > 0) {
-            await saveGoal({ type: 'body_weight', target: weightIn(target, u), start_value: weightIn(weight, u) });
-          }
-        }
+        await saveProfile({ display_name: name, units: u });
       }
       const goals = await listGoals();
       if (!goals.some((g) => g.type === 'weekly_workouts')) await saveGoal({ type: 'weekly_workouts', target: perWeek });
@@ -124,17 +138,15 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
     );
   }
 
-  const wUnit = u;
   const week1 = plan ? plan.days.slice(0, 7) : [];
+  const goalLabel = (k) => GOALS.find(([g]) => g === k)?.[1] ?? '';
 
   return (
     <div className="onboarding">
-      <div className="card onboarding-head">
-        <p className="muted tour-step">
-          {mode === 'first' ? `Step ${idx + 1} of ${STEPS.length - 1}` : `New plan · step ${idx + 1} of ${PLAN_STEPS.length}`}
-        </p>
+      <div className="onboarding-head">
+        <p className="muted tour-step">{mode === 'first' ? `Step ${idx + 1} of ${shown}` : `New plan · step ${idx + 1} of ${shown}`}</p>
         <div className="progress-bar" aria-hidden="true">
-          <span style={{ width: `${(idx / (steps.length - (mode === 'first' ? 2 : 1))) * 100}%` }} />
+          <span style={{ width: `${((idx + 1) / shown) * 100}%` }} />
         </div>
       </div>
 
@@ -142,10 +154,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
         {step === 'welcome' && (
           <>
             <h2>Welcome to Repwise</h2>
-            <p>
-              A few quick questions and Repwise will build you a starter plan: what to do each day, how hard, and when to rest. It
-              takes about a minute, and you can change everything later.
-            </p>
+            <p>A few quick questions and Repwise builds you a starter plan: what to do each day, how hard, and when to rest. It takes about a minute.</p>
             <label className="field">
               <span>What should we call you?</span>
               <input value={name} maxLength={40} autoComplete="given-name" onChange={(e) => setName(e.target.value)} placeholder="Name (optional)" />
@@ -160,31 +169,57 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
           </>
         )}
 
-        {step === 'goal' && (
+        {step === 'goal' && q === 0 && (
           <>
-            <h2>What is your main goal?</h2>
+            <h2>What would make the biggest difference for you?</h2>
             <div className="choices">
-              {GOALS.map(([k, label, text]) => (
-                <Choice key={k} selected={goal === k} title={label} text={text} onClick={() => setGoal(k)} />
+              {WANTS.map(([k, label, text]) => (
+                <Choice key={k} selected={want === k} title={label} text={text} onClick={() => answer(setWant, k)} />
               ))}
             </div>
           </>
         )}
-
-        {step === 'level' && (
+        {step === 'goal' && q === 1 && (
           <>
-            <h2>How much have you trained?</h2>
+            <h2>How much have you worked out before?</h2>
             <div className="choices">
-              {LEVELS.map(([k, label, text]) => (
-                <Choice key={k} selected={level === k} title={label} text={text} onClick={() => setLevel(k)} />
+              {LEVELS.map(([k, label]) => (
+                <Choice key={k} selected={level === k} title={LEVEL_TEXT[k]} text={label} onClick={() => answerLevel(k)} />
               ))}
             </div>
           </>
         )}
-
-        {step === 'schedule' && (
+        {step === 'goal' && q === 2 && (
           <>
-            <h2>How much time do you have?</h2>
+            <h2>Do you like cardio, like walking, running or cycling?</h2>
+            <div className="choices">
+              {CARDIO_LIKES.map(([k, label]) => (
+                <Choice key={k} selected={cardioLike === k} title={label} onClick={() => answer(setCardioLike, k)} />
+              ))}
+            </div>
+          </>
+        )}
+        {step === 'goal' && q === 3 && (
+          <>
+            <h2>Your goal: {goalLabel(goal)}</h2>
+            {suggestion && suggestion.goal === goal && <p className="goal-reason">{suggestion.reason}</p>}
+            {!changing ? (
+              <button type="button" className="btn btn-link goal-change" onClick={() => setChanging(true)}>
+                Pick a different goal
+              </button>
+            ) : (
+              <div className="choices">
+                {GOALS.map(([k, label, text]) => (
+                  <Choice key={k} selected={goal === k} title={label} text={text} tag={suggestion?.goal === k ? 'Suggested' : ''} onClick={() => setGoal(k)} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {step === 'when' && (
+          <>
+            <h2>When can you work out?</h2>
             <p className="muted">Be realistic. A plan you can keep beats a perfect one you can't.</p>
             <div className="field">
               <span id="dpw">Workouts per week</span>
@@ -206,24 +241,8 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
                 ))}
               </div>
             </div>
-          </>
-        )}
-
-        {step === 'when' && (
-          <>
-            <h2>When do you like to work out?</h2>
             <div className="field">
-              <span id="tod">Best time of day</span>
-              <div className="pills" role="group" aria-labelledby="tod">
-                {TIMES_OF_DAY.map(([k, label]) => (
-                  <button key={k} type="button" className={`pill${time === k ? ' on' : ''}`} aria-pressed={time === k} onClick={() => setTime(k)}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="field">
-              <span id="avail">Days you can work out</span>
+              <span id="avail">Days you're free</span>
               <div className="pills" role="group" aria-labelledby="avail">
                 {DOW.map(([n, label]) => (
                   <button
@@ -244,27 +263,16 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
                 </span>
               )}
             </div>
-          </>
-        )}
-
-        {step === 'interests' && (
-          <>
-            <h2>What do you enjoy doing?</h2>
-            <p className="muted">Pick any. These go first when you log an activity, show up in workout ideas, and set the cardio days in your plan.</p>
-            <div className="pills" role="group" aria-label="Activities you enjoy">
-              {INTEREST_TYPES.map(([k, label]) => (
-                <button
-                  key={k}
-                  type="button"
-                  className={`pill${interests.includes(k) ? ' on' : ''}`}
-                  aria-pressed={interests.includes(k)}
-                  onClick={() => setInterests(interests.includes(k) ? interests.filter((x) => x !== k) : [...interests, k])}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="field">
+              <span id="tod">Best time of day</span>
+              <div className="pills" role="group" aria-labelledby="tod">
+                {TIMES_OF_DAY.map(([k, label]) => (
+                  <button key={k} type="button" className={`pill${time === k ? ' on' : ''}`} aria-pressed={time === k} onClick={() => setTime(k)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <p className="muted">Not sure? Skip it. We'll learn from what you log.</p>
           </>
         )}
 
@@ -273,72 +281,14 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
             <h2>What do you have to train with?</h2>
             <div className="choices">
               {GEAR.map(([k, label]) => (
-                <Choice key={k} selected={gear === k} title={label} onClick={() => setGear(k)} />
-              ))}
-            </div>
-          </>
-        )}
-
-        {step === 'food' && (
-          <>
-            <h2>How do you want to log food?</h2>
-            <p className="muted">You can change this any time in Settings. Nothing is lost when you switch.</p>
-            <div className="choices">
-              <Choice selected={foodMode === 'journal'} title="A simple journal" text="Write down what you ate each day. No numbers." onClick={() => setFoodMode('journal')} />
-              <Choice selected={foodMode === 'track'} title="Track calories and macros" text="Search foods, set servings, see daily totals." onClick={() => setFoodMode('track')} />
-            </div>
-          </>
-        )}
-
-        {step === 'body' && (
-          <>
-            <h2>About you (optional)</h2>
-            <p className="muted">This stays on your device and your own account. It sets a starting point so Progress can show change.</p>
-            {(
-              <>
-                <label className="field">
-                  <span>Current weight ({wUnit})</span>
-                  <input type="number" inputMode="decimal" min="0" step="any" value={weight} onChange={(e) => setWeight(e.target.value)} />
-                </label>
-                {(goal === 'lose' || goal === 'muscle') && (
-                  <label className="field">
-                    <span>Goal weight ({wUnit})</span>
-                    <input type="number" inputMode="decimal" min="0" step="any" value={target} onChange={(e) => setTarget(e.target.value)} />
-                  </label>
-                )}
-                <div className="field">
-                  <span id="height-label">Height</span>
-                  <div className="row" role="group" aria-labelledby="height-label">
-                    <label className="field">
-                      <span>{wUnit === 'kg' ? 'Meters' : 'Feet'}</span>
-                      <input type="number" inputMode="numeric" min="0" max={wUnit === 'kg' ? 2 : 8} step="1" value={h1} onChange={(e) => setH1(e.target.value)} />
-                    </label>
-                    <label className="field">
-                      <span>{wUnit === 'kg' ? 'Centimeters' : 'Inches'}</span>
-                      <input type="number" inputMode="decimal" min="0" max={wUnit === 'kg' ? 99 : 11.9} step="any" value={h2} onChange={(e) => setH2(e.target.value)} />
-                    </label>
-                  </div>
-                </div>
-              </>
-            )}
-            <p className="muted">
-              If something hurts or a doctor has told you to take it easy, check with them before starting, and swap out any exercise that doesn't feel right.
-            </p>
-          </>
-        )}
-
-        {step === 'length' && (
-          <>
-            <h2>How long should your plan be?</h2>
-            <div className="choices">
-              {LENGTHS.map(([n, label, text]) => (
                 <Choice
-                  key={n}
-                  selected={chosenLength === n}
-                  title={`${n} days: ${label}`}
-                  text={text}
-                  tag={level && RECOMMENDED[level] === n ? 'Suggested' : ''}
-                  onClick={() => setLength(n)}
+                  key={k}
+                  selected={gear === k}
+                  title={label}
+                  onClick={() => {
+                    setGear(k);
+                    go(1);
+                  }}
                 />
               ))}
             </div>
@@ -349,7 +299,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
           <>
             <h2>Your plan</h2>
             <p>
-              {chosenLength} days, {Math.min(perWeek, days.length || 7)} workouts a week, about {minutes} minutes each
+              {goalLabel(goal)} · {Math.min(perWeek, days.length || 7)} workouts a week, about {minutes} minutes each
               {time && time !== 'any' ? `, planned for the ${time}` : ''}. Here is your first week:
             </p>
             <ul className="plain plan-week">
@@ -370,6 +320,17 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
             </ul>
             {level === 'new' && <p className="muted">Week 1 is deliberately easy: fewer sets and lighter weights while you learn the moves.</p>}
             <div className="field">
+              <span id="plan-length">Plan length</span>
+              <div className="pills" role="group" aria-labelledby="plan-length">
+                {LENGTHS.map(([n, label]) => (
+                  <button key={n} type="button" className={`pill${chosenLength === n ? ' on' : ''}`} aria-pressed={chosenLength === n} aria-label={`${n} days: ${label}`} onClick={() => setLength(n)}>
+                    {n} days
+                  </button>
+                ))}
+              </div>
+              <span className="muted">{LENGTHS.find(([n]) => n === chosenLength)?.[2]}</span>
+            </div>
+            <div className="field">
               <span id="start-on">Start</span>
               <div className="pills" role="group" aria-labelledby="start-on">
                 {[['today', 'Today'], ['tomorrow', 'Tomorrow'], ['monday', 'Next Monday']].map(([k, label]) => (
@@ -379,7 +340,12 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
                 ))}
               </div>
             </div>
-            <p className="muted">Missed a day? No problem. Repwise offers to catch up, and the plan never locks you out.</p>
+            <p className="muted">Missed a day? No problem. Repwise moves things around, and the plan never locks you out.</p>
+            {mode === 'plan' && known && (
+              <button type="button" className="btn btn-link goal-change" onClick={() => setStep('goal')}>
+                Change goal or schedule
+              </button>
+            )}
           </>
         )}
 
@@ -390,8 +356,8 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
         )}
 
         <div className="actions">
-          {idx > 0 && (
-            <button type="button" className="btn btn-ghost" onClick={() => go(-1)}>
+          {(idx > 0 || (step === 'goal' && q > 0)) && (
+            <button type="button" className="btn btn-ghost" onClick={back}>
               Back
             </button>
           )}
@@ -399,7 +365,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
             <button type="button" className="btn" disabled={busy || !plan} onClick={createPlan}>
               {mode === 'first' ? 'Create my plan' : 'Start this plan'}
             </button>
-          ) : (
+          ) : step === 'gear' || (step === 'goal' && q < 3) ? null : (
             <button type="button" className="btn" disabled={!canNext} onClick={() => go(1)}>
               Next
             </button>

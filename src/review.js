@@ -1,6 +1,9 @@
 // A weekly look-back: what you did, what improved, what's next. Pure functions.
 import { addDays, diffDays, isWorkoutDay, planDate } from './plan';
-import { computePRs, sessionStats } from './stats';
+import { computePRs, key, sessionStats, workSets } from './stats';
+import { GROUPS, suggestWeight } from './suggest';
+import { coreExercise } from './coreExercises';
+import { exName } from './library';
 
 const dow = (d) => new Date(`${d}T12:00:00`).getDay();
 export const weekStartOf = (date, weekStart = 1) => addDays(date, -((dow(date) - weekStart + 7) % 7));
@@ -24,7 +27,7 @@ export function showReviewCard(todayStr, weekStart = 1) {
 const inRange = (d, a, b) => d >= a && d <= b;
 const pct = (now, before) => (before > 0 ? Math.round(((now - before) / before) * 100) : null);
 
-export function weeklyReview({ sessions = [], activities = [], entries = [], plan = null, start, end }) {
+export function weeklyReview({ sessions = [], activities = [], entries = [], plan = null, library = [], start, end }) {
   const finished = sessions.filter((s) => s.ended_at && !s.deleted_at);
   const acts = activities.filter((a) => !a.deleted_at);
   const section = (a, b) => {
@@ -84,10 +87,13 @@ export function weeklyReview({ sessions = [], activities = [], entries = [], pla
   else if (prev.days && cur.days > prev.days) headline = `${cur.days} workout days, up from ${prev.days} the week before.`;
   else headline = `${cur.days} workout ${cur.days === 1 ? 'day' : 'days'} this week. Keep showing up.`;
 
+  const advice = nextWeekAdvice({ finished, acts, days: cur.days, plannedDays: planInfo?.planned ?? null, library, end });
+
   return {
     start,
     end,
     headline,
+    advice,
     days: cur.days,
     prevDays: prev.days,
     strength: cur.ss.length,
@@ -105,4 +111,51 @@ export function weeklyReview({ sessions = [], activities = [], entries = [], pla
     nextWeek,
     empty: cur.days === 0,
   };
+}
+
+// ---- one suggestion for next week, from simple rules ----
+// In order: too few days, too many in a row, a stalled lift, a part of the body left out.
+// Returns { kind, text }.
+export function nextWeekAdvice({ finished = [], acts = [], days = 0, plannedDays = null, library = [], end }) {
+  const upTo = finished.filter((s) => s.date <= end);
+  const dates = new Set([...upTo.map((s) => s.date), ...acts.filter((a) => a.date <= end).map((a) => a.date)]);
+
+  // Low days.
+  if (days === 0) return { kind: 'low', text: 'Start small next week: one short workout early in the week gets things moving again.' };
+  if (days < 2 && (plannedDays == null || plannedDays > days))
+    return { kind: 'low', text: `Only ${days} workout day this week. Aim for two next week, even if one is just 20 minutes.` };
+
+  // Long streak, ending on the last day of the week.
+  let streak = 0;
+  for (let d = end; dates.has(d); d = addDays(d, -1)) streak++;
+  if (streak >= 5 || days >= 6) {
+    const n = Math.max(streak, days);
+    return { kind: 'streak', text: `${n} training days ${streak >= 5 ? 'in a row' : 'this week'}. Plan at least two full rest days next week so your body can catch up.` };
+  }
+
+  // A lift that has stopped moving.
+  const lifted = [];
+  for (const s of upTo.filter((x) => x.date >= addDays(end, -6))) {
+    for (const ex of s.exercises ?? []) if (workSets(ex).some((x) => Number(x.weight) > 0) && !lifted.some((n) => key(n) === key(ex.name))) lifted.push(ex.name);
+  }
+  for (const name of lifted) {
+    const w = suggestWeight(name, upTo, {});
+    if (w?.stalled) return { kind: 'stalled', text: `${exName(name)} hasn't moved in 3 sessions. Next week, drop about 10% and build back up, or try a different rep range.` };
+  }
+
+  // A part of the body left out for two weeks while the others got work.
+  const byName = new Map(library.map((l) => [key(l.name), l.muscle]));
+  const muscleOf = (n) => coreExercise(n)?.muscle ?? byName.get(key(n)) ?? '';
+  const recent = upTo.filter((s) => s.date >= addDays(end, -13));
+  const hit = new Set();
+  for (const s of recent) for (const ex of s.exercises ?? []) if (workSets(ex).length) for (const [g, def] of Object.entries(GROUPS)) if (def.muscles.includes(muscleOf(ex.name))) hit.add(g);
+  const main = ['legs', 'push', 'pull'];
+  const missing = main.filter((g) => !hit.has(g));
+  if (recent.length >= 2 && hit.size > 0 && missing.length && missing.length < main.length) {
+    const g = missing[0];
+    const what = { legs: 'legs', push: 'chest, shoulders or triceps', pull: 'back or biceps' }[g];
+    return { kind: 'neglected', text: `No ${what} work in the last two weeks. Make one session next week a ${GROUPS[g].label.toLowerCase()} day.` };
+  }
+
+  return { kind: 'steady', text: 'A good, steady week. Keep the same rhythm next week and try adding a rep or a little weight to one lift.' };
 }

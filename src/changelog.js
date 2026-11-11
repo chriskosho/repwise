@@ -2,6 +2,22 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.12',
+    date: '2026-11-11',
+    title: 'Guidance while you lift, and a quicker start',
+    highlights: [
+      'Each lift with history shows one hint: “Try 105 lb”, “Repeat and add a rep”, or a nudge to reset when it has stalled.',
+      'Getting started is five short steps. Three plain questions suggest a goal, with the reason, and you can pick another.',
+      'The weekly review ends with one suggestion for next week.',
+    ],
+    items: [
+      'Tapping an answer moves you on; no extra Next button for one-tap questions.',
+      'Food, body details and favorite activities are no longer asked up front. Activities you enjoy are now in Settings.',
+      'Next-week advice looks for a quiet week, a long streak, a stalled lift or a part of the body left out.',
+      'A plan resumed after a break no longer calls a week “lighter” because of one easy comeback workout.',
+    ],
+  },
+  {
     id: '2.11',
     date: '2026-11-11',
     title: 'Coming back, and the moment after',

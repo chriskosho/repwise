@@ -7,7 +7,7 @@ import { defaultWhich, reviewPeriod, weeklyReview } from '../review';
 import { fmtVolume } from '../stats';
 import { kmToLong, longUnit } from '../measure';
 import { weightOut } from '../units';
-import { exName } from '../library';
+import { exName, useLibrary } from '../library';
 
 const day = (d) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 const arrow = (n) => (n == null ? '' : n > 0 ? `▲ ${n}%` : n < 0 ? `▼ ${Math.abs(n)}%` : 'same');
@@ -26,7 +26,8 @@ export default function Review({ sessions, activities, plan, unit, weekStart = 1
   const entries = useLiveQuery(listBodyEntries, [], []);
   const [which, setWhich] = useState(defaultWhich(todayStr, weekStart));
   const { start, end } = reviewPeriod(todayStr, weekStart, which);
-  const r = weeklyReview({ sessions, activities, entries, plan, start, end });
+  const { list: library } = useLibrary();
+  const r = weeklyReview({ sessions, activities, entries, plan, library: library ?? [], start, end });
   return (
     <div>
       <div className="card editor-head">
@@ -98,6 +99,11 @@ export default function Review({ sessions, activities, plan, unit, weekStart = 1
           </p>
         </section>
       )}
+
+      <section className={`card review-advice advice-${r.advice.kind}`} aria-label="For next week">
+        <h3>For next week</h3>
+        <p>{r.advice.text}</p>
+      </section>
 
       {r.notes.length > 0 && (
         <section className="card">
