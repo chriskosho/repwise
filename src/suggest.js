@@ -4,6 +4,8 @@ import { e1rm, key } from './stats';
 import { cardioEvents, weekStartOf, weeklyTotalProgress } from './goals';
 import { typeLabel } from './activities';
 import { deriveMode, isMode } from './measure';
+import { CORE_EXERCISES, COMPOUND_SLOTS, NOT_FOR_BEGINNERS, coreExercise, gearAllows, levelAllows } from './coreExercises';
+import { buildStretches, workoutPlan } from './stretches';
 
 export const GROUPS = {
   push: { label: 'Push', muscles: ['chest', 'shoulders', 'triceps'] },
@@ -26,15 +28,9 @@ export const GEAR = [
 ];
 export const TIMES = [20, 30, 45, 60];
 
-const GEAR_OK = {
-  gym: null,
-  dumbbells: new Set(['dumbbell', 'bodyweight', 'bands', 'kettlebell', 'exercise-ball']),
-  bodyweight: new Set(['bodyweight']),
-};
 const STRENGTH = new Set(['strength', 'powerlifting']);
 // Familiar, effective movements get a head start over obscure variations.
 const STAPLE = /\b(squat|bench press|deadlift|row|pull-?up|chin-?up|pulldown|overhead press|shoulder press|military press|lunge|leg press|curl|pushdown|push-?up|dip|lateral raise|face pull|hip thrust|calf raise|leg extension|plank|crunch|fly|flye|triceps extension|step-?up)\b/i;
-const GOOD_STRETCH = /stretch|pose|pigeon|cobra|kneeling|hug|fold/i;
 
 const groupOf = (muscle) => Object.keys(GROUPS).find((g) => GROUPS[g].muscles.includes(muscle)) ?? null;
 
@@ -190,7 +186,7 @@ export function suggestWorkout({
   todayStr = new Date().toLocaleDateString('en-CA'),
   weekStart = 1,
 }) {
-  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0, feeling = 'auto', style = '', ease = false, interests = [], boost = 0 } = options;
+  const { minutes = 45, gear = 'gym', focus = 'auto', seed = 0, feeling = 'auto', style = '', ease = false, interests = [], boost = 0, level = '' } = options;
   const rand = rng(seed + 1);
   const meta = new Map();
   for (const l of library) meta.set(key(l.name), l);
@@ -241,6 +237,11 @@ export function suggestWorkout({
     reasons.push(`${GROUPS[best].label} is next: it's the part you've trained least recently (${parts.join(', ')}).`);
     if (liftGroups.has(best)) reasons.push('It also covers one of your lift goals.');
     if (since[best] === 0) reasons.push('You already trained this today, so keep it light or choose another focus.');
+    // With no equipment there's very little to pull with, so a pull day becomes full body.
+    if (best === 'pull' && gear === 'bodyweight') {
+      groups = ['push', 'pull', 'legs', 'core'];
+      reasons.push('Back is due, but with no equipment there are few pulling moves, so this is a full-body session with a row.');
+    }
   }
   if (focus !== 'auto') reasons.push(`Focus: ${focus === 'full' ? 'full body' : GROUPS[focus].label.toLowerCase()}.`);
   if (weekly) {
@@ -252,31 +253,69 @@ export function suggestWorkout({
   if (intent === 'gain') reasons.push('Your body-weight goal is upward, so this uses extra sets and solid effort on the big lifts.');
 
   // ---- build the exercise list ----
+  // Slots first (a squat, a press, a row…), filled from the core list of familiar exercises
+  // that suit your gear and experience. The full library only fills a slot the core list can't.
   const want = Math.max(3, Math.min(8, Math.round(minutes / 9)));
-  const okGear = GEAR_OK[gear] ?? null;
   const wanted = new Set(groups.flatMap((g) => GROUPS[g].muscles));
   const used = new Map(); // how often each exercise appears in your history
   for (const s of sessions) for (const ex of s.exercises) used.set(key(ex.name), (used.get(key(ex.name)) ?? 0) + 1);
+  const beginner = level === 'new';
+  const suits = (name, lvl) => levelAllows(level, lvl) && !(beginner && NOT_FOR_BEGINNERS.test(name));
 
-  const pool = [];
-  for (const l of library) {
-    if (!STRENGTH.has(l.category) || l.level === 'expert' || !wanted.has(l.muscle)) continue;
-    if (okGear && !okGear.has(l.equipment)) continue;
-    pool.push({ name: l.name, muscle: l.muscle, compound: l.compound, level: l.level, mine: false, mode: deriveMode(l) });
-  }
-  for (const c of custom) {
-    if (c.deleted_at || !wanted.has(c.muscle)) continue;
-    if (okGear && c.equipment && !okGear.has(c.equipment)) continue;
-    if (isMode(c.mode) && (c.mode === 'cardio' || c.mode === 'stretch')) continue;
-    if (!pool.some((p) => key(p.name) === key(c.name))) pool.push({ name: c.name, muscle: c.muscle, compound: false, level: 'beginner', mine: true, mode: isMode(c.mode) ? c.mode : 'weight' });
-  }
+  // Score a candidate: staples and things you already do lead; gear that fits your setup next.
+  const fit = (equip) => {
+    if (gear === 'gym') return ['barbell', 'dumbbell', 'cable', 'machine', 'ez-bar'].includes(equip) ? 1 : equip === 'bodyweight' ? -0.5 : -1;
+    if (gear === 'dumbbells') return ['dumbbell', 'kettlebell'].includes(equip) ? 1 : equip === 'bands' ? 0 : -0.5;
+    return 0;
+  };
+  const scoreOf = (c) => (c.star ? 2 : 0) + (used.get(key(c.name)) ? 2.5 : 0) + (c.mine ? 1 : 0) + fit(c.equip) + (beginner && c.equip === 'barbell' ? -0.5 : 0) + (beginner && c.equip === 'machine' ? 0.5 : 0) + rand() * 3;
+
+  const core = CORE_EXERCISES.filter((c) => wanted.has(c.muscle) && gearAllows(gear, c.equip, c.bar) && suits(c.name, c.level));
+  // Your own exercises can fill an accessory spot for their muscle.
+  const mine = custom
+    .filter((c) => !c.deleted_at && wanted.has(c.muscle) && (!c.equipment || gearAllows(gear, c.equipment)) && !(isMode(c.mode) && (c.mode === 'cardio' || c.mode === 'stretch')))
+    .map((c) => ({ name: c.name, slot: 'accessory', muscle: c.muscle, equip: c.equipment || 'bodyweight', mine: true, mode: isMode(c.mode) ? c.mode : 'weight' }));
+  const SLOT_MUSCLES = {
+    squat: ['quadriceps'],
+    hinge: ['hamstrings', 'glutes', 'lower back'],
+    'h-push': ['chest', 'triceps'],
+    'v-push': ['shoulders'],
+    'h-pull': ['middle back'],
+    'v-pull': ['lats'],
+    core: ['abdominals'],
+  };
+  // Last resort for a slot: the full library, with the same gear, level and focus rules.
+  const fallback = (muscles) =>
+    library
+      .filter((l) => STRENGTH.has(l.category) && l.level !== 'expert' && wanted.has(l.muscle) && muscles.includes(l.muscle) && !coreExercise(l.name))
+      // Only beginner-friendly, everyday variations: no one-arm, jumping or specialist moves.
+      .filter((l) => l.level === 'beginner' && !/single-arm|one[- ]arm|jump|glute ham|plyo/i.test(l.name))
+      .filter((l) => gearAllows(gear, l.equipment, /pull-?ups?\b|chin-?ups?\b/i.test(l.name)) && suits(l.name, 'new'))
+      .map((l) => ({ name: l.name, slot: 'library', muscle: l.muscle, equip: l.equipment, star: STAPLE.test(l.name) }));
+
+  const TEMPLATES = {
+    push: ['h-push', 'v-push', 'acc:shoulders', 'acc:triceps', 'h-push', 'acc:chest', 'acc:triceps', 'acc:shoulders'],
+    pull: ['v-pull', 'h-pull', 'acc:biceps', 'h-pull', 'hinge', 'acc:traps', 'acc:biceps', 'v-pull'],
+    legs: ['squat', 'hinge', 'acc:hamstrings', 'squat', 'acc:calves', 'acc:quadriceps', 'acc:glutes', 'hinge'],
+    full: ['squat', 'h-push', 'h-pull', 'hinge', 'v-push', 'core', 'v-pull', 'acc:biceps'],
+    core: ['core', 'core', 'core', 'core', 'core', 'core', 'core', 'core'],
+  };
+  const candidatesFor = (slot) => {
+    if (slot.startsWith('acc:')) {
+      const m = slot.slice(4);
+      return [...core.filter((c) => c.slot === 'accessory' && c.muscle === m), ...mine.filter((c) => c.muscle === m)];
+    }
+    return core.filter((c) => c.slot === slot);
+  };
+  const musclesFor = (slot) => (slot.startsWith('acc:') ? [slot.slice(4)] : SLOT_MUSCLES[slot] ?? []);
 
   const picked = [];
   const take = (p, extra = {}) => {
-    if (picked.some((x) => key(x.name) === key(p.name))) return;
+    if (picked.some((x) => key(x.name) === key(p.name))) return false;
     const mode = p.mode ?? deriveMode({ name: p.name, ...(meta.get(key(p.name)) ?? {}) });
     const base = mode === 'time' ? { reps: '30–45 s', sets: 3 } : mode === 'carry' ? { reps: '30–40 yd', sets: 3 } : { sets: scheme.sets, reps: scheme.reps };
     picked.push({ name: p.name, muscle: p.muscle, compound: !!p.compound, mode, ...base, ...(mode === 'weight' || mode === 'bodyweight' ? extra : { note: extra.note }) });
+    return true;
   };
 
   // Lift goals first, so what you're working toward is always in the plan.
@@ -288,41 +327,44 @@ export function suggestWorkout({
     reasons.push(`${g.exercise} leads because it's one of your goals.`);
   }
 
-  const perMuscle = new Map();
-  picked.forEach((p) => perMuscle.set(p.muscle, 1));
-  const perGroup = new Map();
-  picked.forEach((p) => perGroup.set(groupOf(p.muscle), (perGroup.get(groupOf(p.muscle)) ?? 0) + 1));
-  while (picked.length < want && pool.length) {
-    const early = picked.length < Math.ceil(want / 2);
-    // Full body: always add to the part you've covered least (core counts as last).
-    const order = ['legs', 'push', 'pull', 'core'].filter((g) => groups.includes(g));
-    const target =
-      groups.length > 1
-        ? [...order].sort((a, b) => (perGroup.get(a) ?? 0) + (a === 'core' ? 0.5 : 0) - ((perGroup.get(b) ?? 0) + (b === 'core' ? 0.5 : 0)))[0]
-        : null;
-    let best = null;
-    let bestScore = -Infinity;
-    for (const p of pool) {
-      if (picked.some((x) => key(x.name) === key(p.name))) continue;
-      if (target && groupOf(p.muscle) !== target) continue;
-      const sc =
-        (used.get(key(p.name)) ? 2 : 0) +
-        (p.mine ? 1 : 0) +
-        (p.compound ? (early ? 2.5 : 0.5) : early ? 0 : 1.5) +
-        (STAPLE.test(p.name) ? 3 : 0) +
-        (p.level === 'beginner' ? 1 : 0) -
-        (perMuscle.get(p.muscle) ?? 0) * 2.2 +
-        rand() * 2.2;
-      if (sc > bestScore) {
-        best = p;
-        bestScore = sc;
+  const best = (list) => {
+    let top = null;
+    let topScore = -Infinity;
+    for (const c of list) {
+      if (picked.some((x) => key(x.name) === key(c.name))) continue;
+      const sc = scoreOf(c);
+      if (sc > topScore) {
+        top = c;
+        topScore = sc;
       }
     }
-    if (!best) break;
-    take(best, best.compound ? {} : { sets: Math.min(scheme.sets, 3), reps: intent === 'lose' ? '12–15' : '10–15' });
-    perMuscle.set(best.muscle, (perMuscle.get(best.muscle) ?? 0) + 1);
-    perGroup.set(groupOf(best.muscle), (perGroup.get(groupOf(best.muscle)) ?? 0) + 1);
+    return top;
+  };
+  const fill = (slot) => {
+    const c = best(candidatesFor(slot)) ?? best(fallback(musclesFor(slot)));
+    if (!c) return false;
+    const compound = COMPOUND_SLOTS.has(c.slot) || (c.slot === 'library' && !!meta.get(key(c.name))?.compound);
+    return take({ ...c, compound }, compound ? {} : { sets: Math.min(scheme.sets, 3), reps: intent === 'lose' ? '12–15' : '10–15' });
+  };
+  const focusKey = groups.length > 1 ? 'full' : groups[0];
+  const template = TEMPLATES[focusKey] ?? TEMPLATES.full;
+  for (const slot of template) {
+    if (picked.length >= want) break;
+    fill(slot);
   }
+  // Still short (a small setup or a narrow focus): any other familiar exercise for these muscles.
+  for (const slot of [...template, ...template]) {
+    if (picked.length >= want) break;
+    if (!fill(slot)) {
+      const any = best([...core, ...mine]);
+      if (any) fill(any.slot === 'accessory' ? `acc:${any.muscle}` : any.slot);
+    }
+  }
+  // Big compound lifts open the session (after any goal lifts), then the smaller ones.
+  const goalCount = picked.filter((p) => lifts.some((g) => key(g.exercise) === key(p.name))).length;
+  const rest = picked.splice(goalCount);
+  picked.push(...rest.filter((p) => p.compound), ...rest.filter((p) => !p.compound));
+  if (picked.length < 3 && gear !== 'gym') reasons.push('There are only a few familiar moves for this focus with your equipment. A resistance band or a pair of dumbbells opens up more.');
 
   // ---- weights, and a lighter day when you need one ----
   const equipOf = (name) => custom.find((c) => !c.deleted_at && key(c.name) === key(name))?.equipment || meta.get(key(name))?.equipment || '';
@@ -360,18 +402,11 @@ export function suggestWorkout({
     }
   }
 
-  // ---- cool-down stretches for the muscles you worked ----
-  const worked = new Set(picked.map((p) => p.muscle));
-  const stretchPool = library.filter(
-    (l) => l.category === 'stretching' && worked.has(l.muscle) && !/smr/i.test(l.name) && ['bodyweight', 'other', 'bands'].includes(l.equipment) && l.level !== 'expert',
-  );
-  const stretches = [];
-  for (const m of [...worked].sort(() => rand() - 0.5)) {
-    const mine_ = stretchPool.filter((s) => s.muscle === m && !stretches.includes(s.name));
-    const options_ = mine_.some((s) => GOOD_STRETCH.test(s.name)) ? mine_.filter((s) => GOOD_STRETCH.test(s.name)) : mine_;
-    if (options_.length) stretches.push(options_[Math.floor(rand() * options_.length)].name);
-    if (stretches.length >= 5) break;
-  }
+  // ---- cool-down stretches for the muscles you worked, from the curated stretch list ----
+  const cool = workoutPlan({ exercises: picked.map((p) => ({ name: p.name, sets: Array.from({ length: p.sets }, () => ({ done: true })) })) }, library);
+  const stretches = buildStretches({ regions: cool.regions, weights: cool.weights, minutes: 5, seed })
+    .slice(0, 5)
+    .map((x) => x.name);
 
   // ---- ideas for a non-gym day ----
   const counts = new Map();

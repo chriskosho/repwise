@@ -199,7 +199,7 @@ describe('routines in the app', () => {
     // Save it as a routine from the summary; the editor opens pre-filled.
     await user.click(await screen.findByRole('button', { name: 'Save as routine' }));
     expect((await screen.findByLabelText('Name')).value).toBe('Biceps');
-    expect(screen.getByRole('heading', { name: 'Barbell Curl' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Barbell curl' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Save routine' }));
 
     // It now shows under Routines on the start screen.
@@ -209,7 +209,7 @@ describe('routines in the app', () => {
     // Starting it creates a live workout with 2 empty sets and last time's numbers.
     await user.click(start);
     expect((await screen.findByLabelText('Workout name')).value).toBe('Biceps');
-    expect(screen.getByRole('heading', { name: 'Barbell Curl' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Barbell curl' })).toBeTruthy();
     expect(screen.getByLabelText('Set 1 reps').value).toBe('');
     expect(screen.getAllByText('60 × 8')).toHaveLength(2);
     expect(screen.getByLabelText('Set 2 weight').getAttribute('placeholder')).toBe('60');
@@ -228,7 +228,7 @@ describe('routines in the app', () => {
     await user.click(screen.getByRole('button', { name: 'Save routine' }));
 
     const card = (await screen.findAllByText('Leg day')).map((e) => e.closest('.routine')).find(Boolean); // a starter is also called Leg day
-    expect(within(card).getByText('Barbell Squat')).toBeTruthy();
+    expect(within(card).getByText('Back squat')).toBeTruthy();
     expect(within(card).getByText(/1 exercise · 3 sets/)).toBeTruthy();
 
     await user.click(within(card).getByRole('button', { name: 'Edit' }));
@@ -246,7 +246,7 @@ describe('routines in the app', () => {
     await saveSession(s);
     render(<App />);
     await user.click(screen.getByRole('button', { name: 'History' }));
-    await user.click(await screen.findByText('Pullups'));
+    await user.click(await screen.findByText('Pull-up'));
     await user.click(await screen.findByRole('button', { name: 'Save as routine' }));
     expect((await screen.findByLabelText('Name')).value).toBe('Pull');
     await user.click(screen.getByRole('button', { name: 'Save routine' }));

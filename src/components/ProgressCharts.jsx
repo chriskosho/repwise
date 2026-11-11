@@ -4,6 +4,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { listSessions } from '../db';
 import { kmToLong, kmToShort, longUnit, shortUnit } from '../measure';
 import { entriesFromSessions, key } from '../stats';
+import { exName } from '../library';
 
 const sum = (sets, f) => sets.reduce((a, s) => a + f(s), 0);
 const max = (sets, f) => Math.max(0, ...sets.map(f));
@@ -99,7 +100,7 @@ export default function ProgressCharts({ unit }) {
           <select value={selected} onChange={(e) => setExercise(e.target.value)}>
             {names.map((n) => (
               <option key={n} value={n}>
-                {n}
+                {exName(n)}
               </option>
             ))}
           </select>

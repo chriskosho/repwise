@@ -8,6 +8,7 @@ import { categoryGroup, imageUrls, searchExercises, youtubeUrl } from '../src/li
 import { suggestWorkout, suggestionAsRoutine } from '../src/suggest';
 import { activitySummary, typeLabel } from '../src/activities';
 import { setPrefs } from '../src/prefs';
+import { curatedStretch } from '../src/stretches';
 
 const library = lib.map(([name, muscle, equipment, category, id, level, m]) => ({ name, muscle, equipment, category, id, level, compound: m === 'c' }));
 const TODAY = '2026-11-07';
@@ -77,7 +78,7 @@ describe('suggested workouts', () => {
   it('adds cool-down stretches for the muscles worked, and shuffles', () => {
     const a = suggestWorkout({ ...base, sessions: [], options: { focus: 'legs', seed: 0 } });
     expect(a.stretches.length).toBeGreaterThan(0);
-    for (const n of a.stretches) expect(library.find((l) => l.name === n).category).toBe('stretching');
+    for (const n of a.stretches) expect(curatedStretch(n)).toBeTruthy();
     const names = (seed) => suggestWorkout({ ...base, sessions: [], options: { focus: 'legs', seed } }).exercises.map((e) => e.name).join('|');
     expect(new Set([0, 1, 2, 3].map(names)).size).toBeGreaterThan(1);
     expect(names(2)).toBe(names(2));

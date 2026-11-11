@@ -3,7 +3,7 @@ import { cleanTarget, deleteRoutine, newId, saveRoutine } from '../db';
 import ExercisePicker from './ExercisePicker';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { listCustomExercises } from '../db';
-import { useLibrary } from '../library';
+import { useLibrary, exName } from '../library';
 import { resolveMode } from '../measure';
 
 const MAX_SETS = 12;
@@ -93,7 +93,7 @@ export default function RoutineEditor({ initial, isNew, sessions, unit = 'lb', o
         return (
           <section key={ex.id} className={`card exercise${ex.link || doc.exercises[i - 1]?.link ? ' in-superset' : ''}`}>
             <div className="exercise-head">
-              <h2>{ex.name}</h2>
+              <h2>{exName(ex.name)}</h2>
               <button type="button" className="btn btn-ghost btn-small btn-danger" aria-label={`Remove ${ex.name}`} onClick={() => remove(ex.id)}>
                 Remove
               </button>

@@ -4,7 +4,7 @@ import { listCustomExercises, saveCustomExercise } from '../db';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
 import { MODES } from '../measure';
-import { CATEGORIES, EQUIPMENT, MUSCLES, equipmentLabel, historyNames, muscleLabel, searchExercises, useLibrary } from '../library';
+import { CATEGORIES, EQUIPMENT, MUSCLES, equipmentLabel, historyNames, muscleLabel, searchExercises, useLibrary, exName } from '../library';
 import { key } from '../stats';
 
 const PAGE = 60;
@@ -209,7 +209,7 @@ export default function ExercisePicker({ sessions, onAdd, onClose, initialCatego
               <div className="pick-row">
                 <button type="button" className={`pick${on ? ' on' : ''}`} aria-label={r.name} aria-pressed={on} onClick={() => toggle(r.name)}>
                   <span className="pick-main">
-                    <span>{r.name}</span>
+                    <span>{exName(r.name)}</span>
                     {sub && <span className="pick-sub">{sub}</span>}
                   </span>
                   <span className="pick-check" aria-hidden="true">

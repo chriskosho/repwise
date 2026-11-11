@@ -72,7 +72,7 @@ it('resumes a workout that was in progress after a reload', async () => {
   first.unmount(); // like closing the tab: the editor flushes on the way out
 
   render(<App />);
-  expect(await screen.findByRole('heading', { name: 'Barbell Curl' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'Barbell curl' })).toBeTruthy();
   expect((await screen.findByLabelText('Set 1 reps')).value).toBe('12');
   expect(screen.queryByRole('button', { name: 'Start workout' })).toBeNull();
 });

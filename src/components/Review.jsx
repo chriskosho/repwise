@@ -7,6 +7,7 @@ import { defaultWhich, reviewPeriod, weeklyReview } from '../review';
 import { fmtVolume } from '../stats';
 import { kmToLong, longUnit } from '../measure';
 import { weightOut } from '../units';
+import { exName } from '../library';
 
 const day = (d) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 const arrow = (n) => (n == null ? '' : n > 0 ? `▲ ${n}%` : n < 0 ? `▼ ${Math.abs(n)}%` : 'same');
@@ -72,7 +73,7 @@ export default function Review({ sessions, activities, plan, unit, weekStart = 1
           <ul className="plain">
             {r.prs.map((p, i) => (
               <li key={i}>
-                <strong>{p.name}</strong>{' '}
+                <strong>{exName(p.name)}</strong>{' '}
                 <span className="muted">
                   {p.orm ? `est. 1RM ${p.orm}` : p.weight ? `${p.weight} ${unit}` : p.reps ? `${p.reps} reps` : p.time ? `${p.time}s hold` : 'new best'} · {day(p.date)}
                 </span>

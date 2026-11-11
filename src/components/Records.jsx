@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { allRecords } from '../analytics';
 import { fmtCardioTime, fmtSeconds, paceFromMinPerKm, setDistance } from '../measure';
 import { fmtShortDate, fmtVolume, key, plural } from '../stats';
+import { exName } from '../library';
 
 const whole = (n) => Math.round(n).toLocaleString();
 
@@ -68,7 +69,7 @@ export default function Records({ sessions, unit }) {
         return (
           <div className="record" key={r.name}>
             <div className="record-head">
-              <strong>{r.name}</strong>
+              <strong>{exName(r.name)}</strong>
               <span className="muted">{plural(r.count, 'workout')}</span>
             </div>
             {tiles.length ? <div className="tiles">{tiles}</div> : <p className="muted">Nothing to rank yet.</p>}

@@ -7,6 +7,7 @@ import { useSuggestion } from '../useSuggestion';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
 import { dayLine } from './PlanCard';
+import { exName } from '../library';
 
 const longDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
 const shortDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -109,7 +110,7 @@ export default function PlanDay({ plan, workouts, todayStr, n, unit, onBack, onG
                 {suggestion.exercises.map((e) => (
                   <li key={e.name}>
                     <div>
-                      <strong>{e.name}</strong>
+                      <strong>{exName(e.name)}</strong>
                       <span className="muted">
                         {e.sets} × {e.reps}
                         {e.weight ? ` @ ${e.weight} ${unit}` : ''}

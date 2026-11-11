@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { blankSet, byNewest, deleteSession, listCustomExercises, newId, routineFromSession, saveSession, sessionOrder, toDoc } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { MODES, describeSet, fmtCardioTime, hasIncline, isLogged, kmToLong, kmToShort, longToKm, longUnit, modeOf, needsHint, resolveMode, shortToKm, shortUnit, usesRest } from '../measure';
-import { useLibrary } from '../library';
+import { useLibrary, exName } from '../library';
 import { computePRs, fmtClock, fmtNum, fmtVolume, previousSets, plural, sessionStats } from '../stats';
 import { usePrefs } from '../prefs';
 import { plateSetup, plateText } from '../plates';
@@ -426,7 +426,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
           <section key={ex.id} className={`card exercise${inChain ? ' in-superset' : ''}`}>
             <div className="exercise-head">
               <div>
-                <h2>{ex.name}</h2>
+                <h2>{exName(ex.name)}</h2>
                 {inChain && <span className="badge">Superset</span>}
               </div>
               <button type="button" className="icon-btn" aria-label={`How to: ${ex.name}`} onClick={() => setInfo(ex.name)}>

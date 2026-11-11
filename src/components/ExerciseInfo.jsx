@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { curatedStretch } from '../stretches';
-import { equipmentLabel, findExercise, imageUrls, loadHowTo, muscleLabel, useLibrary, youtubeUrl } from '../library';
+import { equipmentLabel, findExercise, imageUrls, loadHowTo, muscleLabel, useLibrary, youtubeUrl, exName } from '../library';
 
 // Pictures for an exercise: the start and end positions, swapped back and forth.
 function Pictures({ id, name }) {
@@ -53,21 +53,22 @@ export default function ExerciseInfo({ name, onClose }) {
   return (
     <div className="sheet" role="dialog" aria-modal="true" aria-label={`How to: ${name}`}>
       <div className="sheet-head">
-        <h2 className="sheet-title">{name}</h2>
+        <h2 className="sheet-title">{exName(name)}</h2>
         <button type="button" className="btn btn-ghost" onClick={onClose}>
           Close
         </button>
       </div>
       <div className="sheet-list ex-info">
+        {exName(name) !== name && <p className="muted small">{name}</p>}
         {tags.length > 0 && <p className="muted">{tags.join(' · ')}</p>}
         {cur && <p className="ex-cue">{cur.cue} Hold {cur.hold} seconds{cur.sides ? ' each side' : ''}.</p>}
         {entry && <Pictures id={entry.id} name={name} />}
         <div className="ex-links">
-          <a className="btn" href={youtubeUrl(name, { stretch })} target="_blank" rel="noopener noreferrer">
+          <a className="btn" href={youtubeUrl(exName(name), { stretch })} target="_blank" rel="noopener noreferrer">
             Watch on YouTube
           </a>
         </div>
-        <p className="muted small">Opens a YouTube search for “{name}”.</p>
+        <p className="muted small">Opens a YouTube search for “{exName(name)}”.</p>
         {steps && steps.length > 0 && (
           <>
             <h3>How to do it</h3>

@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import { key } from './stats';
+import { coreExercise } from './coreExercises';
+
+// The everyday name to show for an exercise. Stored names never change (history, records and
+// goals match on them); familiar exercises just get a shorter label on screen.
+export const exName = (name) => coreExercise(name)?.display ?? name;
 
 // The exercise library: 876 exercises from free-exercise-db (public domain),
 // loaded on demand so it isn't part of the first download.
@@ -144,7 +149,7 @@ export function searchExercises({ library = [], custom = [], history = [], query
     if (!k || seen.has(k)) return;
     seen.add(k);
     const m = meta.get(k) ?? {};
-    all.push({ name, key: k, mine, muscle: m.muscle ?? '', equipment: m.equipment ?? '', category: m.category ?? '' });
+    all.push({ name, key: k, dkey: key(exName(name)), mine, muscle: m.muscle ?? '', equipment: m.equipment ?? '', category: m.category ?? '' });
   };
   custom.forEach((c) => add(c.name, true));
   history.forEach((n) => add(n, true));
@@ -152,15 +157,16 @@ export function searchExercises({ library = [], custom = [], history = [], query
 
   const terms = key(query).split(' ').filter(Boolean);
   const q = terms.join(' ');
-  const tier = (e) => {
-    if (!terms.length) return 0;
-    if (e.key === q) return 0;
-    if (e.key.startsWith(q)) return 1;
-    const words = e.key.split(/[\s/\-(),]+/);
+  const tierOf = (k) => {
+    if (k === q) return 0;
+    if (k.startsWith(q)) return 1;
+    const words = k.split(/[\s/\-(),]+/);
     if (terms.every((t) => words.some((w) => w.startsWith(t)))) return 2;
-    if (terms.every((t) => e.key.includes(t))) return 3;
+    if (terms.every((t) => k.includes(t))) return 3;
     return 4;
   };
+  // Best match on either the stored name or the everyday one ("bench press" finds the barbell bench press).
+  const tier = (e) => (terms.length ? Math.min(tierOf(e.key), tierOf(e.dkey)) : 0);
 
   const rows = [];
   for (const e of all) {
@@ -169,7 +175,7 @@ export function searchExercises({ library = [], custom = [], history = [], query
     if (category && categoryGroup(e.category) !== category) continue;
     let t = 0;
     if (terms.length) {
-      const hay = `${e.key} ${key(equipmentLabel(e.equipment))} ${key(muscleLabel(e.muscle))}`;
+      const hay = `${e.key} ${e.dkey} ${key(equipmentLabel(e.equipment))} ${key(muscleLabel(e.muscle))}`;
       if (!terms.every((x) => hay.includes(x))) continue;
       t = tier(e);
     }

@@ -12,7 +12,7 @@ const longDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undef
 // The options the Suggest screen uses for a plan day. Both places must agree, so the workout
 // you start straight from home is the same one "Preview or change" shows.
 export function planPreset(plan, day, seed = 0) {
-  return { minutes: day.m, gear: plan.gear ?? 'gym', focus: day.f ?? 'auto', seed, feeling: 'auto', style: STYLE_FOR_GOAL[plan.goal] ?? '', ease: !!day.ease, boost: plan.boost ?? 0 };
+  return { minutes: day.m, gear: plan.gear ?? 'gym', focus: day.f ?? 'auto', seed, feeling: 'auto', style: STYLE_FOR_GOAL[plan.goal] ?? '', ease: !!day.ease, boost: plan.boost ?? 0, level: plan.level ?? '' };
 }
 
 // What the big button does right now. Pure, so every case is easy to test.

@@ -22,7 +22,7 @@ it('lists personal records and filters them', async () => {
   const user = userEvent.setup();
   render(<Progress unit="lb" />);
   await user.click(await screen.findByRole('tab', { name: 'Records' }));
-  expect(await screen.findByText('Barbell Squat')).toBeTruthy();
+  expect(await screen.findByText('Back squat')).toBeTruthy();
   expect(screen.getByText('Overhead Press')).toBeTruthy();
   expect(screen.getAllByText('120 lb').length).toBeGreaterThan(0); // heaviest (and est. 1RM)
   expect(screen.getByText(/^× 1 · /)).toBeTruthy();

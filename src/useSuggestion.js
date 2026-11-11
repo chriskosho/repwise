@@ -28,8 +28,8 @@ export function useSuggestion(unit, options) {
       latestKg,
       unit,
       weekStart: profile?.week_start ?? 1,
-      options: { ...options, interests: profile?.onboarding?.interests ?? [] },
+      options: { level: profile?.plan?.level ?? profile?.onboarding?.level ?? '', ...options, interests: profile?.onboarding?.interests ?? [] },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [library, custom, sessions, activities, workouts, goals, latestKg, unit, profile?.week_start, profile?.onboarding, optKey]);
+  }, [library, custom, sessions, activities, workouts, goals, latestKg, unit, profile?.week_start, profile?.onboarding, profile?.plan?.level, optKey]);
 }

@@ -2,6 +2,23 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.10',
+    date: '2026-11-11',
+    title: 'Suggested workouts you’d actually do',
+    highlights: [
+      'Suggested and planned workouts are now built from about 100 familiar exercises: a squat or press first, then the smaller moves.',
+      'Exercises show everyday names, like “Bench press” instead of “Barbell Bench Press - Medium Grip”.',
+      'Cool-down stretches come from Repwise’s own stretch list, matched to what you trained.',
+    ],
+    items: [
+      'Workouts stick to your equipment and focus: no pull-up bar moves at home, no pulling moves on push day.',
+      'Beginners aren’t given pull-ups, chin-ups or tricky single-leg moves.',
+      'Every lifting day opens with two big compound lifts. Your lift goals still come first, and your own exercises can still appear.',
+      'With no equipment, a back day becomes a full-body session, since there’s little to pull with.',
+      'Search finds exercises by their everyday name too. Your history, records and goals are unchanged.',
+    ],
+  },
+  {
     id: '2.9',
     date: '2026-11-10',
     title: 'Even spacing everywhere, one video button',

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLibrary, findExercise, muscleLabel } from '../library';
+import { useLibrary, findExercise, muscleLabel, exName } from '../library';
 import { workSets, plural } from '../stats';
 import { fmtSeconds } from '../measure';
 import ExerciseInfo from './ExerciseInfo';
@@ -68,7 +68,7 @@ export default function RoutinePreview({ routine, unit = 'lb', sessions, primary
             return (
               <li key={e.id ?? e.name}>
                 <div>
-                  <strong>{e.name}</strong>
+                  <strong>{exName(e.name)}</strong>
                   <span className="muted">
                     {targetLine(e)}
                     {e.notes ? ` · ${e.notes}` : ''}

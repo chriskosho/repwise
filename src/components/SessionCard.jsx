@@ -1,5 +1,6 @@
 import { doneSets, fmtDayDate, fmtDuration, fmtVolume, plural, sessionStats, summarizeSets, workSets } from '../stats';
 import { fmtCardioTime, kmToLong, longUnit, modeOf } from '../measure';
+import { exName } from '../library';
 
 // One workout in a list. `showDate` is off when the list already groups by date.
 export default function SessionCard({ session, unit, onOpen, showDate = true, placeName }) {
@@ -26,7 +27,7 @@ export default function SessionCard({ session, unit, onOpen, showDate = true, pl
           const warm = doneSets(ex).length - sets.length;
           return (
             <li key={ex.id}>
-              <span className="ex-name">{ex.name}</span>
+              <span className="ex-name">{exName(ex.name)}</span>
               <span className="muted">{sets.length ? summarizeSets(sets, unit, modeOf(ex), ex.name) : warm ? `${warm} warm-up` : '—'}</span>
             </li>
           );

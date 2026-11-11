@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { listRoutines, sessionFromRoutine } from '../db';
 import { key } from '../stats';
 import { plural } from '../stats';
+import { exName } from '../library';
 
 // Add the exercises from a saved routine to the workout you are in. Pick a routine, untick
 // anything you do not want, and they are added with the routine's sets and targets.
@@ -57,7 +58,7 @@ export default function RoutinePicker({ existing = [], onAdd, onClose }) {
                     <label className="check-row">
                       <input type="checkbox" checked={ticked.includes(e.id)} onChange={() => toggle(e.id)} aria-label={e.name} />
                       <span>
-                        {e.name}
+                        {exName(e.name)}
                         {dup && <span className="muted"> · already added</span>}
                       </span>
                     </label>

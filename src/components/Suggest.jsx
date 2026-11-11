@@ -5,6 +5,7 @@ import { FEELING, FOCUS, GEAR, TIMES, coolDownNote, suggestionAsRoutine } from '
 import { typeLabel } from '../activities';
 import ExerciseInfo from './ExerciseInfo';
 import { InfoIcon } from './Icons';
+import { exName } from '../library';
 
 // "I don't know what to do today": a workout built from your goals and what you've trained lately.
 export default function Suggest({ unit, preset = null, onClose, onStarted, onLogActivity, onStretch, onSaveRoutine }) {
@@ -108,7 +109,7 @@ export default function Suggest({ unit, preset = null, onClose, onStarted, onLog
               {plan.exercises.map((e) => (
                 <li key={e.name}>
                   <div>
-                    <strong>{e.name}</strong>
+                    <strong>{exName(e.name)}</strong>
                     <span className="muted">
                       {e.sets} × {e.reps}
                       {e.weight ? ` @ ${e.weight} ${unit}` : ''}

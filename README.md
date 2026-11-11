@@ -190,3 +190,6 @@ The Food tab (`src/components/Food.jsx`, `FoodComposer.jsx`) is a simple running
 
 ## 2.8 Design pass
 Shared tokens in `src/styles.css` (`--sp-*` spacing, `--r-ctl`/`--r-card` corners, `--ctl`/`--ctl-sm` control heights). Use them for new UI instead of one-off values.
+
+## 2.10 Core exercises
+`src/coreExercises.js` lists about 100 familiar library exercises, each tagged with a movement slot, muscle, equipment and minimum level, plus a short display name. `suggestWorkout` fills slot templates per focus from this list (gear, level and focus enforced) and only falls back to beginner-level library exercises when a slot cannot be filled. `exName()` in `src/library.js` turns a stored name into the display name; stored names never change, so history, records and goals keep matching.

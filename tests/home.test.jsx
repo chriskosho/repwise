@@ -57,7 +57,7 @@ describe('home screen', () => {
     render(<App />);
     expect(await screen.findByText(/^Last time: Arms/, {}, { timeout: 4000 })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Repeat Arms' }));
-    expect(await screen.findByRole('heading', { name: 'Barbell Curl' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Barbell curl' })).toBeTruthy();
     expect((await listSessions()).filter((x) => !x.ended_at)).toHaveLength(1);
   });
   it('Log opens one sheet with every kind of log', async () => {

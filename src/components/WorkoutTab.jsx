@@ -17,7 +17,7 @@ import { typeLabel } from '../activities';
 import { fmtDuration, fmtVolume, plural } from '../stats';
 import { fmtCardioTime, fmtSeconds, kmToLong, longUnit, paceFromMinPerKm } from '../measure';
 import { useWorkouts } from '../workouts';
-import { useLibrary } from '../library';
+import { useLibrary, exName } from '../library';
 import { regionLabel, workoutPlan } from '../stretches';
 import WorkoutEditor from './WorkoutEditor';
 import PlanCard from './PlanCard';
@@ -74,7 +74,7 @@ function Summary({ info, unit, onDone, onSaveRoutine, onStretch }) {
           <ul className="pr-list">
             {prs.map((p) => (
               <li key={p.name}>
-                <strong>{p.name}</strong>
+                <strong>{exName(p.name)}</strong>
                 <span className="muted">
                   {[
                     p.weight && `Heaviest ${p.weight} ${unit}`,
@@ -155,7 +155,7 @@ function RoutineCard({ routine, onStart, onEdit, onPreview }) {
             {plural(routine.exercises.length, 'exercise')} · {plural(sets, 'set')}
           </span>
         </span>
-        <span className="routine-list">{routine.exercises.map((e) => e.name).join(' · ')}</span>
+        <span className="routine-list">{routine.exercises.map((e) => exName(e.name)).join(' · ')}</span>
       </button>
       <div className="routine-actions">
         <button type="button" className="btn btn-small" onClick={() => onStart(routine)}>

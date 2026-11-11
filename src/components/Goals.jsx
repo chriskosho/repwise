@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { deleteGoal, saveGoal } from '../db';
 import { GOAL_TYPES, bestForExercise, goalStatus } from '../goals';
-import { historyNames } from '../library';
+import { historyNames, exName } from '../library';
 import { weightIn, weightOut } from '../units';
 import { ACTIVITY_TYPES, distUnit, distanceIn, distanceOut, fmtMinutes, typeLabel } from '../activities';
 
@@ -25,7 +25,7 @@ function describe(goal, status, unit) {
   }
   const what = goal.metric === 'e1rm' ? 'estimated 1RM' : 'top weight';
   const now = status.current != null ? `best so far ${Math.round(status.current * 10) / 10}` : 'not logged yet';
-  return `${goal.exercise} ${what} of ${goal.target} ${unit}: ${now}`;
+  return `${exName(goal.exercise)} ${what} of ${goal.target} ${unit}: ${now}`;
 }
 
 function GoalCard({ goal, status, unit }) {
