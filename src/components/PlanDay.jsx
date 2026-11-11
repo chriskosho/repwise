@@ -56,7 +56,7 @@ export default function PlanDay({ plan, workouts, todayStr, n, unit, onBack, onG
     onStart({ ...day }, seed);
   };
 
-  const state = day.done ? 'Done ✓' : isToday ? 'Today' : past && isWorkoutDay(day) && !day.mv ? 'Not done' : day.mv ? 'Moved' : future ? 'Coming up' : '';
+  const state = day.done ? 'Done' : isToday ? 'Today' : past && isWorkoutDay(day) && !day.mv ? 'Not done' : day.mv ? 'Moved' : future ? 'Coming up' : '';
 
   return (
     <div>
@@ -83,7 +83,7 @@ export default function PlanDay({ plan, workouts, todayStr, n, unit, onBack, onG
 
       {day.done && (
         <section className="card">
-          <h3>You trained this day ✓</h3>
+          <h3>You trained this day</h3>
           <ul className="plain">
             {done.map((w) => (
               <li key={w.id}>

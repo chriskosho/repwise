@@ -201,7 +201,7 @@ describe('one-tap activity log', () => {
     await user.click(within(hero).getByRole('button', { name: 'Log walk · 30 min' }));
     await waitFor(async () => expect((await listActivities()).map((a) => [a.type, a.duration_min, a.date])).toEqual([['walk', 30, t]]));
     expect(await within(hero).findByText(/Walk · 30 min logged/)).toBeTruthy();
-    expect(within(hero).getByRole('heading', { name: 'Today: done ✓' })).toBeTruthy();
+    expect(within(hero).getByRole('heading', { name: 'Today: done' })).toBeTruthy();
     await user.click(within(hero).getByRole('button', { name: 'Add details' }));
     expect(await screen.findByRole('button', { name: /Save activity|Save changes/ })).toBeTruthy();
   });

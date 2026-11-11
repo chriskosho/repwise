@@ -50,6 +50,13 @@ function readUnit() {
   }
 }
 
+// Quiet unless something needs a look: an error, or changes waiting while offline.
+function syncTone(sync, online) {
+  if (sync.enabled && sync.session && sync.status === 'error') return 'error';
+  if (sync.enabled && sync.session && (!online || sync.status === 'offline') && sync.pending > 0) return 'warn';
+  return sync.enabled && sync.session ? 'ok' : 'idle';
+}
+
 function statusLabel(sync, online) {
   if (!sync.enabled || !sync.session) return 'Local only';
   if (!online) return sync.pending > 0 ? `Offline · ${sync.pending} pending` : 'Offline';
@@ -85,7 +92,7 @@ export default function App() {
   const count = useLiveQuery(
     () => db.sessions.filter((s) => !s.deleted_at && s.ended_at && s.exercises.length > 0).count(),
     [],
-    0,
+    undefined, // still loading: never treat a returning user as new
   );
 
   // The unit lives in your profile (so it follows you between devices); a copy in
@@ -208,13 +215,13 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1 className="brand">
+        <div className="brand">
           <Logo />
           <span>Repwise</span>
-        </h1>
+        </div>
         <button
           type="button"
-          className={`chip chip-${sync.status === 'error' ? 'error' : sync.session ? 'ok' : 'idle'}`}
+          className={`chip chip-${syncTone(sync, online)}`}
           onClick={() => goTab('settings')}
           title={sync.error || undefined}
         >
@@ -412,6 +419,7 @@ export default function App() {
                 routinesOpen={routinesOpen}
                 onRoutinesOpen={setRoutinesOpen}
               />}
+            {tab !== 'workout' && <h1 className="page-title">{tab === 'food' ? foodLabel : TABS.find((t) => t[0] === tab)[1]}</h1>}
             {tab === 'history' && (
               <History
                 unit={unit}

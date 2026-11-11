@@ -5,6 +5,7 @@ import { coolDownNote, suggestionAsRoutine } from '../suggest';
 import { useSuggestion } from '../useSuggestion';
 import { typeLabel } from '../activities';
 import { dayLine } from './PlanCard';
+import { DayIcon, dayKind } from './Icons';
 
 const dowName = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
 const longDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -109,7 +110,7 @@ export default function TodayCard({ unit, plan, workouts, sessions, routines, to
       );
       break;
     case 'done':
-      status = 'Today: done ✓';
+      status = 'Today: done';
       if (logged)
         alt = (
           <p className="today-logged">
@@ -199,8 +200,7 @@ export default function TodayCard({ unit, plan, workouts, sessions, routines, to
               .filter((d) => d.week === progress.week)
               .map((d) => {
                 const rest = d.k === 'r' || d.mv;
-                const mark = d.done ? '✓' : rest ? '–' : d.k === 'c' ? '♥' : d.k === 'a' ? '○' : '●';
-                return (
+                                return (
                   <li key={d.n}>
                     <button
                       type="button"
@@ -209,7 +209,7 @@ export default function TodayCard({ unit, plan, workouts, sessions, routines, to
                       onClick={() => onViewDay(d.n)}
                     >
                       <span>{dowName(d.date).slice(0, 3)}</span>
-                      <strong>{mark}</strong>
+                      <strong><DayIcon kind={dayKind(d, rest)} /></strong>
                     </button>
                   </li>
                 );

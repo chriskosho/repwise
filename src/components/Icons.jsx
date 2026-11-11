@@ -56,3 +56,38 @@ export const FoodIcon = () => (
     <path d="M7 3v8a2 2 0 0 0 2 2v8M7 3v5M11 3v5a2 2 0 0 1-2 2M17 21V3c-2.2 1.2-3 4-3 7 0 1.6 1.2 3 3 3" />
   </svg>
 );
+
+// Week-strip day marks: one icon set (same stroke as the tab bar), colour carries the state.
+const mark = { ...base, width: 18, height: 18 };
+export const DayIcon = ({ kind }) => {
+  if (kind === 'done')
+    return (
+      <svg {...mark}>
+        <path d="M5 12.5l4.5 4.5L19 7.5" />
+      </svg>
+    );
+  if (kind === 'rest')
+    return (
+      <svg {...mark}>
+        <path d="M18.5 14.5A7 7 0 0 1 9.5 5.5a7 7 0 1 0 9 9z" />
+      </svg>
+    );
+  if (kind === 'cardio')
+    return (
+      <svg {...mark}>
+        <path d="M3 12h4l2-5 4 10 2-5h6" />
+      </svg>
+    );
+  if (kind === 'activity')
+    return (
+      <svg {...mark}>
+        <circle cx="12" cy="12" r="6.5" />
+      </svg>
+    );
+  return (
+    <svg {...mark}>
+      <path d="M3 10v4M6.5 7.5v9M17.5 7.5v9M21 10v4M6.5 12h11" />
+    </svg>
+  );
+};
+export const dayKind = (d, rest) => (d.done ? 'done' : rest ? 'rest' : d.k === 'c' ? 'cardio' : d.k === 'a' ? 'activity' : 'lift');

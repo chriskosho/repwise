@@ -46,7 +46,7 @@ function Summary({ info, unit, onDone, onSaveRoutine, onStretch, sessions = [], 
   const plan = library ? workoutPlan(session, library) : null;
   return (
     <div className="card">
-      <h2>Workout complete</h2>
+      <h1 className="page-title">Workout complete</h1>
       <p className="muted">{session.name}</p>
       <div className="stats">
         <div>
@@ -220,7 +220,7 @@ function RoutinesScreen({ routines, onBack, onStart, onEdit, onNew, onPreview, o
         <button type="button" className="btn btn-ghost btn-small back" onClick={onBack}>
           ← Back
         </button>
-        <h2>Routines</h2>
+        <h1 className="page-title">Routines</h1>
         <p className="muted">Save a workout you repeat and start it with one tap.</p>
         <button type="button" className="btn btn-block" onClick={onNew}>
           + New routine
@@ -356,6 +356,7 @@ export default function WorkoutTab({ unit, name, weekStart = 1, onOpenSession, o
 
   return (
     <div>
+      <h1 className="page-title">Workout</h1>
       {showReview && (
         <ReviewCard
           workouts={workouts}

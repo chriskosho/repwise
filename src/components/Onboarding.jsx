@@ -122,7 +122,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
     return (
       <div className="onboarding">
         <div className="card">
-          <h2>You're all set{name ? `, ${name}` : ''}</h2>
+          <h1 className="page-title">You're all set{name ? `, ${name}` : ''}</h1>
           <p className="muted">Your plan starts {startOn === 'today' ? 'today' : startOn === 'tomorrow' ? 'tomorrow' : 'next Monday'}.</p>
           <p>Want a 30-second walk through the app? Repwise will point at each part and show you what it does.</p>
           <div className="actions">
@@ -143,17 +143,11 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
 
   return (
     <div className="onboarding">
-      <div className="onboarding-head">
-        <p className="muted tour-step">{mode === 'first' ? `Step ${idx + 1} of ${shown}` : `New plan · step ${idx + 1} of ${shown}`}</p>
-        <div className="progress-bar" aria-hidden="true">
-          <span style={{ width: `${((idx + 1) / shown) * 100}%` }} />
-        </div>
-      </div>
-
       <section className="card form">
+        <p className="muted tour-step">{mode === 'first' ? `Step ${idx + 1} of ${shown}` : `New plan · step ${idx + 1} of ${shown}`}</p>
         {step === 'welcome' && (
           <>
-            <h2>Welcome to Repwise</h2>
+            <h1 className="page-title">Welcome to Repwise</h1>
             <p>A few quick questions and Repwise builds you a starter plan: what to do each day, how hard, and when to rest. It takes about a minute.</p>
             <label className="field">
               <span>What should we call you?</span>
@@ -171,7 +165,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
 
         {step === 'goal' && q === 0 && (
           <>
-            <h2>What would make the biggest difference for you?</h2>
+            <h1 className="page-title">What would make the biggest difference for you?</h1>
             <div className="choices">
               {WANTS.map(([k, label, text]) => (
                 <Choice key={k} selected={want === k} title={label} text={text} onClick={() => answer(setWant, k)} />
@@ -181,7 +175,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
         )}
         {step === 'goal' && q === 1 && (
           <>
-            <h2>How much have you worked out before?</h2>
+            <h1 className="page-title">How much have you worked out before?</h1>
             <div className="choices">
               {LEVELS.map(([k, label]) => (
                 <Choice key={k} selected={level === k} title={LEVEL_TEXT[k]} text={label} onClick={() => answerLevel(k)} />
@@ -191,7 +185,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
         )}
         {step === 'goal' && q === 2 && (
           <>
-            <h2>Do you like cardio, like walking, running or cycling?</h2>
+            <h1 className="page-title">Do you like cardio, like walking, running or cycling?</h1>
             <div className="choices">
               {CARDIO_LIKES.map(([k, label]) => (
                 <Choice key={k} selected={cardioLike === k} title={label} onClick={() => answer(setCardioLike, k)} />
@@ -201,7 +195,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
         )}
         {step === 'goal' && q === 3 && (
           <>
-            <h2>Your goal: {goalLabel(goal)}</h2>
+            <h1 className="page-title">Your goal: {goalLabel(goal)}</h1>
             {suggestion && suggestion.goal === goal && <p className="goal-reason">{suggestion.reason}</p>}
             {!changing ? (
               <button type="button" className="btn btn-link goal-change" onClick={() => setChanging(true)}>
@@ -219,7 +213,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
 
         {step === 'when' && (
           <>
-            <h2>When can you work out?</h2>
+            <h1 className="page-title">When can you work out?</h1>
             <p className="muted">Be realistic. A plan you can keep beats a perfect one you can't.</p>
             <div className="field">
               <span id="dpw">Workouts per week</span>
@@ -278,7 +272,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
 
         {step === 'gear' && (
           <>
-            <h2>What do you have to train with?</h2>
+            <h1 className="page-title">What do you have to train with?</h1>
             <div className="choices">
               {GEAR.map(([k, label]) => (
                 <Choice
@@ -297,7 +291,7 @@ export default function Onboarding({ unit, setUnit, name: startName = '', saved 
 
         {step === 'review' && plan && (
           <>
-            <h2>Your plan</h2>
+            <h1 className="page-title">Your plan</h1>
             <p>
               {goalLabel(goal)} · {Math.min(perWeek, days.length || 7)} workouts a week, about {minutes} minutes each
               {time && time !== 'any' ? `, planned for the ${time}` : ''}. Here is your first week:

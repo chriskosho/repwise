@@ -648,10 +648,10 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
       })}
 
       <div className="add-row">
-        <button type="button" className="btn btn-block" onClick={() => setPicker(true)}>
+        <button type="button" className="btn btn-ghost btn-block" onClick={() => setPicker(true)}>
           + Add exercise
         </button>
-        <button type="button" className="btn btn-block" onClick={() => setRoutinePicker(true)}>
+        <button type="button" className="btn btn-ghost btn-block" onClick={() => setRoutinePicker(true)}>
           + Add routine
         </button>
       </div>

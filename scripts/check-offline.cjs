@@ -84,7 +84,7 @@ const check = (name, ok, extra = '') => { results.push(ok); console.log(`${ok ? 
   await page.reload();
   await page.getByRole('region', { name: 'Today' }).waitFor({ timeout: 10000 });
   await page.getByRole('button', { name: 'History' }).click();
-  const saved = await page.getByText(name).first().waitFor({ timeout: 8000 }).then(() => true, () => false);
+  const saved = await page.getByText(/1 × 8 @ 135 lb/).first().waitFor({ timeout: 8000 }).then(() => true, () => false);
   check('saved workout is still there after an offline reload', saved);
 
   // Back online: still fine.

@@ -1,5 +1,6 @@
 import { continuePlan, dayTitle, isWorkoutDay, phaseOf, planNote, planProgress } from '../plan';
 import { typeLabel } from '../activities';
+import { DayIcon, dayKind } from './Icons';
 
 const dowName = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
 const shortDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -94,8 +95,7 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
           .filter((d) => d.week === p.week)
           .map((d) => {
             const rest = d.k === 'r' || d.mv;
-            const mark = d.done ? '✓' : rest ? '–' : d.k === 'c' ? '♥' : d.k === 'a' ? '○' : '●';
-            return (
+                        return (
               <li key={d.n}>
                 <button
                   type="button"
@@ -104,7 +104,7 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
                   onClick={() => onViewDay(d.n)}
                 >
                   <span>{dowName(d.date).slice(0, 3)}</span>
-                  <strong>{mark}</strong>
+                  <strong><DayIcon kind={dayKind(d, rest)} /></strong>
                 </button>
               </li>
             );
@@ -118,7 +118,7 @@ export default function PlanCard({ plan, workouts, todayStr, onDo, onViewPlan, o
       )}
 
       {t.done && isWorkoutDay(t) ? (
-        <h3>Today: done ✓ Nice work.</h3>
+        <h3>Today: done Nice work.</h3>
       ) : (
         <>
           <h3>Today: {t.mv ? 'Rest day' : dayLine(t)}</h3>
@@ -217,7 +217,7 @@ export function PlanView({ plan, workouts, todayStr, onClose, onNewPlan, onEndPl
                       {d.adj ? ` · ${d.adj}` : ''}
                     </span>
                     <span className="plan-state">
-                      {state === 'done' ? '✓' : state === 'today' ? 'Today' : state === 'missed' ? 'Not done' : state === 'moved' ? 'Moved' : ''}
+                      {state === 'done' ? <span role="img" aria-label="Done"><DayIcon kind="done" /></span> : state === 'today' ? 'Today' : state === 'missed' ? 'Not done' : state === 'moved' ? 'Moved' : ''}
                       <span aria-hidden="true"> ›</span>
                     </span>
                   </button>

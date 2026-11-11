@@ -199,3 +199,6 @@ Shared tokens in `src/styles.css` (`--sp-*` spacing, `--r-ctl`/`--r-card` corner
 
 ## 2.12 Guidance
 `progressHint()` in `src/suggest.js` turns `suggestWeight` into one line per weighted exercise in the workout editor. Onboarding is five steps (`suggestGoal()` in `src/plan.js` maps three plain answers to a goal with a reason). `nextWeekAdvice()` in `src/review.js` gives one rule-based suggestion: low days, long streak, stalled lift, or a neglected muscle group.
+
+## 2.13 Polish
+Type scale tokens `--fs-title`, `--fs-head`, `--fs-body`, `--fs-note` in `src/styles.css` (display numbers such as timers are the only exceptions). Every screen renders one `h1.page-title`; the header brand is not a heading. Week-strip marks come from `DayIcon`/`dayKind` in `src/components/Icons.jsx`. The header sync pill (`.topbar .chip`) is small and quiet; `syncTone()` in `src/App.jsx` makes it `chip-error` or `chip-warn` only when something needs attention. `App` leaves the first-run check undecided (`count === undefined`) until workouts have loaded.

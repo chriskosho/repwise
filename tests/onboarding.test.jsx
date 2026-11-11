@@ -187,7 +187,7 @@ describe('plan card', () => {
   });
   it('celebrates today\'s workout once done and summarizes a finished plan', async () => {
     show(start, [{ date: start }]);
-    expect(screen.getByText(/done ✓/)).toBeTruthy();
+    expect(screen.getByText(/Today: done/)).toBeTruthy();
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('1');
     cleanup();
     show('2027-01-30', [{ date: start }]);
@@ -198,7 +198,7 @@ describe('plan card', () => {
     render(<PlanView plan={plan} workouts={[{ date: start }]} todayStr="2026-11-11" onClose={() => {}} onNewPlan={() => {}} onEndPlan={() => {}} />);
     expect(screen.getAllByRole('listitem').length).toBe(21);
     expect(screen.getByText('Week 3: Build momentum')).toBeTruthy();
-    expect(within(screen.getAllByRole('listitem')[0]).getByText('✓')).toBeTruthy();
+    expect(within(screen.getAllByRole('listitem')[0]).getByRole('img', { name: 'Done' })).toBeTruthy();
   });
 });
 

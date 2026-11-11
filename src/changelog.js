@@ -2,6 +2,21 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.13',
+    date: '2026-11-11',
+    title: 'A calmer, more consistent look',
+    highlights: [
+      'Every screen now has one clear title, and text follows one simple size scale.',
+      'In the workout screen, Done is the only filled button; the add buttons are outlined.',
+      'The week strip uses one set of icons, and the sync status stays small unless something needs attention.',
+    ],
+    items: [
+      'Onboarding no longer has a separate progress bar; the step number sits at the top of the card.',
+      'The sync status turns into a full-size amber or red pill only when changes are waiting offline or sync fails.',
+      'Fixed: someone who used Repwise before the welcome flow existed could be shown it again while their data loaded.',
+    ],
+  },
+  {
     id: '2.12',
     date: '2026-11-11',
     title: 'Guidance while you lift, and a quicker start',

@@ -103,7 +103,6 @@ export default function Body({ unit }) {
   return (
     <div>
       <section className="card">
-        <h2>Body</h2>
         <form className="form" onSubmit={save}>
           <label className="field">
             <span>Date</span>
