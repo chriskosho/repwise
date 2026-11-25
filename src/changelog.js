@@ -2,6 +2,13 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.13.1',
+    date: '2026-11-24',
+    title: 'Activities show up in History',
+    highlights: ['Walks, runs and other activities now appear in History on the right day, even when you had no gym workout that day.'],
+    items: ['Fixed: a day with only an activity was listed after all of your gym days, so it was easy to miss behind “Show more”.'],
+  },
+  {
     id: '2.13',
     date: '2026-11-11',
     title: 'A calmer, more consistent look',

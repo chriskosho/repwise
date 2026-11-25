@@ -39,7 +39,8 @@ export default function History({ unit, onOpen, onOpenActivity }) {
       if (!byDate.has(s.date)) byDate.set(s.date, []);
       byDate.get(s.date).push(s);
     }
-    return [...byDate.entries()];
+    // Gym days and activity-only days interleave: newest day first.
+    return [...byDate.entries()].sort((x, y) => y[0].localeCompare(x[0]));
   }, [sessions, activities, places, query, from, to]);
 
   if (!all) return <p className="muted">Loading…</p>;
