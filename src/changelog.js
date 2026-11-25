@@ -2,6 +2,16 @@
 // someone opens a new version; `items` is the fuller list shown in Settings.
 export const RELEASES = [
   {
+    id: '2.14',
+    date: '2026-11-24',
+    title: 'Seconds when you log time',
+    highlights: [
+      'Activities now take hours, minutes and seconds, and show them: “12 min 30 s”.',
+      'Cardio sets in a workout accept minutes and seconds, like 12:30. Plain minutes still work.',
+    ],
+    items: ['Whole-minute times look the same as before. Timed holds like planks were already logged in seconds.'],
+  },
+  {
     id: '2.13.1',
     date: '2026-11-24',
     title: 'Activities show up in History',

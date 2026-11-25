@@ -64,6 +64,20 @@ export function distIn(v, type, unit) {
 }
 
 // ---- formatting ----
+// Durations are stored as minutes and may carry seconds (12.5 = 12 min 30 s).
+export const toSeconds = (min) => Math.round((Number(min) || 0) * 60);
+export const fromSeconds = (sec) => Math.round((Number(sec) / 60) * 1e6) / 1e6;
+
+// One activity's length with seconds when it has them: "45 min", "12 min 30 s", "1 h 2 min 5 s".
+export function fmtDuration(min) {
+  const t = toSeconds(min);
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = t % 60;
+  const parts = [h && `${h} h`, m && `${m} min`, s && `${s} s`].filter(Boolean);
+  return parts.length ? parts.join(' ') : '0 min';
+}
+
 export function fmtMinutes(min) {
   const m = Math.round(Number(min) || 0);
   if (m < 60) return `${m} min`;
@@ -105,7 +119,7 @@ export function activityTitle(a) {
 
 // One line for a list: "45 min · 5.2 mi · 8:41 /mi · 5% incline · ↑ 320 ft · 142 bpm".
 export function activitySummary(a, unit) {
-  const parts = [fmtMinutes(a.duration_min)];
+  const parts = [fmtDuration(a.duration_min)];
   const d = distOut(a.distance_km, a.type, unit);
   if (d > 0) parts.push(`${d} ${distLabel(a.type, unit)}`);
   const p = paceText(a, unit);

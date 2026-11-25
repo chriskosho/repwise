@@ -3,7 +3,7 @@ import { newActivity, routineFromSession, saveActivity, saveProfile, saveSession
 import { STYLE_FOR_GOAL, ackWelcome, dayTitle, isWorkoutDay, planNote, planProgress, resumePlan, welcomeBack } from '../plan';
 import { coolDownNote, suggestionAsRoutine } from '../suggest';
 import { useSuggestion } from '../useSuggestion';
-import { typeLabel } from '../activities';
+import { fmtDuration, typeLabel } from '../activities';
 import { dayLine } from './PlanCard';
 import { DayIcon, dayKind } from './Icons';
 
@@ -114,7 +114,7 @@ export default function TodayCard({ unit, plan, workouts, sessions, routines, to
       if (logged)
         alt = (
           <p className="today-logged">
-            {typeLabel(logged.type)} · {logged.duration_min} min logged.{' '}
+            {typeLabel(logged.type)} · {fmtDuration(logged.duration_min)} logged.{' '}
             <button type="button" className="btn btn-link btn-small" onClick={() => onOpenActivity(logged)}>
               Add details
             </button>

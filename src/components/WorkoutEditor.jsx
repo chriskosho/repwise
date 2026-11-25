@@ -47,11 +47,23 @@ const isBarbell = (name, library) => {
   return hit ? hit.equipment === 'barbell' : /barbell/i.test(name);
 };
 
-function UnitInput({ value, toDisplay, fromDisplay, onValue, ...props }) {
+// Cardio time is typed as minutes ("12", "12.5") or minutes and seconds ("12:30"), and stored as seconds.
+const clockText = (sec) => {
+  const t = Math.round(Number(sec) || 0);
+  return t % 60 === 0 ? String(t / 60) : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+};
+const clockToSeconds = (text) => {
+  if (!text.includes(':')) return Number(text) * 60;
+  const [m, s = ''] = text.split(':');
+  return (Number(m) || 0) * 60 + (Number(s) || 0);
+};
+
+function UnitInput({ value, toDisplay, fromDisplay, parse, chars = /[^0-9.]/g, onValue, ...props }) {
   const show = (v) => (v === '' || v == null || Number(v) === 0 ? '' : String(toDisplay(Number(v))));
   const [text, setText] = useState(() => show(value));
+  const conv = (t) => (parse ? parse(t) : fromDisplay(Number(t)));
   useEffect(() => {
-    const mine = text === '' ? '' : fromDisplay(Number(text));
+    const mine = text === '' ? '' : conv(text);
     if (!(mine === value || (mine === '' && (value === '' || value == null || Number(value) === 0)) || Math.abs(Number(mine) - Number(value)) < 1e-9)) setText(show(value));
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
@@ -60,9 +72,10 @@ function UnitInput({ value, toDisplay, fromDisplay, onValue, ...props }) {
       className="num"
       value={text}
       onChange={(e) => {
-        const t = e.target.value.replace(/[^0-9.]/g, '');
+        const t = e.target.value.replace(chars, '');
         setText(t);
-        onValue(t === '' || Number.isNaN(Number(t)) ? '' : fromDisplay(Number(t)));
+        const v = t === '' ? '' : conv(t);
+        onValue(v === '' || Number.isNaN(v) ? '' : v);
       }}
     />
   );
@@ -83,7 +96,7 @@ function headers(mode, name, unit) {
     case 'stretch':
       return ['Seconds'];
     case 'cardio':
-      return ['Min', longUnit(unit), ...(hasIncline(name) ? ['Incline %'] : [])];
+      return ['Min:sec', longUnit(unit), ...(hasIncline(name) ? ['Incline %'] : [])];
     case 'carry':
       return [unit, shortUnit(unit)];
     default:
@@ -533,7 +546,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
                 const flags = st.done ? prs.bySet.get(st.id) : null;
                 const set = (patch) => updateSet(ex.id, st.id, patch);
                 const secs = { toDisplay: (v) => v, fromDisplay: (v) => v };
-                const mins = { toDisplay: (v) => round2(v / 60), fromDisplay: (v) => v * 60 };
+                const mins = { toDisplay: clockText, fromDisplay: (v) => v * 60, parse: clockToSeconds, chars: /[^0-9.:]/g };
                 const longD = { toDisplay: (v) => round2(kmToLong(v, unit)), fromDisplay: (v) => longToKm(v, unit) };
                 const shortD = { toDisplay: (v) => Math.round(kmToShort(v, unit)), fromDisplay: (v) => shortToKm(v, unit) };
                 const ph = (v, f = (x) => x) => (p && Number(v) ? String(f(v)) : '0');
@@ -575,7 +588,7 @@ export default function WorkoutEditor({ initial, mode, sessions, unit, onFinish,
                       )}
                       {(layout === 'cardio' || layout === 'cardio-incline') && (
                         <>
-                          <UnitInput {...mins} inputMode="decimal" value={st.time} placeholder={ph(p?.time, (v) => round2(v / 60))} aria-label={`Set ${label} minutes`} onValue={(v) => set({ time: v })} />
+                          <UnitInput {...mins} inputMode="decimal" value={st.time} placeholder={ph(p?.time, clockText)} aria-label={`Set ${label} minutes`} title="Minutes, or minutes:seconds like 12:30" onValue={(v) => set({ time: v })} />
                           <UnitInput {...longD} inputMode="decimal" value={st.distance} placeholder={ph(p?.distance, (v) => round2(kmToLong(v, unit)))} aria-label={`Set ${label} distance`} onValue={(v) => set({ distance: v })} />
                         </>
                       )}

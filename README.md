@@ -202,3 +202,6 @@ Shared tokens in `src/styles.css` (`--sp-*` spacing, `--r-ctl`/`--r-card` corner
 
 ## 2.13 Polish
 Type scale tokens `--fs-title`, `--fs-head`, `--fs-body`, `--fs-note` in `src/styles.css` (display numbers such as timers are the only exceptions). Every screen renders one `h1.page-title`; the header brand is not a heading. Week-strip marks come from `DayIcon`/`dayKind` in `src/components/Icons.jsx`. The header sync pill (`.topbar .chip`) is small and quiet; `syncTone()` in `src/App.jsx` makes it `chip-error` or `chip-warn` only when something needs attention. `App` leaves the first-run check undecided (`count === undefined`) until workouts have loaded.
+
+## 2.14 Seconds
+Activity `duration_min` stays a number of minutes and may be fractional (12.5 = 12 min 30 s); `toSeconds`/`fromSeconds`/`fmtDuration` in `src/activities.js` convert and format. Cardio set `time` is seconds; the workout editor's time box takes `12`, `12.5` or `12:30` (`clockToSeconds`). Totals still round to minutes.

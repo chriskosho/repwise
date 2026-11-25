@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { deleteActivity, saveActivity } from '../db';
-import { ACTIVITY_TYPES, typeLabel, distIn, distLabel, distOut, elevationIn, elevationLabel, elevationOut, hasElevation, hasIncline, paceText } from '../activities';
+import { ACTIVITY_TYPES, fromSeconds, toSeconds, typeLabel, distIn, distLabel, distOut, elevationIn, elevationLabel, elevationOut, hasElevation, hasIncline, paceText } from '../activities';
 import PlacePicker from './PlacePicker';
 import ExercisePicker from './ExercisePicker';
 import ExerciseInfo from './ExerciseInfo';
@@ -9,9 +9,10 @@ import { InfoIcon } from './Icons';
 // Log or change a non-gym activity: a run, a ride, a game. Everything is typed in; no GPS.
 export default function ActivityEditor({ initial, isNew, places, unit, favorites = [], onClose }) {
   const [a, setA] = useState(initial);
-  const total = initial.duration_min ?? 0;
-  const [hours, setHours] = useState(total ? String(Math.floor(total / 60)) : '');
-  const [mins, setMins] = useState(total ? String(Math.round(total % 60)) : '');
+  const total = toSeconds(initial.duration_min);
+  const [hours, setHours] = useState(total ? String(Math.floor(total / 3600)) : '');
+  const [mins, setMins] = useState(total ? String(Math.floor((total % 3600) / 60)) : '');
+  const [secs, setSecs] = useState(total ? String(total % 60) : '');
   const [dist, setDist] = useState(initial.distance_km != null ? String(distOut(initial.distance_km, initial.type, unit)) : '');
   const [elev, setElev] = useState(initial.elevation_m != null ? String(elevationOut(initial.elevation_m, unit)) : '');
   const [incline, setIncline] = useState(initial.incline_pct != null ? String(initial.incline_pct) : '');
@@ -24,7 +25,7 @@ export default function ActivityEditor({ initial, isNew, places, unit, favorites
 
   const draft = () => ({
     ...a,
-    duration_min: (Number(hours) || 0) * 60 + (Number(mins) || 0),
+    duration_min: fromSeconds((Number(hours) || 0) * 3600 + (Number(mins) || 0) * 60 + (Number(secs) || 0)),
     distance_km: dist === '' ? null : distIn(dist, a.type, unit),
     elevation_m: elev === '' || !hasElevation(a.type) ? null : elevationIn(elev, unit),
     incline_pct: incline === '' || !hasIncline(a.type) ? null : incline,
@@ -94,6 +95,10 @@ export default function ActivityEditor({ initial, isNew, places, unit, favorites
           <label className="field">
             <span>Minutes</span>
             <input type="number" inputMode="numeric" min="0" max="59" value={mins} onChange={(e) => setMins(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Seconds</span>
+            <input type="number" inputMode="numeric" min="0" max="59" value={secs} onChange={(e) => setSecs(e.target.value)} />
           </label>
         </div>
         <label className="field">
